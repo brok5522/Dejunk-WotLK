@@ -1,8 +1,10 @@
 ## Interface: 30300
-## Title: Dejunk-WotLK (Read-only Foundation)
-## Notes: Phase 1 diagnostics and bag snapshots. No selling, destruction or repair.
+## Title: Dejunk-WotLK (Phase 2)
+## SavedVariables: DejunkWotLKDB
+## Notes: Profiles and lists. No selling, destruction or repair.
 ## Author: Dejunk-WotLK contributors
-## Version: 0.1.0-dev
+## SavedVariables: DejunkWotLKDB
+## Version: 0.2.0-dev
 
 src\namespace.lua
 src\compat\client.lua
@@ -12,4 +14,6 @@ src\core\events.lua
 src\core\scheduler.lua
 src\core\bag-cache.lua
 src\core\diagnostics.lua
+src\store\store.lua
+src\store\store.lua
 src\core\bootstrap.lua

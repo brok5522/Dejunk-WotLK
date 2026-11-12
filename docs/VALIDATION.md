@@ -116,3 +116,6 @@ new addon download is required. Research/document/link validation and whitespace
 checks passed; the last behavioral result remains **44 passed**. No additional
 broad runtime test run was needed for these documentation changes. Phase 2 has
 not started and no inventory operation has been added or executed.
+
+# Phase 2 status
+The owner authorized Phase 2. Versioned storage, profile lifecycle, list edits and import/export previews are implemented on the local branch. Phase 1 results do not validate Phase 2. Phase 2 checks have not been run. Do not install this branch until validation is completed.

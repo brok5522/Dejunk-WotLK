@@ -2,8 +2,8 @@ local addonName, Addon = ...
 
 -- The loader's private table avoids addon-global collisions. No game API here.
 Addon.name = addonName
-Addon.version = "0.1.0-dev"
-Addon.phase = 1
+Addon.version = "0.2.0-dev"
+Addon.phase = 2
 Addon.UNKNOWN = "unknown"
 
 function Addon.Copy(value)

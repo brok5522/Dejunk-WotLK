@@ -3,7 +3,7 @@
 Phase 0 is complete. The owner explicitly authorized Phase 1; its read-only
 implementation and offline checks are ready. Owner-reported original-client
 basic smoke checks succeeded; broader acceptance is **partial**, with explicit
-unobserved cases in docs/CLIENT-ACCEPTANCE.md. Phase 2 is not authorized. Later phases are ordered by dependency; estimates
+unobserved cases in docs/CLIENT-ACCEPTANCE.md. Phase 2 is authorized and in progress. Later phases are ordered by dependency; estimates
 are intentionally withheld until original-client API probes resolve uncertainty.
 Each phase ends with a reviewable PR, updated evidence and owner acceptance.
 No phase implies permission to perform live inventory operations.
@@ -12,7 +12,7 @@ No phase implies permission to perform live inventory operations.
 | --- | --- | --- |
 | 0 — Research and foundation | Pinned upstream and legacy sources, API/dependency audit, architecture, safety policy, roadmap, AGENTS, scaffold, offline CI | Offline checks pass; limitations recorded; owner reviews and approves Phase 1 |
 | 1 — Read-only client foundation (implemented; basic client smoke observed, broader acceptance partial) | Lua 5.1 harness, metadata-only target guard then bootstrap, Interface 30300 TOC, events/scheduler, readonly capability probes, normalized bag snapshots | Wrong builds rejected, nil/uncached/locked cases covered; original 12340 startup and read-only evidence recorded; no mutation adapter enabled |
-| 2 — Store and profiles | Versioned DB, defaults, four lists and import/export parser; profile create/duplicate/switch/rename/reset/delete and character assignment | Copy isolation, corrupt/future schema recovery, restart persistence and multi-character fixtures pass; defaults preserved |
+| 2 — Store, profiles and lists (in progress) | Versioned DB, defaults, four lists and import/export parser; profile create/duplicate/switch/rename/reset/delete and character assignment | Copy isolation, corrupt/future schema recovery, restart persistence and multi-character fixtures pass; defaults preserved |
 | 3 — Rules and preview | Upstream action scopes and precedence plus safety gates; declarative rule groups, explanation codes, equipment/quest/refund/binding protection; preview-only list | Table-driven parity/boundary and conflict cases pass; unknown never eligible; deliberate differences visible; no transaction path |
 | 4 — Safe selling and repair | Mock-first transaction state machine, manual/auto sell, merchant button actions, caps, cancellation and repair; controlled optional real-client tests | All race/timeout/cursor/session scenarios pass in mocks; explicit authorization before disposable-item real tests; no success from slot disappearance alone |
 | 5 — Single-stack destruction | User intent, confirm popup, post-confirmation revalidation and verified cursor handling | Stale/replaced/split/same-ID items and double acceptance blocked; no background destruction; explicit authorization before any real deletion tests |

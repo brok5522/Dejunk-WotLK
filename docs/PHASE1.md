@@ -78,3 +78,6 @@ Lua 5.1 compilation and legacy fixture suite. `tools/package.py` produces only
 the TOC, runtime files, MIT license and a standalone diagnostic README inside
 one Dejunk-WotLK folder. ZIP names/timestamps/permissions are deterministic; the
 script refuses overwrite. Nothing is installed, pushed or published by packaging.
+
+## Phase 2 transition
+The owner authorized Phase 2. Work is underway on `phase-2/store-profiles-lists`; see [PHASE2.md](PHASE2.md). Rules, UI and inventory operations remain outside this phase.

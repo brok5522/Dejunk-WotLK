@@ -13,14 +13,27 @@ function Addon.NewApplication(runtime)
     if app.loaded and app.loggedIn and app.state ~= "READY" and app.client.supported then
       app.state = "READY"
       app.cache:Start()
-      runtime:Print("Read-only foundation ready. /djw report opens diagnostics; /djw help lists commands.")
+      runtime:Print("Phase 2 ready. /djw report opens diagnostics; /djw help lists commands.")
     end
   end
   function app:HandleEvent(event, ...)
     if not self.client.supported or self.state == "STOPPED" then return end
     self.diagnostics:RecordEvent(event, ...)
     if event == "ADDON_LOADED" then
-      if (...) == Addon.name then self.loaded = true; activate() end
+      if (...) == Addon.name then
+        self.loaded = true
+        if type(DejunkWotLKDB) == "table" and DejunkWotLKDB.schemaVersion and
+            DejunkWotLKDB.schemaVersion > Addon.Store.VERSION then
+          self.store = Addon.Store.Initialize(DejunkWotLKDB, nil)
+        else
+          self.store = Addon.Store.Initialize(DejunkWotLKDB, runtime:CharacterKey())
+          if not self.store.readonly then
+            self.store:OnChange(function(state) DejunkWotLKDB = state end)
+            DejunkWotLKDB = self.store:Serialize()
+          end
+        end
+        activate()
+      end
     elseif event == "PLAYER_LOGIN" then
       self.loggedIn = true
       activate()
@@ -78,7 +91,7 @@ function Addon.NewApplication(runtime)
       for _, line in ipairs(self.diagnostics:SlotLines(item)) do runtime:Print(line) end
     else
       runtime:Print("Commands: /djw status | report (copy panel) | probe (chat) | slot <bag> <slot> | help")
-      runtime:Print("Phase 1 reads bags only. Selling, destroying, repair and saved profiles are unavailable.")
+      runtime:Print("Phase 2 stores profiles and lists. Selling, destroying and repair are unavailable.")
     end
   end
 
