@@ -101,6 +101,7 @@ function Harness.New(options)
       if not line:match("^%s*#") and line:match("%S") then
         local path = line:gsub("\\", "/")
         if not (options.skipFiles and options.skipFiles[path]) then
+          if options.beforeFile then options.beforeFile(path,self.addon,env) end
           local chunk = assert(loadfile(path))
           setfenv(chunk, env)("Dejunk-WotLK", self.addon)
         end

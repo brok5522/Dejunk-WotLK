@@ -408,6 +408,8 @@ test("bootstrap supplies rules, preview and config model when standalone modules
   local found=false; for _,line in ipairs(w.messages) do if line:find("GLOBAL_INCLUSION",1,true) then found=true end end
   assert(found); assert(type(w.addon.Rules)=="table"); assert(type(w.addon.Preview)=="table")
   assert(type(w.addon.Config)=="table"); assert(w.addon.Config.Summary(w.app.store):find("Active profile",1,true))
+  local report,counts=w.addon.Preview.Format({{result="JUNK",bag=0,slot=1,itemId=123,count=1,reasonCode="GLOBAL_INCLUSION"}},"SELL")
+  assert(report:find("READ-ONLY SELL PREVIEW",1,true)); equal(counts.JUNK,1)
   assert(w.addon.Config.EditItem(w.app.store,"global","inclusions",6948,true))
   equal(w.addon.Config.ListItems(w.app.store,"global","inclusions"),"123\n6948")
   assert(w.addon.Config.AddRule(w.app.store,{id="fallback",scope="SELL",result="JUNK",match="ALL",predicates={{field="quality",op="EQ",value=0}}}))
@@ -423,6 +425,18 @@ test("bootstrap supplies rules, preview and config model when standalone modules
   equal(#preview.existing,2); equal(#preview.add,1)
   assert(w.addon.Config.CommitListImport(w.app.store,preview))
   equal(w.mutations,0)
+end)
+
+test("bootstrap restores preview formatter for partially updated installs", function()
+  local w=H.New({beforeFile=function(path,addon)
+    if path=="src/core/bootstrap.lua" then
+      addon.Preview={EvaluateSnapshot=function() return {} end}
+    end
+  end})
+  w:Load():Ready()
+  assert(type(w.addon.Preview.Format)=="function")
+  local report,counts=w.addon.Preview.Format({},"DESTROY")
+  assert(report:find("READ-ONLY DESTROY PREVIEW",1,true)); equal(counts.UNKNOWN,0)
 end)
 
 test("all fixture worlds keep mutation sentinels untouched", function()

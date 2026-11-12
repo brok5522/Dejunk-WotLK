@@ -114,6 +114,28 @@ if type(Addon.Preview) ~= "table" or type(Addon.Preview.EvaluateSnapshot) ~= "fu
   end }
 end
 
+-- Retain report rendering when an older installation has the preview evaluator
+-- but predates the formatted-report helper.
+if type(Addon.Preview.Format) ~= "function" then
+  function Addon.Preview.Format(rows,action)
+    action=type(action)=="string" and action:upper() or ""
+    if action~="SELL" and action~="DESTROY" then return nil,"INVALID_ACTION" end
+    if type(rows)~="table" then return nil,"INVALID_PREVIEW" end
+    local counts={JUNK=0,KEEP=0,UNKNOWN=0}
+    local lines={"READ-ONLY "..action.." PREVIEW","No action will be taken.",""}
+    for _,row in ipairs(rows) do
+      local result=counts[row.result]~=nil and row.result or "UNKNOWN"
+      counts[result]=counts[result]+1
+      lines[#lines+1]=result.." | bag "..tostring(row.bag or "?").." slot "..tostring(row.slot or "?")..
+        " | item "..tostring(row.itemId or "unknown").." x"..tostring(row.count or 1)..
+        " | "..tostring(row.reasonCode or "UNKNOWN")
+    end
+    lines[#lines+1]=""
+    lines[#lines+1]="Eligible: "..counts.JUNK.." | Keep: "..counts.KEEP.." | Unknown: "..counts.UNKNOWN
+    return table.concat(lines,"\n"),counts
+  end
+end
+
 -- The configuration model also has a bootstrap fallback for partial installs.
 if type(Addon.Config) ~= "table" or type(Addon.Config.Summary) ~= "function" or
     type(Addon.Config.ToggleQuality) ~= "function" then
