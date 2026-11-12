@@ -247,4 +247,6 @@ The owner later verified the rule editor by creating `test1` (`SELL`, `JUNK`,
 `quality EQ 0`) and running the read-only SELL preview. The matching bag item was
 reported as `JUNK / CUSTOM_RULE`; the preview total ended with `No action taken`.
 The list screen now changes to four simultaneous panes and name/ID filtering;
-offline validation passes, but this layout needs client verification.
+the owner supplied a screenshot showing Hearthstone rendered in the global
+inclusion pane. The newest row-selection and icon behavior still needs client
+verification.

@@ -12,7 +12,7 @@ function Runtime.New(environment)
   local rulesFrame,rulesSummary,ruleIdInput,ruleValueInput,ruleScopeButton,ruleResultButton,ruleFieldButton,ruleOpButton
   local optionsFrame,optionsQualityButtons,optionsFields
   local readingTooltip = false
-  local itemNameCache={}
+  local itemPresentationCache={}
 
   function runtime:Inspect() return Addon.Client.Inspect(api) end
   function runtime:Print(message)
@@ -272,15 +272,31 @@ function Runtime.New(environment)
           {scope="profile",kind="exclusions",title="Exclusions (Profile)",x=365,y=-300}
         }
         for _,pane in ipairs(panes) do
+          local paneScope,paneKind=pane.scope,pane.kind
           local box=api.CreateFrame("Frame",nil,listFrame)
           box:SetWidth(325); box:SetHeight(155); box:SetPoint("TOPLEFT",listFrame,"TOPLEFT",pane.x,pane.y)
           box:EnableMouse(true); box:SetBackdrop({bgFile="Interface\\Tooltips\\UI-Tooltip-Background",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",tile=true,tileSize=16,edgeSize=10,insets={left=3,right=3,top=3,bottom=3}})
           box:SetBackdropColor(0,0,0,0.65)
           local heading=box:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
           heading:SetPoint("TOPLEFT",8,-7); heading:SetText(pane.title)
-          local body=box:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-          body:SetPoint("TOPLEFT",8,-27); body:SetWidth(300); body:SetJustifyH("LEFT")
-          listPanels[#listPanels+1]={scope=pane.scope,kind=pane.kind,body=body}
+          local empty=box:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+          empty:SetPoint("TOPLEFT",8,-30); empty:SetWidth(300); empty:SetJustifyH("LEFT")
+          local rows={}
+          for rowIndex=1,6 do
+            local row=api.CreateFrame("Button",nil,box)
+            row:SetWidth(300); row:SetHeight(19); row:SetPoint("TOPLEFT",8,-27-(rowIndex-1)*20)
+            local icon=row:CreateTexture(nil,"ARTWORK")
+            icon:SetWidth(16); icon:SetHeight(16); icon:SetPoint("LEFT",0,0)
+            local label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+            label:SetPoint("LEFT",icon,"RIGHT",5,0); label:SetWidth(275); label:SetJustifyH("LEFT")
+            row.icon=icon; row.label=label; row:SetScript("OnClick",function()
+              listScopeButton.scope=paneScope; listKindButton.kind=paneKind; listInput:SetText(row.itemId)
+              listScopeButton:SetText("Scope: "..paneScope)
+              listKindButton:SetText(paneKind=="inclusions" and "Inclusions" or "Exclusions")
+            end)
+            rows[#rows+1]=row
+          end
+          listPanels[#listPanels+1]={scope=pane.scope,kind=pane.kind,empty=empty,rows=rows}
         end
         local back=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
         back:SetWidth(110); back:SetHeight(24); back:SetPoint("BOTTOMRIGHT",listFrame,"BOTTOMRIGHT",-20,18); back:SetText("Back")
@@ -295,26 +311,35 @@ function Runtime.New(environment)
       for _,pane in ipairs(listPanels) do
         local raw=callbacks.listItems and callbacks.listItems(pane.scope,pane.kind) or ""
         local nameResolver=query:find("%D") and function(id)
-          if itemNameCache[id] then return itemNameCache[id] end
+          if itemPresentationCache[id] and itemPresentationCache[id].name then return itemPresentationCache[id].name end
           if type(api.GetItemInfo)=="function" then
-            local success,value=pcall(api.GetItemInfo,tonumber(id))
-            if success and type(value)=="string" then itemNameCache[id]=value; return value end
+            local values={pcall(api.GetItemInfo,tonumber(id))}
+            if values[1] and type(values[2])=="string" then
+              itemPresentationCache[id]=itemPresentationCache[id] or {}
+              itemPresentationCache[id].name=values[2]; itemPresentationCache[id].texture=values[11]
+              return values[2]
+            end
           end
         end or nil
         local filtered=Addon.Config.FilterItemIds(raw,query,nameResolver)
-        local shown,total={},#filtered
-        for index,item in ipairs(filtered) do
-          if index>6 then break end
-          local name=item.name or itemNameCache[item.id]
-          if not name and type(api.GetItemInfo)=="function" then
-            local success,value=pcall(api.GetItemInfo,tonumber(item.id))
-            if success and type(value)=="string" then name=value; itemNameCache[item.id]=value end
-          end
-          shown[#shown+1]=name and (name.." (#"..item.id..")") or ("Item #"..item.id)
+        local total=#filtered
+        for index,row in ipairs(pane.rows) do
+          local item=filtered[index]
+          if item then
+            local presentation=itemPresentationCache[item.id] or {}
+            if not presentation.name and type(api.GetItemInfo)=="function" then
+              local values={pcall(api.GetItemInfo,tonumber(item.id))}
+              if values[1] and type(values[2])=="string" then presentation.name=values[2]; presentation.texture=values[11] end
+              itemPresentationCache[item.id]=presentation
+            end
+            row.itemId=item.id; row.label:SetText((presentation.name or item.name or "Item").." (#"..item.id..")")
+            if presentation.texture then row.icon:SetTexture(presentation.texture); row.icon:Show() else row.icon:Hide() end
+            row:Show()
+          else row:Hide() end
         end
-        if #shown==0 then shown[1]=query=="" and "This list is empty." or "No matches." end
-        if total>6 then shown[#shown+1]="... "..(total-6).." more; use /djw lists show "..pane.scope.." "..pane.kind end
-        pane.body:SetText(table.concat(shown,"\n"))
+        pane.empty:SetText(total==0 and (query=="" and "This list is empty." or "No matches.") or
+          (total>6 and ("... "..(total-6).." more; search to narrow or use /djw lists show "..pane.scope.." "..pane.kind) or ""))
+        if total==0 or total>6 then pane.empty:Show() else pane.empty:Hide() end
       end
       listFrame:Show()
     end)
