@@ -1,0 +1,29 @@
+# src/ui
+
+Phase 6 uses the pinned upstream Waffle layout engine from the original Dejunk
+project for the main window and top-level configuration/report windows. The
+interior screens are being migrated; their controls still use legacy-compatible
+native WoW widgets while Waffle handles window creation and layout. Original
+Waffle visual components that depend on APIs absent from 3.3.5a are not copied
+blindly. Target-client verification is still required.
+
+The configuration currently provides profile windows, plus a list editor for
+global/profile inclusions and exclusions in four panes, with search by item ID
+or cached item name. Add/remove uses an item ID; each pane shows six matches at
+a time. Clicking a row selects its ID and its corresponding scope/list for the
+Add or Remove action. Icons and names use cached item metadata when available;
+otherwise the row falls back to its item ID. The Lists page has bulk Import
+and Export controls; imports preview new and existing IDs before the user
+commits them. `/djw lists` remains available as a chat-command fallback.
+SELL and DESTROY previews open a read-only report with one decision per bag
+slot and totals for eligible, kept and unknown items. Closing the report
+returns to the configuration window. The rules screen names the active profile
+and provides an ALL/ANY multi-condition rule draft. Conditions can be added,
+cleared, reviewed and saved as a profile rule; old one-condition entry remains
+available. Removing a rule clears its ID after success and disables Remove
+while the ID field is empty.
+result, field and comparison controls. Poor-quality toggle and item previews
+remain read-only. Options provide quality toggles and item-level/vendor-value
+thresholds. Profile create/duplicate/rename are in the UI; reset/delete require
+confirmation dialogs. Multi-condition groups remain future work; the import
+dialog and copy panel need original-client review.
