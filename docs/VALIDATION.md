@@ -151,3 +151,10 @@ absent (`ContainerFrame.lua:633`). The compatibility adapter now interprets
 successful nil returns accordingly, while failed/missing API reads remain
 unknown. Lua 5.1 checks still pass: **50 behavior and 11 store cases**. New
 client evidence is recorded in `docs/research/CLIENT-12340-05.md`.
+
+The owner then shared the Phase 3 preview output after the compatibility fix:
+one quality-rule match, one no-vendor-value keep, one unknown-binding item,
+seven other occupied keeps, eight empty-slot keeps; totals `eligible=1 keep=14
+unknown=1`. This is read-only classification evidence, not an attempted
+transaction. Exact addon commit is not visible in the screenshot; see
+`docs/research/CLIENT-12340-06.md`.

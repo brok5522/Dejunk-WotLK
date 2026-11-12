@@ -26,6 +26,7 @@ client is modified. Do not include character/account/server names. Commands are
 | Equipment sets, if configured | Correct count; all matching bag item IDs protected conservatively | PARTIAL: count=0; configured-set membership not observed |
 | Legacy UI_ERROR_MESSAGE, merchant and bag events | Report types/arity, e.g. first error argument string; no action on events | PARTIAL: bag/lock events and cache observed; MERCHANT_SHOW/CLOSED have zero args, repeated close harmless in sample; UI_ERROR_MESSAGE pending |
 | Diagnostic report UI | Text selectable/copyable, scrolls, Escape/close work; chat fallback available | PARTIAL: text supplied and chat screenshots; native scroll/close not explicitly confirmed |
+| Phase 3 rules preview | Lists per-slot KEEP/JUNK/UNKNOWN with safety explanations; read-only | OBSERVED by owner: one QUALITY junk result, one BINDING_UNKNOWN, one NO_VENDOR_VALUE, other items kept, empty slots kept; totals 1/14/1. See [evidence 06](research/CLIENT-12340-06.md). Exact addon commit not captured. |
 | Logout/reload behavior | No error; fresh startup, no persistent data | PARTIAL: READY screenshot supplied after reload/status request; full logout and post-reload diagnostics not captured |
 
 Use already-present items and equipment sets; do not move, split, equip, sell,
