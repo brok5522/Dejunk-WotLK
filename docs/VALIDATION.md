@@ -281,5 +281,5 @@ native panel needs original-client verification.
 
 The store suite also verifies that rules and thresholds stay isolated per
 profile across switches and save/reload. Current offline results: 53 behavior,
-14 store, 7 service, 11 destroyer and 62 UI-model cases; Lua 5.1 syntax and
+15 store, 7 service, 11 destroyer and 62 UI-model cases; Lua 5.1 syntax and
 reproducible package checks pass.
