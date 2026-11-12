@@ -112,7 +112,7 @@ function Runtime.New(environment)
     callbacks=callbacks or {}
     local ok=pcall(function()
       if not configFrame then
-        configFrame=api.CreateFrame("Frame","DejunkWotLKConfigWindow",api.UIParent)
+        configFrame=api.CreateFrame("Frame",nil,api.UIParent)
         configFrame:SetWidth(500); configFrame:SetHeight(300); configFrame:SetPoint("CENTER")
         configFrame:SetFrameStrata("DIALOG"); configFrame:EnableMouse(true)
         configFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})

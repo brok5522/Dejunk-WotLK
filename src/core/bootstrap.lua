@@ -114,6 +114,35 @@ if type(Addon.Preview) ~= "table" or type(Addon.Preview.EvaluateSnapshot) ~= "fu
   end }
 end
 
+-- The configuration model also has a bootstrap fallback for partial installs.
+if type(Addon.Config) ~= "table" or type(Addon.Config.Summary) ~= "function" or
+    type(Addon.Config.ToggleQuality) ~= "function" then
+  Addon.Config={}
+  local function count(values)
+    local total=0
+    for _ in pairs(type(values)=="table" and values or {}) do total=total+1 end
+    return total
+  end
+  function Addon.Config.Summary(store)
+    if not store then return "Profile store unavailable." end
+    local profile=store:GetActiveProfile(); local options=profile.options or {}; local quality=options.quality or {}
+    return table.concat({"Active profile: "..tostring(profile.name).." ("..tostring(profile.id)..")",
+      "Poor quality rule: "..(quality[0] and "ON" or "OFF"),
+      "Item level minimum: "..tostring(options.minItemLevel or "off"),
+      "Item level maximum: "..tostring(options.maxItemLevel or "off"),
+      "Maximum stack vendor value (copper): "..tostring(options.maxStackVendorPrice or "off"),
+      "Custom rule groups: "..tostring(#(profile.rules or {})),
+      "Profile inclusions/exclusions: "..count(profile.inclusions).."/"..count(profile.exclusions)},"\n")
+  end
+  function Addon.Config.ToggleQuality(store,quality)
+    if type(quality)~="number" or quality<0 or quality>7 or quality~=math.floor(quality) then return false,"INVALID_OPTION" end
+    local options=store:GetActiveProfile().options or {}
+    local enabled=not (options.quality or {})[quality]
+    local ok,reason=store:SetOption("quality",{quality=quality,enabled=enabled})
+    return ok,reason,enabled
+  end
+end
+
 function Addon.NewApplication(runtime)
   local app = {
     runtime = runtime, client = runtime:Inspect(), state = "WAITING_FOR_LOAD",

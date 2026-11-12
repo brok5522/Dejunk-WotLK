@@ -400,13 +400,14 @@ test("preview command reports read-only rows and invalidated snapshots fail clos
   w:Fire("BAG_UPDATE",0)
   local rows,reason=w.app:Preview("SELL"); equal(#rows,0); equal(reason,"SNAPSHOT_INVALID")
 end)
-test("bootstrap supplies rules and preview when standalone module files are absent", function()
-  local missing={ ["src/rules/evaluator.lua"]=true, ["src/services/preview.lua"]=true }
+test("bootstrap supplies rules, preview and config model when standalone modules are absent", function()
+  local missing={ ["src/rules/evaluator.lua"]=true, ["src/services/preview.lua"]=true, ["src/ui/config.lua"]=true }
   local w=H.New({skipFiles=missing}); w:AddItem(0,1)
   w.api.GetItemInfo=function(link) return "Example",link,0,10,1,"Misc","Junk",20,"","texture",5 end
   w:Load():Ready(); w:Command("lists add global inclusions 123"); w:Command("preview sell")
   local found=false; for _,line in ipairs(w.messages) do if line:find("GLOBAL_INCLUSION",1,true) then found=true end end
   assert(found); assert(type(w.addon.Rules)=="table"); assert(type(w.addon.Preview)=="table")
+  assert(type(w.addon.Config)=="table"); assert(w.addon.Config.Summary(w.app.store):find("Active profile",1,true))
   equal(w.mutations,0)
 end)
 
