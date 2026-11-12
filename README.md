@@ -9,7 +9,8 @@ Phase 1 read-only diagnostics were exercised by the owner. Phase 2 adds persiste
 See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
 
 ## Documentation
-- [Phase 2 design](docs/PHASE2.md) and [Phase 1 client evidence](docs/CLIENT-ACCEPTANCE.md)
+- [Phase 2 Persian install and test guide](docs/PHASE2.fa.md)
+- [Phase 2 design and validation](docs/PHASE2.md)
 - [Phase 1 implementation contracts](docs/PHASE1.md)
 - [Historical Phase 0 Persian report](docs/PHASE0.fa.md)
 - [Upstream analysis](docs/research/UPSTREAM.md)
@@ -22,6 +23,18 @@ See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
 - [Testing strategy](docs/TESTING.md) and [actual validation](docs/VALIDATION.md)
 - [GitHub review and merge guide](docs/REVIEW.fa.md)
 - [Permanent agent instructions](AGENTS.md)
+
+## Phase 2 commands
+
+- `/djw profile list`, `create <name>`, `switch <id>`, `rename <id> <name>`, `reset <id>`, `delete <id>`
+- `/djw lists show <global|profile> <inclusions|exclusions>`
+- `/djw lists add|remove <global|profile> <inclusions|exclusions> <itemID>`
+- `/djw lists import <global|profile> <inclusions|exclusions> <IDs>`
+
+These commands only edit settings and item-ID lists. There is no rule evaluator or
+inventory operation in this phase. Saved settings live in the account-level
+`DejunkWotLKDB` variable; back it up with the game's WTF account folder before
+manual edits or addon removal.
 
 ## Local checks and packaging
 ```sh

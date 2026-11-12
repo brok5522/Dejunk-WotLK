@@ -75,6 +75,39 @@ function Addon.NewApplication(runtime)
     command = command:lower()
     if command == "" or command == "status" then
       runtime:Print(self.state .. " / " .. self.client.reason .. ". Read only; /djw help.")
+    elseif command == "profile" then
+      if not self.store then runtime:Print("Profile store unavailable."); return end
+      local action, args = rest:match("^(%S*)%s*(.-)%s*$"); action = (action or ""):lower()
+      if action == "list" or action == "" then
+        local state=self.store:GetState(); local ids={}; for id in pairs(state.profiles) do ids[#ids+1]=id end; table.sort(ids)
+        runtime:Print("Active profile: " .. self.store:GetActiveProfile().name .. " (" .. self.store:GetActiveProfileId() .. ")")
+        for _,id in ipairs(ids) do runtime:Print(id .. " — " .. state.profiles[id].name) end
+      elseif action == "create" then local id,err=self.store:CreateProfile(args); runtime:Print(id and ("Created "..id) or ("Create failed: "..tostring(err)))
+      elseif action == "switch" then runtime:Print(self.store:SwitchProfile(args) and "Profile switched." or "Unknown profile.")
+      elseif action == "rename" then local id,name=args:match("^(%S+)%s+(.+)$"); runtime:Print(self.store:RenameProfile(id,name) and "Profile renamed." or "Rename failed.")
+      elseif action == "delete" then runtime:Print(self.store:DeleteProfile(args) and "Profile deleted." or "Delete failed; Default is protected.")
+      elseif action == "reset" then runtime:Print(self.store:ResetProfile(args) and "Profile reset." or "Reset failed; Default is protected.")
+      else runtime:Print("Use /djw profile list | create <name> | switch <id> | rename <id> <name> | delete <id> | reset <id>") end
+    elseif command == "lists" then
+      if not self.store then runtime:Print("List store unavailable."); return end
+      local action, scope, kind, args = rest:match("^(%S+)%s+(%S+)%s+(%S+)%s*(.-)%s*$")
+      action,scope,kind=(action or ""):lower(),(scope or ""):lower(),(kind or ""):lower()
+      if action == "show" or action == "export" then
+        local exported=self.store:ExportList(scope,kind)
+        if not exported then runtime:Print("Usage: /djw lists show <global|profile> <inclusions|exclusions>")
+        elseif exported=="" then runtime:Print("List is empty.")
+        else for line in exported:gmatch("[^\n]+") do runtime:Print(line) end end
+      elseif action == "add" or action == "remove" then
+        local id=tonumber(args); local ok,err=self.store:EditList(scope,kind,id,action=="add")
+        runtime:Print(ok and "List updated." or ("List update failed: "..tostring(err)))
+      elseif action == "import" then
+        local preview,err=self.store:ImportPreview(scope,kind,args)
+        if not preview then runtime:Print("Import rejected: "..tostring(err))
+        else
+          local ok,reason=self.store:CommitImport(preview)
+          runtime:Print(ok and ("Imported "..#preview.add.." new IDs; "..#preview.existing.." already present.") or ("Import failed: "..tostring(reason)))
+        end
+      else runtime:Print("Use /djw lists show|add|remove|import <global|profile> <inclusions|exclusions> [IDs]") end
     elseif command == "report" then
       runtime:ShowReport(self.diagnostics:Report(self))
     elseif command == "probe" then
@@ -90,7 +123,7 @@ function Addon.NewApplication(runtime)
       local item = self:ProbeSlot(bag, slot)
       for _, line in ipairs(self.diagnostics:SlotLines(item)) do runtime:Print(line) end
     else
-      runtime:Print("Commands: /djw status | report (copy panel) | probe (chat) | slot <bag> <slot> | help")
+      runtime:Print("Commands: /djw status | report | probe | slot <bag> <slot> | profile | lists | help")
       runtime:Print("Phase 2 stores profiles and lists. Selling, destroying and repair are unavailable.")
     end
   end

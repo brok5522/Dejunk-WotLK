@@ -83,6 +83,7 @@ def main():
     print(f'PASS: actual Lua 5.1 syntax for {len(lua_files)} files', flush=True)
     run([sys.executable, 'tools/check_phase0.py'])
     run([args.lua, 'tests/run.lua'])
+    run([args.lua, 'tests/store-tests.lua'])
     with tempfile.TemporaryDirectory(prefix='dejunk-wotlk-check-') as directory:
         first, second = Path(directory) / 'first.zip', Path(directory) / 'second.zip'
         build(first)
@@ -104,8 +105,8 @@ def main():
             pass
         else:
             raise ValueError('Package command overwrote existing output')
-        print('PASS: reproducible 12-entry ZIP, source content, CRC, layout and overwrite protection')
-    print('NOT RUN: original-client startup, native UI and API evidence (WoW client required)')
+        print('PASS: reproducible ZIP, source content, CRC, layout and overwrite protection')
+    print('NOT RUN: original-client UI evidence (WoW client required)')
 
 
 if __name__ == '__main__':

@@ -42,7 +42,8 @@ function Store.Initialize(saved,character)
   local state,mode,readonly=fresh(),"created",false
   if type(saved)=="table" then
     if type(saved.schemaVersion)=="number" and saved.schemaVersion>Store.VERSION then
-      state,mode,readonly=copy(saved),"future-readonly",true
+      state,mode,readonly=fresh(),"future-readonly",true
+      state.recovery=copy(saved)
     elseif saved.schemaVersion==Store.VERSION then
       mode="loaded"
       if type(saved.global)=="table" then

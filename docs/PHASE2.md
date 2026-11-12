@@ -19,7 +19,7 @@ persistence subscribers receive defensive snapshots.
 List import accepts plain decimal IDs separated by whitespace, comma or
 semicolon, rejects other text and oversized input, and returns a preview.
 Commit rejects stale previews and applies additions atomically. Export sorts IDs.
-No pasted data is evaluated as Lua.
+No pasted data is evaluated as Lua. Slash commands expose the profile lifecycle and direct list edit/import/export operations; these only change settings. There is not yet a complete configuration window.
 
 Phase 2 validation and in-game checks have not been run. Prior Phase 1 results
 do not validate this implementation. This branch is not ready to install pending
