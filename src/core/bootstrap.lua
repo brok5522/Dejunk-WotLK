@@ -70,6 +70,9 @@ function Addon.NewApplication(runtime)
   end
 
   function app:Preview(action)
+    if type(Addon.Preview) ~= "table" or type(Addon.Preview.EvaluateSnapshot) ~= "function" then
+      return {}, "PREVIEW_MODULE_MISSING"
+    end
     local profile = self.store and self.store:GetActiveProfile() or {}
     local settings = {
       profile = profile,

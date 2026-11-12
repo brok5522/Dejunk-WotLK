@@ -399,6 +399,12 @@ test("preview command reports read-only rows and invalidated snapshots fail clos
   w:Fire("BAG_UPDATE",0)
   local rows,reason=w.app:Preview("SELL"); equal(#rows,0); equal(reason,"SNAPSHOT_INVALID")
 end)
+test("missing preview module reports safely instead of raising a Lua error", function()
+  local w=populated():Ready(); local preview=w.addon.Preview; w.addon.Preview=nil
+  w:Command("preview sell")
+  local found=false; for _,line in ipairs(w.messages) do if line:find("PREVIEW_MODULE_MISSING",1,true) then found=true end end
+  assert(found); w.addon.Preview=preview; equal(w.mutations,0)
+end)
 
 test("all fixture worlds keep mutation sentinels untouched", function()
   for _, world in ipairs(H.worlds) do equal(world.mutations, 0) end

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a reproducible Phase 2 addon ZIP; does not publish or install it."""
+"""Build a reproducible read-only addon ZIP; does not publish or install it."""
 import argparse
 from pathlib import Path
 import zipfile
@@ -18,11 +18,11 @@ def build(destination):
             paths.append(path)
     entries = {path.relative_to(ROOT).as_posix(): path.read_bytes() for path in paths}
     entries['README.txt'] = (
-        'Dejunk-WotLK 0.2.0-dev - PROFILES AND LISTS\n'
+        'Dejunk-WotLK 0.3.1-dev - READ-ONLY RULE PREVIEW\n'
         'Original WoW 3.3.5a / build 12340 / Interface 30300 only.\n'
         'Original-client testing is pending; this is not the complete addon.\n'
         'Extract so Interface/AddOns/Dejunk-WotLK/Dejunk-WotLK.toc exists.\n'
-        '/djw status | /djw profile | /djw lists | /djw report\n'
+        '/djw status | /djw profile | /djw lists | /djw rules | /djw preview sell|destroy | /djw report\n'
         'The slot command reads only the chosen bag slot. The report can be copied.\n'
         'Profiles and lists save in account SavedVariables. No selling, deletion, repair or item use.\n'
         'Disable in the AddOns menu or remove only this addon folder to uninstall.\n'

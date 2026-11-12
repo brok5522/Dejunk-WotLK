@@ -135,7 +135,7 @@ sell|destroy`. The preview reports each cached bag slot with KEEP/JUNK/UNKNOWN
 and a stable reason; it refuses an invalidated snapshot. It has no inventory
 mutation path. Rule protection and list precedence have table-driven coverage.
 
-Lua 5.1 validation: **49 behavior cases passed, 0 failed; 11 store cases passed**.
+Lua 5.1 validation: **50 behavior cases passed, 0 failed; 11 store cases passed**.
 All 15 runtime/test Lua files compiled. Source boundary and TOC checks passed;
 deterministic 15-entry ZIP, CRC and overwrite-protection checks passed.
 Original build-12340 verification of the new preview/rule commands is pending.
