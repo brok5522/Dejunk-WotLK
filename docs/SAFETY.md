@@ -2,11 +2,11 @@
 
 Phase 0 shipped no runtime. Phase 1 ships only a read-only adapter, snapshots
 and diagnostics; there are no inventory-mutating functions or SavedVariables.
-The transaction requirements below apply to future phases. Phase 4 adds
-simulation-only seller and repair state machines. They require a fake adapter
-marked `simulation=true`; the runtime has no production transaction adapter and
-does not invoke them. This does not authorize testing on the owner's live
-inventory.
+The transaction requirements below apply to future phases. Phases 4 and 5 add
+simulation-only seller, repair and destruction state machines. They require a
+fake adapter marked `simulation=true`; the runtime has no production transaction
+adapter and does not invoke them. This does not authorize testing on the owner's
+live inventory.
 
 ## Mandatory gates before any sale or deletion
 - Restrict scope to carried bags 0..4; exclude bank, equipped inventory, keyring,

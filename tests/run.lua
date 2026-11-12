@@ -355,6 +355,7 @@ test("rule safety gates keep mandatory protected and unknown data non-junk", fun
   equal(rules.Evaluate(ruleItem({inEquipmentSet="unknown"}),"SELL",{}).result,"UNKNOWN")
   equal(rules.Evaluate(ruleItem({locked="unknown"}),"DESTROY",{}).result,"UNKNOWN")
   equal(rules.Evaluate(ruleItem({refundable=true}),"DESTROY",{}).reasonCode,"REFUNDABLE")
+  equal(rules.Evaluate(ruleItem({quality=5}),"DESTROY",{}).reasonCode,"LEGENDARY_OR_HEIRLOOM")
   equal(rules.Evaluate(ruleItem({equipLoc="INVTYPE_HEAD"}),"SELL",{}).reasonCode,"BINDING_UNKNOWN")
 end)
 test("rule precedence keeps exclusions before custom rules and inclusions", function()

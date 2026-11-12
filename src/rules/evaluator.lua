@@ -40,6 +40,9 @@ function Rules.Evaluate(item, action, settings)
   if item.inEquipmentSet then return decision("KEEP", "EQUIPMENT_SET_ITEM", action) end
   if isUnknown(item.refundable) then return decision("UNKNOWN", "REFUND_UNKNOWN", action) end
   if item.refundable then return decision("KEEP", "REFUNDABLE", action) end
+  if item.quality == 5 or item.quality == 7 then
+    return decision("KEEP", "LEGENDARY_OR_HEIRLOOM", action)
+  end
   if item.equipLoc and item.equipLoc ~= "" and settings.protectUnboundEquipment ~= false then
     if isUnknown(item.bound) then return decision("UNKNOWN", "BINDING_UNKNOWN", action) end
     if item.bound == false then return decision("KEEP", "UNBOUND_EQUIPMENT", action) end

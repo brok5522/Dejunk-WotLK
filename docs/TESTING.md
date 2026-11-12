@@ -38,6 +38,12 @@ JUNK-only sell eligibility, 12 attempts across repeated starts, failed and
 ambiguous evidence, cancellation, and repair capability/funds/once-per-session.
 They are not wired to the WoW runtime.
 
+Phase 5 mock destruction tests cover mandatory confirmation, single-use tokens,
+post-confirmation slot/link/count/generation/settings checks, pre-existing and
+unexpected cursor states, cursor identity after pickup, protected legendary,
+heirloom, unbound and set items, combat changes, and cancellation. The fake
+adapter is the only place that simulates pickup or deletion.
+
 Required behavioral cases:
 - Every rule/action scope, list conflict and precedence, exact thresholds,
   zero/nil prices, whole-stack prices, cloak/type exceptions and no-match keep.

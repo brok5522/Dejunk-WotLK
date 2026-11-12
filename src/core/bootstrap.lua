@@ -61,6 +61,7 @@ if type(Addon.Rules) ~= "table" or type(Addon.Rules.Evaluate) ~= "function" then
       if unknown(value) then return result("UNKNOWN",gate[2],action) end
       if value then return result("KEEP",gate[3],action) end
     end
+    if item.quality==5 or item.quality==7 then return result("KEEP","LEGENDARY_OR_HEIRLOOM",action) end
     if settings.maxItemLevel ~= nil then
       if type(settings.maxItemLevel)~="number" or type(item.itemLevel)~="number" then return result("UNKNOWN","ITEM_LEVEL_UNKNOWN",action) end
       if item.itemLevel>settings.maxItemLevel then return result("KEEP","ABOVE_MAX_ITEM_LEVEL",action) end

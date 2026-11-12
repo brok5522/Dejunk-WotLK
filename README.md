@@ -3,8 +3,8 @@
 Planned recreation of [Dejunk](https://github.com/moody/Dejunk) for the original
 World of Warcraft **3.3.5a / build 12340 / Interface 30300 / Lua 5.1**.
 
-**Status: Phase 4 mock-only seller and repair kernel implemented; not connected to game actions.**
-Phase 1 diagnostics, Phase 2 persistence and Phase 3 preview were exercised by the owner. Phase 4 adds testable seller/repair safety gates using fake adapters only. No game sale, repair, deletion or item use can be triggered.
+**Status: Phase 5 mock-only transaction safety kernels implemented; not connected to game actions.**
+Phase 1 diagnostics, Phase 2 persistence and Phase 3 preview were exercised by the owner. Phases 4–5 add testable seller, repair and confirmed single-stack destruction gates using fake adapters only. No game sale, repair, deletion or item use can be triggered.
 
 See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
 
@@ -12,6 +12,7 @@ See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
 - [Phase 2 Persian install and test guide](docs/PHASE2.fa.md)
 - [Phase 3 Persian install and preview guide](docs/PHASE3.fa.md)
 - [Phase 4 Persian simulation-only guide](docs/PHASE4.fa.md)
+- [Phase 5 Persian simulation-only guide](docs/PHASE5.fa.md)
 - [Phase 2 design and validation](docs/PHASE2.md)
 - [Phase 1 implementation contracts](docs/PHASE1.md)
 - [Historical Phase 0 Persian report](docs/PHASE0.fa.md)

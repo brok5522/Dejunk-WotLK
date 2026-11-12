@@ -167,3 +167,11 @@ checks pass: **50 behavior cases, 11 store cases, 7 service cases**. These cover
 merchant/context gates, stale intent, the 12-attempt cap, ambiguous outcomes,
 cancellation, and once-per-session repair with sufficient funds. Real client
 transactions are not implemented or tested.
+
+# Phase 5 simulation-only destruction
+
+Added one-stack confirmation intent and post-confirmation identity/context
+checks behind a simulation-only adapter. Protected items remain blocked, tokens
+are single-use, and an unexpected cursor is left untouched; there is no
+production delete adapter. Lua 5.1 checks: **50 behavior, 11 store, 7 seller/
+repair, and 11 destroyer cases passed**. No live inventory call was run.
