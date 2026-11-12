@@ -236,15 +236,17 @@ Added eight quality toggles and editable minimum/maximum item levels and
 maximum whole-stack vendor value (copper), where `off` clears a threshold.
 Configuration writes go only through the existing validated profile store;
 no item or merchant API is called. Offline checks are rerun for this revision;
-the in-game Options layout remains to be tested.
+the owner confirmed the Options layout, applied minimum item level `1`, saw it
+persist after `/reload`, and restored it to `off`. No inventory operation was
+performed. The threshold's effect on preview classification is not yet observed.
 
 The completed check for this revision passed: 50 behavior, 11 store, 7 service,
 11 destroyer and 31 UI-model cases; actual Lua 5.1 syntax for 22 files; source
 boundary and documentation checks; deterministic package verification. Prior
 individual panels rendered in owner screenshots; the new four-pane search view
 still needs target-client confirmation.
-The screenshots do not show a threshold being applied; persistence and changed
-preview outcomes remain to be verified in-game.
+Older screenshots did not show a threshold being applied; the later owner
+screenshots now confirm threshold persistence and restoration after reload.
 
 The owner later verified the rule editor by creating `test1` (`SELL`, `JUNK`,
 `quality EQ 0`) and running the read-only SELL preview. The matching bag item was
