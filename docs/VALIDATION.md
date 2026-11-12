@@ -262,5 +262,12 @@ popup-button behavior still needs verification.
 
 The owner verified duplicate, rename, reset and delete actions in-game, and
 profile persistence across reload. Full offline validation for 0.12.0-dev
-passed at that revision. Re-run the checker below for current changes; the new
-list import/export panels still need target-client verification.
+passed at that revision. The owner later confirmed import preview and commit,
+the exported ID text, and return to Lists with Escape in the target client.
+
+## Phase 6 preview report
+
+The SELL and DESTROY buttons open a read-only report panel with one line per
+bag decision, its reason code and totals for JUNK, KEEP and UNKNOWN. Closing the
+panel restores Configuration. The report formatter has unit coverage; the new
+native panel needs original-client verification.

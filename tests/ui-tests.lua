@@ -56,9 +56,20 @@ eq(Addon.Config.ListItems(store,"global","exclusions"),"50\n60")
 local stale=Addon.Config.PreviewListImport(store,"global","exclusions","70")
 eq(Addon.Config.EditItem(store,"global","exclusions",80,true),true)
 eq(Addon.Config.CommitListImport(store,stale),false)
+local report,totals=Addon.Preview.Format({
+  {result="JUNK",bag=0,slot=2,itemId=99,count=3,reasonCode="CUSTOM_RULE"},
+  {result="KEEP",bag=0,slot=3,itemId=100,count=1,reasonCode="NO_RULE_MATCH"}
+},"sell")
+eq(report:find("READ-ONLY SELL PREVIEW",1,true)~=nil,true)
+eq(report:find("No action will be taken.",1,true)~=nil,true)
+eq(report:find("JUNK | bag 0 slot 2 | item 99 x3 | CUSTOM_RULE",1,true)~=nil,true)
+eq(report:find("Eligible: 1 | Keep: 1 | Unknown: 0",1,true)~=nil,true)
+eq(totals.JUNK,1); eq(totals.KEEP,1); eq(totals.UNKNOWN,0)
+local invalid,invalidReason=Addon.Preview.Format({},"SELLER")
+eq(invalid,nil); eq(invalidReason,"INVALID_ACTION")
 -- The fixture rejects named native frames; runtime must fall back to chat help.
 w:Ready(); w:Command("config")
 local found=false
 for _,line in ipairs(w.messages) do if line:find("Configuration panel unavailable",1,true) then found=true end end
 assert(found); eq(w.mutations,0)
-print("UI MODEL RESULT: 47 passed")
+print("UI MODEL RESULT: 56 passed")

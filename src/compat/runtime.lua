@@ -10,7 +10,7 @@ function Runtime.New(environment)
   local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
   local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listPanels
   local importFrame,importTitle,importEdit,importStatus,importCommitButton,importPreview,importScope,importKind
-  local reportReturnsToLists=false
+  local reportReturnTarget
   local rulesFrame,rulesSummary,ruleIdInput,ruleValueInput,ruleScopeButton,ruleResultButton,ruleFieldButton,ruleOpButton
   local optionsFrame,optionsQualityButtons,optionsFields
   local readingTooltip = false
@@ -352,9 +352,7 @@ function Runtime.New(environment)
         export:SetScript("OnClick",function()
           local scope=listScopeButton.scope or "global"; local kind=listKindButton.kind or "inclusions"
           local text=callbacks.listItems and callbacks.listItems(scope,kind) or ""
-          reportReturnsToLists=true
-          listFrame:Hide()
-          self:ShowReport(text=="" and "" or text,"List export: "..scope.." "..kind)
+          self:ShowReport(text=="" and "List is empty." or text,"List export: "..scope.." "..kind,"lists")
         end)
         local import=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
         import:SetWidth(90); import:SetHeight(24); import:SetPoint("LEFT",export,"RIGHT",8,0); import:SetText("Import")
@@ -653,7 +651,14 @@ function Runtime.New(environment)
   end
 
   -- A diagnostic copy panel, not the configuration UI planned for Phase 6.
-  function runtime:ShowReport(text,titleText)
+  function runtime:CloseReport()
+    if reportFrame then reportFrame:Hide() end
+    if reportReturnTarget=="lists" and listFrame then listFrame:Show()
+    elseif reportReturnTarget=="config" and configFrame then configFrame:Show() end
+    reportReturnTarget=nil
+  end
+
+  function runtime:ShowReport(text,titleText,returnTarget)
     local ok = pcall(function()
       if not reportFrame then
         local panel = api.CreateFrame("Frame", "DejunkWotLKReadOnlyReport", api.UIParent)
@@ -665,23 +670,20 @@ function Runtime.New(environment)
         reportTitle=title
         local close = api.CreateFrame("Button", nil, panel, "UIPanelCloseButton")
         close:SetPoint("TOPRIGHT", -4, -4)
-        close:SetScript("OnClick", function()
-          panel:Hide()
-          if reportReturnsToLists and listFrame then listFrame:Show(); reportReturnsToLists=false end
-        end)
+        close:SetScript("OnClick", function() self:CloseReport() end)
         local scroll = api.CreateFrame("ScrollFrame", "DejunkWotLKReadOnlyReportScroll", panel, "UIPanelScrollFrameTemplate")
         scroll:SetPoint("TOPLEFT", 20, -45); scroll:SetPoint("BOTTOMRIGHT", -40, 20)
         local edit = api.CreateFrame("EditBox", nil, scroll)
         edit:SetMultiLine(true); edit:SetAutoFocus(false); edit:SetFontObject(api.ChatFontNormal)
         edit:SetWidth(530); edit:SetHeight(340)
-        edit:SetScript("OnEscapePressed", function()
-          panel:Hide()
-          if reportReturnsToLists and listFrame then listFrame:Show(); reportReturnsToLists=false end
-        end)
+        edit:SetScript("OnEscapePressed", function() self:CloseReport() end)
         scroll:SetScrollChild(edit)
         reportFrame, reportEdit = panel, edit
       end
       local _, newlines = text:gsub("\n", "")
+      reportReturnTarget=returnTarget
+      if returnTarget=="lists" and listFrame then listFrame:Hide()
+      elseif returnTarget=="config" and configFrame then configFrame:Hide() end
       reportTitle:SetText((titleText or "Dejunk-WotLK diagnostics").." | Ctrl+A, Ctrl+C to copy | Escape to close")
       reportEdit:SetHeight(math.max(340, (newlines + 1) * 16))
       reportEdit:SetText(text)

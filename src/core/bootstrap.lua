@@ -334,7 +334,16 @@ function Addon.NewApplication(runtime)
       removeRule=function(id) return Addon.Config.RemoveRule(self.store,id) end,
       options=function() return Addon.Config.GetOptions(self.store) end,
       setOption=function(key,value) return Addon.Config.SetOption(self.store,key,value) end,
-      preview=function(action) self:Command("preview "..action) end
+      preview=function(action)
+        local requested=type(action)=="string" and action:upper() or ""
+        if requested~="SELL" and requested~="DESTROY" then runtime:Print("Preview unavailable: INVALID_ACTION"); return end
+        if self.state~="READY" then runtime:Print("Preview unavailable: "..self.state); return end
+        local rows,reason=self:Preview(requested)
+        if reason then runtime:Print("Preview unavailable: "..tostring(reason)); return end
+        local report,counts=Addon.Preview.Format(rows,requested)
+        if not report then runtime:Print("Preview unavailable: "..tostring(counts)); return end
+        runtime:ShowReport(report,"Read-only preview: "..requested,"config")
+      end
     })
   end
 

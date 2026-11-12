@@ -8,7 +8,10 @@ Add or Remove action. Icons and names use cached item metadata when available;
 otherwise the row falls back to its item ID. The Lists page has bulk Import
 and Export controls; imports preview new and existing IDs before the user
 commits them. `/djw lists` remains available as a chat-command fallback.
-The rules screen creates/removes single-predicate profile rules with action,
+SELL and DESTROY previews open a read-only report with one decision per bag
+slot and totals for eligible, kept and unknown items. Closing the report
+returns to the configuration window. The rules screen creates/removes
+single-predicate profile rules with action,
 result, field and comparison controls. Poor-quality toggle and item previews
 remain read-only. Options provide quality toggles and item-level/vendor-value
 thresholds. Profile create/duplicate/rename are in the UI; reset/delete require
