@@ -11,11 +11,18 @@ local function object(kind,name,parent,template)
   function frame:SetWidth(value) self.width=value end
   function frame:SetHeight(value) self.height=value end
   function frame:SetPoint(...) self.point={...} end
+  function frame:ClearAllPoints() self.point=nil end
+  function frame:SetParent(parent) self.parent=parent end
   function frame:SetFrameStrata(value) self.strata=value end
+  function frame:SetMovable(value) self.movable=value end
+  function frame:RegisterForDrag(...) self.dragButtons={...} end
+  function frame:StartMoving() self.moving=true end
+  function frame:StopMovingOrSizing() self.moving=false end
   function frame:EnableMouse(value) self.mouse=value end
   function frame:EnableKeyboard(value) self.keyboard=value end
   function frame:SetBackdrop(value) self.backdrop=value end
   function frame:SetBackdropColor(...) self.backdropColor={...} end
+  function frame:SetBackdropBorderColor(...) self.borderColor={...} end
   function frame:SetAutoFocus(value) self.autoFocus=value end
   function frame:SetMaxLetters(value) self.maxLetters=value end
   function frame:SetNumeric(value) self.numeric=value end
@@ -23,6 +30,8 @@ local function object(kind,name,parent,template)
   function frame:SetTextColor(...) self.textColor={...} end
   function frame:SetTextInsets(...) self.textInsets={...} end
   function frame:SetJustifyH(value) self.justify=value end
+  function frame:SetJustifyV(value) self.justifyV=value end
+  function frame:SetWordWrap(value) self.wordWrap=value end
   function frame:SetMultiLine(value) self.multiline=value end
   function frame:SetScrollChild(child) self.scrollChild=child end
   function frame:SetScrollChildRect() end
@@ -97,6 +106,9 @@ local function lastChild(parent,kind,template)
   end
   error("missing child control")
 end
+local function namedFrame(name)
+  for _,frame in ipairs(uiFrames) do if frame.name==name then return frame end end
+end
 local function editBox(width)
   for _,frame in ipairs(uiFrames) do if frame.kind=="EditBox" and frame.width==width then return frame end end
   error("missing edit box width "..tostring(width))
@@ -108,6 +120,7 @@ local function summaryText()
 end
 
 runtime:ShowRules(callbacks)
+assert(namedFrame("DejunkWotLKRules"),"rules window did not use the Waffle window factory")
 local actionButton=control("Button","Action: SELL")
 actionButton:Click(); assert(control("Button","Action: DESTROY"))
 actionButton:Click(); assert(control("Button","Action: BOTH"))
@@ -173,6 +186,7 @@ local listCallbacks={
   commitListImport=function(preview) return listStore:CommitImport(preview) end
 }
 runtime:ShowLists(listCallbacks)
+assert(namedFrame("DejunkWotLKLists"),"lists window did not use the Waffle window factory")
 local listFrame
 for _,frame in ipairs(uiFrames) do if frame.kind=="Frame" and frame.width==720 then listFrame=frame end end
 assert(listFrame and listFrame.shown)
@@ -180,12 +194,14 @@ control("Button","Export"):Click()
 local report=uiFrames[#uiFrames]
 while report and report.name~="DejunkWotLKReadOnlyReport" do report=report.parent end
 assert(report and report.shown and listFrame.shown==false)
+assert(namedFrame("DejunkWotLKReadOnlyReport"),"report window did not use the Waffle window factory")
 local exported=lastControl("EditBox","6948")
 assert(exported.focused and exported.highlighted)
 lastControl("Button",nil,"UIPanelCloseButton"):Click()
 assert(listFrame.shown==true)
 
 control("Button","Import"):Click()
+assert(namedFrame("DejunkWotLKListImport"),"import window did not use the Waffle window factory")
 assert(listFrame.shown==false)
 local importInput
 for _,frame in ipairs(uiFrames) do if frame.kind=="EditBox" and frame.width==455 then importInput=frame end end
@@ -205,11 +221,16 @@ runtime:ShowConfig({
   end
 })
 local configFrame
-for _,frame in ipairs(uiFrames) do if frame.kind=="Frame" and frame.width==500 then configFrame=frame end end
+configFrame=namedFrame("DejunkWotLK_MainWindow")
 assert(configFrame and configFrame.shown)
+for _,message in ipairs(messages) do assert(not message:find("Waffle configuration UI failed",1,true)) end
 control("Button","Preview SELL"):Click()
 assert(configFrame.shown==false)
 lastChild(report,"Button","UIPanelCloseButton"):Click()
 assert(configFrame.shown==true)
+runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function() return "default" end})
+assert(namedFrame("DejunkWotLKProfiles"),"profiles window did not use the Waffle window factory")
+runtime:ShowOptions({options=function() return {quality={}} end})
+assert(namedFrame("DejunkWotLKOptions"),"options window did not use the Waffle window factory")
 
 print("UI INTERACTION RESULT: rules, list import/export and report return flows passed")

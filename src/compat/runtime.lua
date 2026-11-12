@@ -136,7 +136,7 @@ function Runtime.New(environment)
   function runtime:ShowConfig(callbacks)
     callbacks=callbacks or {}
     if Addon.Waffle then
-      local ok=pcall(function()
+      local ok,waffleError=pcall(function()
         if not configWaffleRoot then
           local function button(parent,label,onClick)
             return {width=168,height=32,frameFactory=function(owner)
@@ -154,6 +154,7 @@ function Runtime.New(environment)
           end
           configWaffleRoot=Addon.Waffle:Flex({
             width=800,height=640,direction="COLUMN",visibility="GONE",
+            defaultFrameFactory=function(parent) return api.CreateFrame("Frame",nil,parent) end,
             frameFactory=function()
               local panel=api.CreateFrame("Frame", "DejunkWotLK_MainWindow", api.UIParent)
               panel:SetFrameStrata("DIALOG"); panel:EnableMouse(true); panel:SetMovable(true)
@@ -194,15 +195,15 @@ function Runtime.New(environment)
           controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Preview SELL",function() if callbacks.preview then callbacks.preview("sell") end end)))
           controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Preview DESTROY",function() if callbacks.preview then callbacks.preview("destroy") end end)))
         end
-        configSummary:SetText(callbacks.summary and callbacks.summary() or "Settings unavailable.")
         configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
         configFrame=configWaffleRoot:GetFrame()
+        configSummary:SetText(callbacks.summary and callbacks.summary() or "Settings unavailable.")
         if configFrame and poorButton and poorButton.SetText and callbacks.poorEnabled then
           poorButton:SetText(callbacks.poorEnabled() and "Disable Poor rule" or "Enable Poor rule")
         end
       end)
       if ok then return end
-      self:Print("Original Waffle configuration UI could not be opened; using the built-in fallback.")
+      self:Print("Original Waffle configuration UI failed: "..tostring(waffleError).."; using the built-in fallback.")
     end
     local ok=pcall(function()
       if not configFrame then
