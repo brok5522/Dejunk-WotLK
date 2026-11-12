@@ -275,3 +275,8 @@ The SELL and DESTROY buttons open a read-only report panel with one line per
 bag decision, its reason code and totals for JUNK, KEEP and UNKNOWN. Closing the
 panel restores Configuration. The report formatter has unit coverage; the new
 native panel needs original-client verification.
+
+The store suite also verifies that rules and thresholds stay isolated per
+profile across switches and save/reload. Current offline results: 51 behavior,
+13 store, 7 service, 11 destroyer and 58 UI-model cases; Lua 5.1 syntax and
+reproducible package checks pass.
