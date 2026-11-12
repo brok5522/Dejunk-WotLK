@@ -2,7 +2,7 @@
 
 ## Scope and approval
 - Target only the original World of Warcraft **3.3.5a, build 12340, Interface 30300, Lua 5.1**. Wrath Classic is a different API and is not evidence of compatibility.
-- The owner has explicitly directed continuing phase by phase, including Phase 5. Implement mock-only destruction intent, confirmation and revalidation services. Do not connect them to real WoW APIs or invoke them against a live character. Keep sale, repair and destruction simulation-only until the owner reviews the code and separately authorizes a real-client operation test.
+- The owner has explicitly directed continuing phase by phase. The current work adds configuration UI only; keep seller, repair and destruction simulation-only. Do not connect transaction services to real WoW APIs or invoke them against a live character until the owner reviews the code and separately authorizes a real-client operation test.
 - Never perform destructive inventory operations during development or verification. Do not connect automation to a live character's inventory. Use mocks and read-only probes. Future real-client transaction tests require separate explicit authorization and disposable items.
 - Do not publish releases, merge PRs, or enable automatic merging without owner authorization. Preserve existing user changes.
 

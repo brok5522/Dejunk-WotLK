@@ -175,3 +175,11 @@ checks behind a simulation-only adapter. Protected items remain blocked, tokens
 are single-use, and an unexpected cursor is left untouched; there is no
 production delete adapter. Lua 5.1 checks: **50 behavior, 11 store, 7 seller/
 repair, and 11 destroyer cases passed**. No live inventory call was run.
+
+# Phase 6 configuration interface foundation
+
+Added `/djw config`, a native-frame window with active-profile/rule summary,
+Poor-quality rule toggle and read-only SELL/DESTROY previews. Configuration
+logic is pure and unit-tested; native frame behavior has not been verified in
+the original client. Lua 5.1 checks: **50 behavior, 11 store, 7 seller/repair,
+11 destroyer, and 4 UI-model cases passed**. No transaction adapter was added.

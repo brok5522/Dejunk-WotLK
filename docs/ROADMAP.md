@@ -2,7 +2,8 @@
 
 Phases 0, 1 and 2 are complete; the owner also verified Phase 3 preview output.
 Phases 4 and 5 mock-only seller, repair and destruction kernels are implemented
-and tested. No transaction code is connected to live game APIs.
+and tested. Phase 6 configuration UI has started; no transaction code is
+connected to live game APIs.
 Broader acceptance is **partial**, with explicit unobserved cases in
 docs/CLIENT-ACCEPTANCE.md. Later phases are ordered by dependency; estimates
 are intentionally withheld until original-client API probes resolve uncertainty.
@@ -17,7 +18,7 @@ No phase implies permission to perform live inventory operations.
 | 3 — Rules and preview (implemented; client observed) | Action scopes and precedence plus safety gates; declarative profile rules, explanation codes, equipment/quest/refund/binding protection; read-only bag preview | 50 behavior cases, 11 store cases pass; owner observed 1 JUNK, 1 UNKNOWN, 14 KEEP; no transaction path |
 | 4 — Safe selling and repair (simulation only) | Mock-only transaction kernel; stale identity/settings rejection, repeated-start 12-attempt session cap, ambiguity handling, merchant/context cancellation, mock repair gates | 7 service cases plus other suites pass; no production adapter or inventory call; explicit authorization needed before real-client tests |
 | 5 — Single-stack destruction (simulation only) | Frozen one-stack intent, mandatory confirmation callback, identity/generation/settings revalidation, cursor identity check; no live adapter | 11 destroyer cases pass for stale/split/replaced items, expiration, empty cursor, unexpected cursor and double confirmation; no real delete call or client test |
-| 6 — Complete UI and integrations | All config screens, profiles, searchable lists and import/export, custom rule builder, junk/loot frames, tooltips, bag icons, minimap, commands/bindings, public query/events API | Every backlog row below has UI and behavioral evidence; localization/focus/scroll/combat checks; default bag mapping proven; third-party versions individually tested |
+| 6 — Complete UI and integrations (in progress) | Native configuration window foundation, profile settings summary, quality toggle and read-only preview buttons; remaining screens listed below | Offline configuration model checks pass; native 3.3.5 UI verification and profiles/lists/rule editor remain pending |
 | 7 — Release candidate | Performance limits, diagnostics, full regression, upgrade/recovery docs, packaging/license manifest, install/user docs, release checklist | Actual 12340 acceptance recorded; clean Lua 5.1 checks and tests; correct single-folder ZIP; owner approves publication separately |
 
 ## Feature acceptance backlog

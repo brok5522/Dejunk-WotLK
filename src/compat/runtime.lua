@@ -6,7 +6,7 @@ Addon.Runtime = Runtime
 function Runtime.New(environment)
   local api = environment or _G
   local runtime = { registration = {} }
-  local frame, update, scanTooltip, reportFrame, reportEdit
+  local frame, update, scanTooltip, reportFrame, reportEdit, configFrame, configSummary, poorButton
   local readingTooltip = false
 
   function runtime:Inspect() return Addon.Client.Inspect(api) end
@@ -105,6 +105,44 @@ function Runtime.New(environment)
       frame:SetScript("OnUpdate", nil)
       frame:SetScript("OnEvent", nil)
       frame:UnregisterAllEvents()
+    end
+  end
+
+  function runtime:ShowConfig(callbacks)
+    callbacks=callbacks or {}
+    local ok=pcall(function()
+      if not configFrame then
+        configFrame=api.CreateFrame("Frame","DejunkWotLKConfigWindow",api.UIParent)
+        configFrame:SetWidth(500); configFrame:SetHeight(300); configFrame:SetPoint("CENTER")
+        configFrame:SetFrameStrata("DIALOG"); configFrame:EnableMouse(true)
+        configFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
+        local title=configFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
+        title:SetPoint("TOPLEFT",20,-18); title:SetText("Dejunk-WotLK | Configuration and preview")
+        local close=api.CreateFrame("Button",nil,configFrame,"UIPanelCloseButton")
+        close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() configFrame:Hide() end)
+        configSummary=configFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+        configSummary:SetPoint("TOPLEFT",24,-58); configSummary:SetWidth(450); configSummary:SetJustifyH("LEFT")
+        local function button(label,x,y,handler)
+          local control=api.CreateFrame("Button",nil,configFrame,"UIPanelButtonTemplate")
+          control:SetWidth(142); control:SetHeight(24); control:SetPoint("BOTTOMLEFT",configFrame,"BOTTOMLEFT",x,y)
+          control:SetText(label); control:SetScript("OnClick",handler); return control
+        end
+        poorButton=button("Toggle Poor quality",22,20,function()
+          if callbacks.togglePoor then callbacks.togglePoor() end
+          self:ShowConfig(callbacks)
+        end)
+        button("Preview SELL",178,20,function() if callbacks.preview then callbacks.preview("sell") end end)
+        button("Preview DESTROY",334,20,function() if callbacks.preview then callbacks.preview("destroy") end end)
+      end
+      configSummary:SetText(callbacks.summary and callbacks.summary() or "Settings unavailable.")
+      if poorButton and poorButton.SetText and callbacks.poorEnabled then
+        poorButton:SetText(callbacks.poorEnabled() and "Disable Poor rule" or "Enable Poor rule")
+      end
+      configFrame:Show()
+    end)
+    if not ok then
+      self:Print("Configuration panel unavailable; use /djw rules and /djw preview sell|destroy.")
+      if callbacks.summary then self:Print(callbacks.summary()) end
     end
   end
 

@@ -127,7 +127,7 @@ function Addon.NewApplication(runtime)
     if app.loaded and app.loggedIn and app.state ~= "READY" and app.client.supported then
       app.state = "READY"
       app.cache:Start()
-      runtime:Print("Phase 4 ready (simulation services only). /djw report opens diagnostics; /djw help lists commands.")
+      runtime:Print("Phase 6 ready. Configuration and inventory previews are read-only; /djw help lists commands.")
     end
   end
   function app:HandleEvent(event, ...)
@@ -194,6 +194,24 @@ function Addon.NewApplication(runtime)
       protectUnboundEquipment = true
     }
     return Addon.Preview.EvaluateSnapshot(self.cache:GetSnapshot(), settings, action)
+  end
+
+  function app:OpenConfig()
+    local function profile()
+      return self.store and self.store:GetActiveProfile() or nil
+    end
+    runtime:ShowConfig({
+      summary=function() return Addon.Config.Summary(self.store) end,
+      poorEnabled=function()
+        local current=profile()
+        return current and current.options and current.options.quality and current.options.quality[0]==true or false
+      end,
+      togglePoor=function()
+        local ok,reason,enabled=Addon.Config.ToggleQuality(self.store,0)
+        runtime:Print(ok and ("Poor quality rule "..(enabled and "enabled." or "disabled.")) or ("Rule update failed: "..tostring(reason)))
+      end,
+      preview=function(action) self:Command("preview "..action) end
+    })
   end
 
   function app:Command(input)
@@ -271,6 +289,8 @@ function Addon.NewApplication(runtime)
         runtime:Print("Use /djw rules list | quality <0-7> on|off | minlevel|maxlevel|maxprice <value|off>")
         runtime:Print("Custom: /djw rules add <id> <SELL|DESTROY|BOTH> <JUNK|KEEP> <ALL|ANY> <itemId|quality|itemLevel|unitVendorPrice|count> <EQ|LT|GT> <number>")
       end
+    elseif command == "config" then
+      self:OpenConfig()
     elseif command == "report" then
       runtime:ShowReport(self.diagnostics:Report(self))
     elseif command == "preview" then
@@ -302,7 +322,7 @@ function Addon.NewApplication(runtime)
       local item = self:ProbeSlot(bag, slot)
       for _, line in ipairs(self.diagnostics:SlotLines(item)) do runtime:Print(line) end
     else
-      runtime:Print("Commands: /djw status | report | probe | slot <bag> <slot> | preview sell|destroy | rules | profile | lists | help")
+      runtime:Print("Commands: /djw status | config | report | probe | slot <bag> <slot> | preview sell|destroy | rules | profile | lists | help")
       runtime:Print("Preview is read-only. Selling, destroying and repair are unavailable.")
     end
   end

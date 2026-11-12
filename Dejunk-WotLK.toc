@@ -1,9 +1,9 @@
 ## Interface: 30300
-## Title: Dejunk-WotLK (Phase 5 Simulation)
+## Title: Dejunk-WotLK (Phase 6 Configuration Preview)
 ## SavedVariables: DejunkWotLKDB
-## Notes: Simulation-only transaction safety. No in-game actions are connected.
+## Notes: Settings and inventory previews only. Transaction services are simulated.
 ## Author: Dejunk-WotLK contributors
-## Version: 0.5.0-dev
+## Version: 0.6.0-dev
 
 src\namespace.lua
 src\compat\client.lua
@@ -19,4 +19,5 @@ src\services\preview.lua
 src\services\seller.lua
 src\services\repair.lua
 src\services\destroyer.lua
+src\ui\config.lua
 src\core\bootstrap.lua
