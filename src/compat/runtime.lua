@@ -10,6 +10,7 @@ function Runtime.New(environment)
   local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
   local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listPanels
   local importFrame,importTitle,importEdit,importStatus,importCommitButton,importPreview,importScope,importKind
+  local reportReturnsToLists=false
   local rulesFrame,rulesSummary,ruleIdInput,ruleValueInput,ruleScopeButton,ruleResultButton,ruleFieldButton,ruleOpButton
   local optionsFrame,optionsQualityButtons,optionsFields
   local readingTooltip = false
@@ -351,6 +352,8 @@ function Runtime.New(environment)
         export:SetScript("OnClick",function()
           local scope=listScopeButton.scope or "global"; local kind=listKindButton.kind or "inclusions"
           local text=callbacks.listItems and callbacks.listItems(scope,kind) or ""
+          reportReturnsToLists=true
+          listFrame:Hide()
           self:ShowReport(text=="" and "" or text,"List export: "..scope.." "..kind)
         end)
         local import=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
@@ -662,13 +665,19 @@ function Runtime.New(environment)
         reportTitle=title
         local close = api.CreateFrame("Button", nil, panel, "UIPanelCloseButton")
         close:SetPoint("TOPRIGHT", -4, -4)
-        close:SetScript("OnClick", function() panel:Hide() end)
+        close:SetScript("OnClick", function()
+          panel:Hide()
+          if reportReturnsToLists and listFrame then listFrame:Show(); reportReturnsToLists=false end
+        end)
         local scroll = api.CreateFrame("ScrollFrame", "DejunkWotLKReadOnlyReportScroll", panel, "UIPanelScrollFrameTemplate")
         scroll:SetPoint("TOPLEFT", 20, -45); scroll:SetPoint("BOTTOMRIGHT", -40, 20)
         local edit = api.CreateFrame("EditBox", nil, scroll)
         edit:SetMultiLine(true); edit:SetAutoFocus(false); edit:SetFontObject(api.ChatFontNormal)
         edit:SetWidth(530); edit:SetHeight(340)
-        edit:SetScript("OnEscapePressed", function() panel:Hide() end)
+        edit:SetScript("OnEscapePressed", function()
+          panel:Hide()
+          if reportReturnsToLists and listFrame then listFrame:Show(); reportReturnsToLists=false end
+        end)
         scroll:SetScrollChild(edit)
         reportFrame, reportEdit = panel, edit
       end

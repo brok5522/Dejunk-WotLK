@@ -216,7 +216,8 @@ Added a native list screen for adding/removing numeric IDs and browsing global
 or active-profile inclusions/exclusions. Import accepts whitespace, comma,
 semicolon or newline-separated IDs, previews new versus existing entries, and
 commits only after an explicit click; edits invalidate the preview. Export
-opens a copyable report panel. The display shows up to six matches per pane.
+opens a copyable report panel after hiding Lists; closing it returns to Lists.
+The display shows up to six matches per pane.
 No inventory APIs were added. This new import/export dialog needs client
 verification; previous list controls were observed in-game.
 
