@@ -325,6 +325,23 @@ test("reported 12340 nil flags and zero purchase returns remain unknown", functi
   equal(slot.unitVendorPrice, 0); equal(slot.inEquipmentSet, false)
 end)
 
+-- Evidence 02 distinguishes a successful zero-return call from a one-nil tuple.
+test("reported zero-return empty slot stays empty without item metadata reads", function()
+  local w = H.New(); w.sizes[0] = 16
+  w.api.GetContainerItemInfo = function() end
+  local itemReads = 0
+  w.api.GetItemInfo = function() itemReads = itemReads + 1; error("unexpected metadata read") end
+  w.api.GetContainerItemQuestInfo = function() itemReads = itemReads + 1; error("unexpected") end
+  w.api.GetContainerItemPurchaseInfo = function() itemReads = itemReads + 1; error("unexpected") end
+  w:Load():Ready()
+  local item = w.app:ProbeSlot(0, 16)
+  equal(item.state, "EMPTY"); equal(item.containerShape, "0:")
+  equal(item.itemId, nil); equal(item.reason, nil); equal(item.itemInfoShape, nil)
+  equal(item.questShape, nil); equal(item.purchaseShape, nil)
+  equal(itemReads, 0); equal(w.tooltipReads, 0)
+  equal(w.app.cache:GetSnapshot().valid, true)
+end)
+
 test("all fixture worlds keep mutation sentinels untouched", function()
   for _, world in ipairs(H.worlds) do equal(world.mutations, 0) end
 end)

@@ -88,3 +88,17 @@ suite was rerun: **43 passed, zero failures**; TOC, boundary, documentation link
 syntax and deterministic package checks passed. Historical 42-case results above
 refer to the initial Phase 1 implementation. No new addon download is required
 for this documentation/test-only follow-up.
+
+## Follow-up 02: empty-slot and event evidence
+The owner's second report confirms EMPTY for bag 0 slot 16 with a successful
+zero-return container call, current cache generation 21, eight occupied slots
+and zero callback errors. BAG_UPDATE and ITEM_LOCK_CHANGED/LOCKED/UNLOCKED
+payload shapes were delivered in the real-client history. A later READY
+screenshot responded to the reload/status request; the reload command sequence
+itself was not captured. See [evidence 02](research/CLIENT-12340-02.md).
+
+Added a zero-return empty-slot regression case: empty probes must not query
+metadata, quest/refund APIs or binding tooltips. **44 Lua 5.1 cases passed, zero
+failures**; syntax, source boundary, documentation and ZIP checks also passed.
+No runtime changes; no new download required. Remaining client checks are listed
+in the acceptance table, and Phase 2 remains unauthorized.
