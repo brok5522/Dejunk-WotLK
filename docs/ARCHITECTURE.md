@@ -1,8 +1,9 @@
 # Proposed architecture
 
 Status: phases 1 and 2 are implemented. Phase 3 adds the pure evaluator and
-read-only preview; transaction design remains proposed. No inventory operation
-is authorized or implemented.
+read-only preview; the upstream Waffle layout engine is pinned for the phase 6
+UI migration. Transaction design remains simulation-only; no inventory operation
+is authorized or connected to live APIs.
 
 ## Boundaries and flow
 ```mermaid

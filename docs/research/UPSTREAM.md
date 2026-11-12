@@ -8,6 +8,17 @@ missing WOW_PROJECT globals, direct nil == nil comparisons can even select
 multiple project flags as true; the port must identify the build explicitly.
 Immutable links and evidence anchors are in [SOURCES.md](SOURCES.md).
 
+## UI framework adoption
+
+The WotLK port vendors the upstream Waffle 0.12.2 layout engine from the pinned
+Dejunk revision above at `libs/Waffle.lua`; SHA-256:
+`bd668fb59160f4f9bc4b2b13298c7ca93cbad9be017892b21eac089a3015d396`.
+Its MIT notice is preserved in `libs/Waffle-LICENSE.txt`. The engine is Lua
+layout code and uses the legacy `CreateFrame` API. The WotLK shell currently uses
+Waffle for the primary settings window; the upstream screens/components and
+modern-only integration layers have not yet been ported. Do not claim complete
+upstream UI parity or original-client compatibility until those stages pass.
+
 ## Existing architecture
 | Source area | Observed responsibility | Port treatment |
 | --- | --- | --- |

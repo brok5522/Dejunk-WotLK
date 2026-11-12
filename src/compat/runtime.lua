@@ -7,6 +7,7 @@ function Runtime.New(environment)
   local api = environment or _G
   local runtime = { registration = {} }
   local frame, update, scanTooltip, reportFrame, reportEdit, reportTitle, configFrame, configSummary, poorButton
+  local configWaffleRoot
   local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
   local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listPanels
   local importFrame,importTitle,importEdit,importStatus,importCommitButton,importPreview,importScope,importKind
@@ -118,6 +119,75 @@ function Runtime.New(environment)
 
   function runtime:ShowConfig(callbacks)
     callbacks=callbacks or {}
+    if Addon.Waffle then
+      local ok=pcall(function()
+        if not configWaffleRoot then
+          local function button(parent,label,onClick)
+            return {width=168,height=32,frameFactory=function(owner)
+              local control=api.CreateFrame("Button",nil,owner,"UIPanelButtonTemplate")
+              control:SetText(label); control:SetScript("OnClick",onClick)
+              return control
+            end}
+          end
+          local function text(parent,label,height)
+            return {height=height or 24,frameFactory=function(owner)
+              local region=owner:CreateFontString(nil,"ARTWORK","GameFontNormal")
+              region:SetJustifyH("LEFT"); region:SetText(label)
+              return region
+            end}
+          end
+          configWaffleRoot=Addon.Waffle:Flex({
+            width=800,height=640,direction="COLUMN",visibility="GONE",
+            frameFactory=function()
+              local panel=api.CreateFrame("Frame", "DejunkWotLK_MainWindow", api.UIParent)
+              panel:SetFrameStrata("DIALOG"); panel:EnableMouse(true); panel:SetMovable(true)
+              panel:RegisterForDrag("LeftButton")
+              panel:SetScript("OnDragStart",function(self) self:StartMoving() end)
+              panel:SetScript("OnDragStop",function(self) self:StopMovingOrSizing() end)
+              panel:SetPoint("CENTER"); panel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1,insets={left=1,right=1,top=1,bottom=1}})
+              panel:SetBackdropColor(0.08,0.08,0.08,0.96); panel:SetBackdropBorderColor(0.45,0.45,0.45,1)
+              panel:Hide(); return panel
+            end
+          })
+          local title=configWaffleRoot:AddRow({height=38,padding=10,justify="SPACE_BETWEEN",frameFactory=function(parent)
+            local bar=api.CreateFrame("Frame",nil,parent); bar:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); bar:SetBackdropColor(0.16,0.16,0.16,1); return bar
+          end})
+          title:AddChild(text(nil,"Dejunk | Configuration",30))
+          title:AddChild({width=28,height=28,frameFactory=function(parent)
+            local close=api.CreateFrame("Button",nil,parent,"UIPanelCloseButton")
+            close:SetScript("OnClick",function() configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout() end)
+            return close
+          end})
+          local content=configWaffleRoot:AddRow({grow=1,padding=12,gap=12})
+          local nav=content:AddColumn({width=185,gap=6})
+          local main=content:AddColumn({grow=1,padding=10,gap=8,frameFactory=function(parent)
+            local panel=api.CreateFrame("Frame",nil,parent); panel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1,insets={left=1,right=1,top=1,bottom=1}}); panel:SetBackdropColor(0,0,0,0.45); panel:SetBackdropBorderColor(0.32,0.32,0.32,1); return panel
+          end})
+          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Overview",function() end)))
+          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Profiles",function() configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout(); self:ShowProfiles(callbacks) end)))
+          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Lists",function() configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout(); self:ShowLists(callbacks) end)))
+          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Rules",function() configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout(); self:ShowRules(callbacks) end)))
+          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Options",function() configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout(); self:ShowOptions(callbacks) end)))
+          main:AttachComponent(Addon.Waffle:Flex(text(nil,"Active profile and safe preview",28)))
+          main:AttachComponent(Addon.Waffle:Flex(text(nil,"Settings and inventory previews are read-only. No item action will be taken.",46)))
+          main:AttachComponent(Addon.Waffle:Flex({height=26,frameFactory=function(parent)
+            configSummary=parent:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall"); configSummary:SetJustifyH("LEFT"); configSummary:SetWordWrap(true); return configSummary
+          end}))
+          local controls=main:AddRow({height=34,gap=8,wrap=true})
+          controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Toggle Poor quality",function() if callbacks.togglePoor then callbacks.togglePoor() end; self:ShowConfig(callbacks) end)))
+          controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Preview SELL",function() if callbacks.preview then callbacks.preview("sell") end end)))
+          controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Preview DESTROY",function() if callbacks.preview then callbacks.preview("destroy") end end)))
+        end
+        configSummary:SetText(callbacks.summary and callbacks.summary() or "Settings unavailable.")
+        configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
+        configFrame=configWaffleRoot:GetFrame()
+        if configFrame and poorButton and poorButton.SetText and callbacks.poorEnabled then
+          poorButton:SetText(callbacks.poorEnabled() and "Disable Poor rule" or "Enable Poor rule")
+        end
+      end)
+      if ok then return end
+      self:Print("Original Waffle configuration UI could not be opened; using the built-in fallback.")
+    end
     local ok=pcall(function()
       if not configFrame then
         configFrame=api.CreateFrame("Frame",nil,api.UIParent)

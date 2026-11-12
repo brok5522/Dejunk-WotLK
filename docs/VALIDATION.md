@@ -285,3 +285,21 @@ profile across switches and save/reload. Current offline results: 53 behavior,
 fixture also exercised rule selectors, invalid/maximum conditions, add/remove,
 clear draft, profile isolation, list import/export, and report return navigation.
 Lua 5.1 syntax and reproducible package checks pass.
+
+## Original UI framework migration — 0.16.0-dev
+
+Pinned Waffle 0.12.2 from upstream Dejunk commit
+`04bafd5e411441ef5b51bb8ed10d208f2d7758f5` and loaded it before the runtime.
+The primary configuration shell now uses Waffle layout composition; the
+upstream MIT notice is packaged and the vendored source SHA-256 is checked by
+`tools/check.py`. The individual screens still use the existing port and have
+not yet been migrated to upstream components. Original-client rendering of
+this shell is NOT RUN.
+
+Validation command: `python3 tools/check.py --lua /workspace/work/lua51/usr/bin/lua5.1 --luac /workspace/work/lua51/usr/bin/luac5.1`.
+Result: 54 behavior, 15 store, 7 service, 11 destroyer, 62 UI model and the
+existing interactive fixture passed; the fixture does not instantiate Waffle.
+Lua 5.1 syntax passed for 24 files; pinned-source
+digest, license presence, TOC order, read-only boundary, documentation and
+reproducible 21-entry ZIP checks passed. `git diff --check` passed. No game
+transaction was invoked. The original 3.3.5a client check remains outstanding.

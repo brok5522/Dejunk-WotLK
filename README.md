@@ -3,9 +3,9 @@
 Planned recreation of [Dejunk](https://github.com/moody/Dejunk) for the original
 World of Warcraft **3.3.5a / build 12340 / Interface 30300 / Lua 5.1**.
 
-**Status: Phase 6 configuration UI in progress; profile lifecycle, multi-condition rules, thresholds, searchable lists, reviewed bulk import/export and readable preview reports are implemented.**
+**Status: Phase 6 UI migration in progress for original WoW 3.3.5a.** The pinned upstream Waffle layout engine is now loaded for the main configuration window; the individual settings screens are still being migrated and must be checked in the original client.
 The upstream Poor-quality junk default is enabled automatically for new profiles; the rule editor is for additional custom conditions, not required setup.
-The owner has verified the configuration, profile selection, four-pane list view, row selection, item name/icon rendering, rule preview and Options windows in the target client. `/djw help` lists chat commands; `/djw config` provides settings, quality controls, read-only previews, profile controls, the four-pane list browser, an ALL/ANY multi-condition rule editor, and level/price thresholds. Seller, repair and destruction remain simulation-only and no game transaction can be triggered.
+Earlier screenshots verified several configuration screens and read-only previews, but those screens were built for this port and are not the original Dejunk UI. The migration now starts from the pinned upstream Waffle engine; do not treat the new shell as fully client-verified. Seller, repair and destruction remain simulation-only and no game transaction can be triggered.
 
 See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
 For everyday use, see the [short Persian usage guide](docs/USAGE.fa.md).

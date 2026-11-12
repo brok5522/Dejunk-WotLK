@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Validate the Phase 1 read-only addon with an actual Lua 5.1 toolchain."""
 import argparse
+import hashlib
 from pathlib import Path
 import re
 import shutil
@@ -53,15 +54,20 @@ def main():
     if len(load_order) != len(set(load_order)):
         raise ValueError('Duplicate TOC entry')
     expected = [
-        'src/namespace.lua', 'src/compat/client.lua', 'src/compat/legacy.lua',
+        'src/namespace.lua', 'libs/Waffle.lua', 'src/compat/client.lua', 'src/compat/legacy.lua',
         'src/compat/runtime.lua', 'src/core/events.lua', 'src/core/scheduler.lua',
         'src/core/bag-cache.lua', 'src/core/diagnostics.lua', 'src/store/store.lua',
         'src/rules/evaluator.lua', 'src/services/preview.lua', 'src/services/seller.lua',
         'src/services/repair.lua', 'src/services/destroyer.lua', 'src/ui/config.lua', 'src/core/bootstrap.lua',
     ]
     if load_order != expected:
-        raise ValueError('Unexpected Phase 1 TOC load order; review the boundary before extending it')
-    if set(load_order) != {p.relative_to(ROOT).as_posix() for p in (ROOT / 'src').rglob('*.lua')}:
+        raise ValueError('Unexpected TOC load order; review the runtime and vendored UI boundary')
+    if hashlib.sha256((ROOT / 'libs/Waffle.lua').read_bytes()).hexdigest() != 'bd668fb59160f4f9bc4b2b13298c7ca93cbad9be017892b21eac089a3015d396':
+        raise ValueError('Pinned upstream Waffle source digest changed')
+    if not (ROOT / 'libs/Waffle-LICENSE.txt').is_file():
+        raise ValueError('Vendored Waffle license notice is missing')
+    source_files = {p.relative_to(ROOT).as_posix() for p in (ROOT / 'src').rglob('*.lua')}
+    if set(load_order) - {'libs/Waffle.lua'} != source_files:
         raise ValueError('Runtime files missing from TOC or unauthorized module added')
     if re.search(r'^## Version: (.+)$', text, re.M).group(1) not in (ROOT / 'src/namespace.lua').read_text():
         raise ValueError('TOC/code version mismatch')
@@ -79,7 +85,7 @@ def main():
                          r'GetNumEquipmentSets|GetEquipmentSet\w+|DEFAULT_CHAT_FRAME|GameTooltip)\b', source):
                 raise ValueError(f'Game access outside compat: {entry}')
     print(f'PASS: Interface 30300, {len(load_order)} ordered runtime files and read-only API boundary', flush=True)
-    lua_files = sorted((ROOT / 'src').rglob('*.lua')) + sorted((ROOT / 'tests').rglob('*.lua'))
+    lua_files = sorted((ROOT / 'src').rglob('*.lua')) + sorted((ROOT / 'tests').rglob('*.lua')) + [ROOT / 'libs/Waffle.lua']
     for path in lua_files:
         run([args.luac, '-p', str(path)])
     print(f'PASS: actual Lua 5.1 syntax for {len(lua_files)} files', flush=True)
@@ -99,10 +105,11 @@ def main():
         with zipfile.ZipFile(first) as archive:
             expected_entries = {'Dejunk-WotLK/' + entry for entry in load_order}
             expected_entries.update({'Dejunk-WotLK/Dejunk-WotLK.toc',
-                                     'Dejunk-WotLK/LICENSE', 'Dejunk-WotLK/README.txt'})
+                                     'Dejunk-WotLK/LICENSE', 'Dejunk-WotLK/README.txt',
+                                     'Dejunk-WotLK/libs/Waffle-LICENSE.txt'})
             if set(archive.namelist()) != expected_entries or archive.testzip() is not None:
                 raise ValueError('ZIP content/layout/CRC check failed')
-            for entry in load_order + ['Dejunk-WotLK.toc', 'LICENSE']:
+            for entry in load_order + ['Dejunk-WotLK.toc', 'LICENSE', 'libs/Waffle-LICENSE.txt']:
                 if archive.read('Dejunk-WotLK/' + entry) != (ROOT / entry).read_bytes():
                     raise ValueError(f'Packaged file mismatch: {entry}')
         try:
