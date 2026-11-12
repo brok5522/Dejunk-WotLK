@@ -634,8 +634,12 @@ function Runtime.New(environment)
     local lines={"Rules for active profile: "..tostring(profileName)}
     for i,rule in ipairs(rules) do
       if i>5 then lines[#lines+1]="... use /djw rules list for remaining rules"; break end
-      local predicate=rule.predicates and rule.predicates[1] or {}
-      lines[#lines+1]=rule.id.." | "..rule.scope.." | "..rule.result.." | "..tostring(predicate.field).." "..tostring(predicate.op).." "..tostring(predicate.value)
+      local predicates={}
+      for _,predicate in ipairs(rule.predicates or {}) do
+        predicates[#predicates+1]=tostring(predicate.field).." "..tostring(predicate.op).." "..tostring(predicate.value)
+      end
+      local joiner=rule.match=="ANY" and " OR " or " AND "
+      lines[#lines+1]=rule.id.." | "..rule.scope.." | "..rule.result.." | "..table.concat(predicates,joiner)
     end
     if #rules==0 then lines[#lines+1]="No custom rules yet." end
     if #ruleDraftPredicates>0 then

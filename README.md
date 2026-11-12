@@ -5,7 +5,7 @@ World of Warcraft **3.3.5a / build 12340 / Interface 30300 / Lua 5.1**.
 
 **Status: Phase 6 configuration UI in progress; profile lifecycle, multi-condition rules, thresholds, searchable lists, reviewed bulk import/export and readable preview reports are implemented.**
 The upstream Poor-quality junk default is enabled automatically for new profiles; the rule editor is for additional custom conditions, not required setup.
-The owner has verified the configuration, profile selection, four-pane list view, row selection, item name/icon rendering, rule preview and Options windows in the target client. `/djw config` provides settings, quality controls, read-only previews, profile controls (create, duplicate, rename, reset and delete), the four-pane list browser, a basic custom-rule editor, and level/price thresholds. Seller, repair and destruction remain simulation-only and no game transaction can be triggered.
+The owner has verified the configuration, profile selection, four-pane list view, row selection, item name/icon rendering, rule preview and Options windows in the target client. `/djw help` lists chat commands; `/djw config` provides settings, quality controls, read-only previews, profile controls, the four-pane list browser, an ALL/ANY multi-condition rule editor, and level/price thresholds. Seller, repair and destruction remain simulation-only and no game transaction can be triggered.
 
 See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
 

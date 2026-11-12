@@ -436,8 +436,11 @@ function Addon.NewApplication(runtime)
         local profile=self.store:GetActiveProfile(); local options=profile.options or {}
         runtime:Print("Active rules for "..profile.name..": "..#(profile.rules or {}))
         for _,rule in ipairs(profile.rules or {}) do
-          local predicate=rule.predicates[1]
-          runtime:Print(rule.id.." "..rule.scope.." "..rule.result.." "..rule.match.." "..predicate.field.." "..predicate.op.." "..predicate.value)
+          local predicates={}
+          for _,predicate in ipairs(rule.predicates or {}) do
+            predicates[#predicates+1]=tostring(predicate.field).." "..tostring(predicate.op).." "..tostring(predicate.value)
+          end
+          runtime:Print(rule.id.." "..rule.scope.." "..rule.result.." "..rule.match.." "..table.concat(predicates,rule.match=="ANY" and " OR " or " AND "))
         end
         runtime:Print("Item level min/max: "..tostring(options.minItemLevel or "off").."/"..tostring(options.maxItemLevel or "off").."; max stack copper: "..tostring(options.maxStackVendorPrice or "off"))
         runtime:Print("Quality indexes enabled (0-7): "..table.concat((function() local values={} for i=0,7 do if options.quality and options.quality[i] then values[#values+1]=tostring(i) end end return values end)(),","))
@@ -459,6 +462,12 @@ function Addon.NewApplication(runtime)
         local profiles=Addon.Config.ListProfiles(self.store)
         for _,profile in ipairs(profiles or {}) do runtime:Print((profile.active and "* " or "  ")..profile.id.." — "..profile.name) end
       else runtime:Print("Use /djw profiles list | create <name> | switch <id>") end
+    elseif command == "help" then
+      runtime:Print("Config: /djw config | Profiles: /djw profiles list | /djw profiles create <name> | /djw profiles switch <id>")
+      runtime:Print("Lists: /djw lists show <global|profile> <inclusions|exclusions> | add/remove <scope> <list> <ID> | import <scope> <list> <IDs>")
+      runtime:Print("Rules: /djw rules list | quality <0-7> on|off | minlevel|maxlevel|maxprice <value|off>")
+      runtime:Print("Single rule: /djw rules add <id> <SELL|DESTROY|BOTH> <JUNK|KEEP> <ALL|ANY> <field> <EQ|LT|GT> <number>; use Config > Rules for multi-condition rules.")
+      runtime:Print("Read-only: /djw preview sell|destroy | /djw slot <bag> <slot> | /djw report. No selling, destroying or repair is connected.")
     elseif command == "report" then
       runtime:ShowReport(self.diagnostics:Report(self))
     elseif command == "preview" then
@@ -490,8 +499,7 @@ function Addon.NewApplication(runtime)
       local item = self:ProbeSlot(bag, slot)
       for _, line in ipairs(self.diagnostics:SlotLines(item)) do runtime:Print(line) end
     else
-      runtime:Print("Commands: /djw status | config | profiles list|create|switch | report | probe | slot <bag> <slot> | preview sell|destroy | rules | profile | lists | help")
-      runtime:Print("Preview is read-only. Selling, destroying and repair are unavailable.")
+      runtime:Print("Unknown command. Use /djw help for the command guide.")
     end
   end
 

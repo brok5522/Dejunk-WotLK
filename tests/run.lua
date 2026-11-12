@@ -406,6 +406,21 @@ test("custom ALL and ANY rules handle multiple predicates and uncertainty", func
   result=rules.Evaluate(item,"SELL",settings)
   equal(result.result,"UNKNOWN"); equal(result.reasonCode,"RULE_DATA_UNKNOWN")
 end)
+test("help documents multi-condition rules and chat listing shows every predicate", function()
+  local w=populated():Ready()
+  assert(w.app.store:AddRule({id="help-rule",scope="BOTH",result="KEEP",match="ALL",predicates={
+    {field="itemId",op="EQ",value=123},{field="quality",op="EQ",value=0}}}))
+  w:Command("rules list")
+  local found=false
+  for _,line in ipairs(w.messages) do
+    if line:find("help-rule BOTH KEEP ALL itemId EQ 123 AND quality EQ 0",1,true) then found=true end
+  end
+  assert(found)
+  w:Command("help")
+  found=false
+  for _,line in ipairs(w.messages) do if line:find("Config > Rules for multi-condition rules",1,true) then found=true end end
+  assert(found)
+end)
 test("preview command reports read-only rows and invalidated snapshots fail closed", function()
   local w=H.New(); w:AddItem(0,1)
   w.api.GetItemInfo=function(link) return "Example",link,0,10,1,"Localized Class","Localized Subclass",20,"","texture",5 end
