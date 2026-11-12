@@ -195,3 +195,12 @@ lists. Reset and deletion remain on the existing profile commands. Ran
 50 behavior, 11 store, 7 service, 11 destroyer and 10 UI model cases passed;
 read-only boundary, docs, and reproducible ZIP checks passed. Original-client
 profile-window behavior remains **NOT RUN** pending owner testing.
+
+## Phase 6 profile-window layout correction
+
+Owner-provided screenshot showed the configuration and profile windows centered
+on top of each other. Updated navigation to hide the config window while the
+profile picker is open; added a scrollable profile list and a Back button. The
+owner also supplied a later READY/SUPPORTED_READ_ONLY status screenshot after
+closing the panel, with no error reported. Original-client layout evidence for
+the correction remains pending.

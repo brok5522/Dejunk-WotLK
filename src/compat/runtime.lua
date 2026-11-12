@@ -7,7 +7,7 @@ function Runtime.New(environment)
   local api = environment or _G
   local runtime = { registration = {} }
   local frame, update, scanTooltip, reportFrame, reportEdit, configFrame, configSummary, poorButton
-  local profileFrame,profileSummary,profileNameBox,profileList,profileButtons
+  local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
   local readingTooltip = false
 
   function runtime:Inspect() return Addon.Client.Inspect(api) end
@@ -134,7 +134,10 @@ function Runtime.New(environment)
         end)
         button("Preview SELL",178,20,function() if callbacks.preview then callbacks.preview("sell") end end)
         button("Preview DESTROY",334,20,function() if callbacks.preview then callbacks.preview("destroy") end end)
-        button("Profiles",178,54,function() self:ShowProfiles(callbacks) end)
+        button("Profiles",178,54,function()
+          configFrame:Hide()
+          self:ShowProfiles(callbacks)
+        end)
       end
       configSummary:SetText(callbacks.summary and callbacks.summary() or "Settings unavailable.")
       if poorButton and poorButton.SetText and callbacks.poorEnabled then
@@ -153,19 +156,20 @@ function Runtime.New(environment)
     local ok=pcall(function()
       if not profileFrame then
         profileFrame=api.CreateFrame("Frame",nil,api.UIParent)
-        profileFrame:SetWidth(360); profileFrame:SetHeight(300); profileFrame:SetPoint("CENTER")
+        profileFrame:SetWidth(420); profileFrame:SetHeight(360); profileFrame:SetPoint("CENTER")
         profileFrame:SetFrameStrata("DIALOG"); profileFrame:EnableMouse(true)
         profileFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
         local title=profileFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
         title:SetPoint("TOPLEFT",18,-18); title:SetText("Dejunk-WotLK | Profiles")
         local close=api.CreateFrame("Button",nil,profileFrame,"UIPanelCloseButton")
         close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() profileFrame:Hide() end)
-        profileList=api.CreateFrame("Frame",nil,profileFrame); profileButtons={}
-        profileList:SetPoint("TOPLEFT",profileFrame,"TOPLEFT",20,-48); profileList:SetWidth(320); profileList:SetHeight(175)
         profileSummary=profileFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-        profileSummary:SetPoint("TOPLEFT",22,-50); profileSummary:SetWidth(310); profileSummary:SetJustifyH("LEFT")
+        profileSummary:SetPoint("TOPLEFT",22,-50); profileSummary:SetWidth(360); profileSummary:SetJustifyH("LEFT")
+        profileScroll=api.CreateFrame("ScrollFrame",nil,profileFrame,"UIPanelScrollFrameTemplate")
+        profileScroll:SetPoint("TOPLEFT",22,-72); profileScroll:SetPoint("BOTTOMRIGHT",-40,95)
+        profileList=api.CreateFrame("Frame",nil,profileScroll); profileList:SetWidth(335); profileList:SetHeight(175); profileScroll:SetScrollChild(profileList); profileButtons={}
         profileNameBox=api.CreateFrame("EditBox",nil,profileFrame,"InputBoxTemplate")
-        profileNameBox:SetWidth(190); profileNameBox:SetHeight(24); profileNameBox:SetPoint("BOTTOMLEFT",profileFrame,"BOTTOMLEFT",24,55)
+        profileNameBox:SetWidth(190); profileNameBox:SetHeight(24); profileNameBox:SetPoint("BOTTOMLEFT",profileFrame,"BOTTOMLEFT",24,52)
         profileNameBox:SetAutoFocus(false); profileNameBox:SetMaxLetters(32); profileNameBox:SetScript("OnEscapePressed",function() profileNameBox:ClearFocus() end)
         local create=api.CreateFrame("Button",nil,profileFrame,"UIPanelButtonTemplate")
         create:SetWidth(100); create:SetHeight(24); create:SetPoint("LEFT",profileNameBox,"RIGHT",8,0); create:SetText("Create")
@@ -176,17 +180,16 @@ function Runtime.New(environment)
           self:ShowProfiles(callbacks)
         end)
         local refresh=api.CreateFrame("Button",nil,profileFrame,"UIPanelButtonTemplate")
-        refresh:SetWidth(120); refresh:SetHeight(24); refresh:SetPoint("BOTTOM",profileFrame,"BOTTOM",0,18); refresh:SetText("Refresh")
-        refresh:SetScript("OnClick",function() self:ShowProfiles(callbacks) end)
+        refresh:SetWidth(110); refresh:SetHeight(24); refresh:SetPoint("BOTTOMRIGHT",profileFrame,"BOTTOMRIGHT",-18,16); refresh:SetText("Back")
+        refresh:SetScript("OnClick",function() profileFrame:Hide(); self:ShowConfig(callbacks) end)
       end
       local profiles=callbacks.profiles and callbacks.profiles() or {}
       local row=0
       for _,child in ipairs(profileButtons) do child:Hide() end
       profileButtons={}
       for index,profile in ipairs(profiles) do
-        if index>6 then break end
         local button=api.CreateFrame("Button",nil,profileList,"UIPanelButtonTemplate")
-        button:SetWidth(300); button:SetHeight(22); button:SetPoint("TOPLEFT",profileList,"TOPLEFT",0,-row*25)
+        button:SetWidth(315); button:SetHeight(24); button:SetPoint("TOPLEFT",profileList,"TOPLEFT",0,-row*28)
         button:SetText((profile.active and "[ACTIVE] " or "")..profile.name.."  ("..profile.id..")")
         button:SetScript("OnClick",function()
           local switched,reason=callbacks.switchProfile and callbacks.switchProfile(profile.id)
@@ -196,7 +199,8 @@ function Runtime.New(environment)
         profileButtons[#profileButtons+1]=button
         row=row+1
       end
-      profileSummary:SetText(#profiles>6 and "Select a profile. For more, use /djw profiles list." or "Select a profile to activate it:")
+      profileList:SetHeight(math.max(175,row*28))
+      profileSummary:SetText("Select a profile to activate it:")
       profileFrame:Show()
     end)
     if not ok then self:Print("Profiles window unavailable; use /djw profiles list|create|switch.") end
