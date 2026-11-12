@@ -415,6 +415,8 @@ test("bootstrap supplies rules, preview and config model when standalone modules
   assert(w.addon.Config.RemoveRule(w.app.store,"fallback"))
   assert(w.addon.Config.SetOption(w.app.store,"minItemLevel",10))
   equal(w.addon.Config.GetOptions(w.app.store).minItemLevel,10)
+  local filtered=w.addon.Config.FilterItemIds("123\n6948","94")
+  equal(#filtered,1); equal(filtered[1].id,"6948")
   equal(w.mutations,0)
 end)
 

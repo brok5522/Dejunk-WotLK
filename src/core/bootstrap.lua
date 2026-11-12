@@ -185,6 +185,16 @@ if type(Addon.Config) ~= "table" or type(Addon.Config.Summary) ~= "function" or
     if not store then return nil,"STORE_UNAVAILABLE" end
     return store:GetActiveProfile().options or {}
   end
+  function Addon.Config.FilterItemIds(raw,query,resolveName)
+    raw=type(raw)=="string" and raw or ""; query=type(query)=="string" and query:lower() or ""
+    local result={}
+    for id in raw:gmatch("%d+") do
+      local name
+      if type(resolveName)=="function" then local ok,value=pcall(resolveName,id); if ok and type(value)=="string" then name=value end end
+      if query=="" or id:find(query,1,true) or (name and name:lower():find(query,1,true)) then result[#result+1]={id=id,name=name} end
+    end
+    return result
+  end
 end
 
 function Addon.NewApplication(runtime)

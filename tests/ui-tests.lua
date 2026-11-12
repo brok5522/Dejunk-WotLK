@@ -33,9 +33,15 @@ eq(Addon.Config.SetOption(store,"maxItemLevel",0),true)
 eq(Addon.Config.GetOptions(store).maxItemLevel,0)
 eq(Addon.Config.SetOption(store,"maxStackVendorPrice",-1),false)
 eq(Addon.Config.SetOption(store,"maxItemLevel",nil),true)
+local filtered=Addon.Config.FilterItemIds("123\n6948\n2080","94")
+eq(#filtered,1); eq(filtered[1].id,"6948")
+filtered=Addon.Config.FilterItemIds("123\n6948","sword",function() return "Iron Sword" end)
+eq(#filtered,2)
+filtered=Addon.Config.FilterItemIds("123\n6948","iron",function(id) return id=="123" and "Iron Sword" or "Cloth" end)
+eq(#filtered,1); eq(filtered[1].id,"123")
 -- The fixture rejects named native frames; runtime must fall back to chat help.
 w:Ready(); w:Command("config")
 local found=false
 for _,line in ipairs(w.messages) do if line:find("Configuration panel unavailable",1,true) then found=true end end
 assert(found); eq(w.mutations,0)
-print("UI MODEL RESULT: 25 passed")
+print("UI MODEL RESULT: 31 passed")

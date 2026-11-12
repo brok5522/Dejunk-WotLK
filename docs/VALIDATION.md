@@ -236,8 +236,15 @@ no item or merchant API is called. Offline checks are rerun for this revision;
 the in-game Options layout remains to be tested.
 
 The completed check for this revision passed: 50 behavior, 11 store, 7 service,
-11 destroyer and 25 UI-model cases; actual Lua 5.1 syntax for 22 files; source
-boundary and documentation checks; deterministic package verification. Original
-client Options layout rendered without a visible error in owner screenshots.
+11 destroyer and 31 UI-model cases; actual Lua 5.1 syntax for 22 files; source
+boundary and documentation checks; deterministic package verification. Prior
+individual panels rendered in owner screenshots; the new four-pane search view
+still needs target-client confirmation.
 The screenshots do not show a threshold being applied; persistence and changed
 preview outcomes remain to be verified in-game.
+
+The owner later verified the rule editor by creating `test1` (`SELL`, `JUNK`,
+`quality EQ 0`) and running the read-only SELL preview. The matching bag item was
+reported as `JUNK / CUSTOM_RULE`; the preview total ended with `No action taken`.
+The list screen now changes to four simultaneous panes and name/ID filtering;
+offline validation passes, but this layout needs client verification.
