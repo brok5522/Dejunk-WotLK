@@ -431,6 +431,27 @@ test("help documents multi-condition rules and chat listing shows every predicat
   w:Command("rules add incomplete BOTH KEEP ALL itemId EQ")
   equal(#w.app.store:GetActiveProfile().rules,2)
 end)
+test("chat ANY rule preview keeps each independently matching item read-only", function()
+  local w=H.New(); w:AddItem(0,1,{id=6948,price=5,link="|cffffffff|Hitem:6948:0:0:0:0:0:0:0|h[Hearthstone]|h|r"})
+  w:AddItem(0,2,{id=777,price=5,link="|cffffffff|Hitem:777:0:0:0:0:0:0:0|h[Example]|h|r"})
+  w.api.GetItemInfo=function(link)
+    for _,item in pairs(w.slots) do
+      if item.link==link then return "Example",link,item.id==6948 and 1 or 0,10,1,"Misc","Junk",20,"","texture",item.price end
+    end
+  end
+  w:Load():Ready()
+  w:Command("rules add demo BOTH KEEP ANY itemId EQ 6948 quality EQ 0")
+  w:Command("preview sell")
+  local rows={}
+  local snapshot=w.app.cache:GetSnapshot(); local profile=w.app.store:GetActiveProfile(); local state=w.app.store:GetState()
+  rows=w.addon.Preview.EvaluateSnapshot(snapshot,{profile=profile,global=state.global,
+    minItemLevel=profile.options.minItemLevel,maxItemLevel=profile.options.maxItemLevel,
+    maxStackVendorPrice=profile.options.maxStackVendorPrice,protectUnboundEquipment=true},"SELL")
+  equal(#rows,2)
+  equal(rows[1].result,"KEEP"); equal(rows[1].ruleId,"demo")
+  equal(rows[2].result,"KEEP"); equal(rows[2].ruleId,"demo")
+  equal(w.mutations,0)
+end)
 test("preview command reports read-only rows and invalidated snapshots fail closed", function()
   local w=H.New(); w:AddItem(0,1)
   w.api.GetItemInfo=function(link) return "Example",link,0,10,1,"Localized Class","Localized Subclass",20,"","texture",5 end
