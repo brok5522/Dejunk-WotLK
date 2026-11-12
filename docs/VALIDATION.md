@@ -223,12 +223,15 @@ verification; previous list controls were observed in-game.
 
 ## Phase 6 custom rule screen
 
-Added a basic rule screen supporting one numeric predicate per rule, action
-scope (SELL/DESTROY/BOTH), result (JUNK/KEEP), field, operator and removal by
-rule ID. Complex ALL/ANY groups continue to use the chat command/model. Native
-client screenshots confirm action/result/field/operator cycling and rule add;
+The rule screen supports numeric predicates, action scope (SELL/DESTROY/BOTH),
+result (JUNK/KEEP), comparison operator and ALL/ANY grouping. Multiple
+conditions can be added to a draft, reviewed, cleared or saved as one profile
+rule; a single condition still saves directly. Native client screenshots
+confirm action/result/field/operator cycling and rule add;
 the owner added and removed a temporary `ui-check` rule, leaving `test1`.
 The removal field now clears after success and Remove is disabled when empty.
+The new multi-condition controls have offline model coverage; original-client
+review remains outstanding.
 
 ## Phase 6 quality and threshold options
 

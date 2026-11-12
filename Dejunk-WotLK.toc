@@ -3,7 +3,7 @@
 ## SavedVariables: DejunkWotLKDB
 ## Notes: Settings and inventory previews only. Transaction services are simulated.
 ## Author: Dejunk-WotLK contributors
-## Version: 0.14.3-dev
+## Version: 0.15.0-dev
 
 src\namespace.lua
 src\compat\client.lua

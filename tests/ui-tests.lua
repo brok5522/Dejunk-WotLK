@@ -27,6 +27,13 @@ eq(Addon.Config.AddRule(store,rule),true)
 eq(#Addon.Config.ListRules(store),1)
 eq(Addon.Config.RemoveRule(store,"ui-test"),true)
 eq(#Addon.Config.ListRules(store),0)
+local combined={id="ui-any",scope="BOTH",result="KEEP",match="ANY",predicates={
+  {field="itemId",op="EQ",value=6948},{field="quality",op="EQ",value=0}
+}}
+eq(Addon.Config.AddRule(store,combined),true)
+eq(Addon.Config.ListRules(store)[1].match,"ANY")
+eq(#Addon.Config.ListRules(store)[1].predicates,2)
+eq(Addon.Config.RemoveRule(store,"ui-any"),true)
 local missingRule,missingReason=Addon.Config.RemoveRule(store,"missing-rule")
 eq(missingRule,false); eq(missingReason,"UNKNOWN_RULE")
 eq(Addon.Config.SetOption(store,"minItemLevel",10),true)
@@ -74,4 +81,4 @@ w:Ready(); w:Command("config")
 local found=false
 for _,line in ipairs(w.messages) do if line:find("Configuration panel unavailable",1,true) then found=true end end
 assert(found); eq(w.mutations,0)
-print("UI MODEL RESULT: 58 passed")
+print("UI MODEL RESULT: 62 passed")

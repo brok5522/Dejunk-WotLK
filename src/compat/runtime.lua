@@ -11,7 +11,8 @@ function Runtime.New(environment)
   local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listPanels
   local importFrame,importTitle,importEdit,importStatus,importCommitButton,importPreview,importScope,importKind
   local reportReturnTarget
-  local rulesFrame,rulesSummary,ruleIdInput,ruleValueInput,ruleScopeButton,ruleResultButton,ruleFieldButton,ruleOpButton
+  local rulesFrame,rulesSummary,ruleIdInput,ruleValueInput,ruleScopeButton,ruleResultButton,ruleFieldButton,ruleOpButton,ruleGroupButton
+  local ruleDraftPredicates,ruleDraftProfileName={},nil
   local optionsFrame,optionsQualityButtons,optionsFields
   local readingTooltip = false
   local itemPresentationCache={}
@@ -490,16 +491,21 @@ function Runtime.New(environment)
 
   function runtime:ShowRules(callbacks)
     callbacks=callbacks or {}
+    local activeName=callbacks.activeProfileName and callbacks.activeProfileName() or nil
+    if #ruleDraftPredicates>0 and ruleDraftProfileName and activeName and ruleDraftProfileName~=activeName then
+      ruleDraftPredicates={}; ruleDraftProfileName=nil
+      self:Print("Unsaved rule draft cleared because the active profile changed.")
+    end
     local ok=pcall(function()
       if not rulesFrame then
         rulesFrame=api.CreateFrame("Frame",nil,api.UIParent)
-        rulesFrame:SetWidth(540); rulesFrame:SetHeight(390); rulesFrame:SetPoint("CENTER")
+        rulesFrame:SetWidth(540); rulesFrame:SetHeight(480); rulesFrame:SetPoint("CENTER")
         rulesFrame:SetFrameStrata("DIALOG"); rulesFrame:EnableMouse(true)
         rulesFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
         local title=rulesFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
         title:SetPoint("TOPLEFT",20,-18); title:SetText("Dejunk-WotLK | Custom rules")
         local help=rulesFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-        help:SetPoint("TOPLEFT",24,-40); help:SetText("Action cycles SELL, DESTROY and BOTH. Rules apply to the active profile.")
+        help:SetPoint("TOPLEFT",24,-40); help:SetText("Add conditions, then Add rule. ALL=every condition; ANY=one condition.")
         local close=api.CreateFrame("Button",nil,rulesFrame,"UIPanelCloseButton")
         close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() rulesFrame:Hide() end)
         ruleScopeButton=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
@@ -520,10 +526,16 @@ function Runtime.New(environment)
           self:UpdateRules(callbacks)
         end)
         ruleOpButton=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
-        ruleOpButton:SetWidth(90); ruleOpButton:SetHeight(24); ruleOpButton:SetPoint("LEFT",ruleFieldButton,"RIGHT",10,0)
+        ruleOpButton:SetWidth(95); ruleOpButton:SetHeight(24); ruleOpButton:SetPoint("LEFT",ruleFieldButton,"RIGHT",10,0)
         ruleOpButton:SetScript("OnClick",function()
           local order={"EQ","LT","GT"}; local current=ruleOpButton.value or order[1]
           for i,v in ipairs(order) do if v==current then ruleOpButton.value=order[i%#order+1]; break end end
+          self:UpdateRules(callbacks)
+        end)
+        ruleGroupButton=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
+        ruleGroupButton:SetWidth(120); ruleGroupButton:SetHeight(24); ruleGroupButton:SetPoint("LEFT",ruleOpButton,"RIGHT",8,0)
+        ruleGroupButton:SetScript("OnClick",function()
+          ruleGroupButton.value=ruleGroupButton.value=="ALL" and "ANY" or "ALL"
           self:UpdateRules(callbacks)
         end)
         local idLabel=rulesFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
@@ -536,14 +548,39 @@ function Runtime.New(environment)
         ruleValueInput=api.CreateFrame("EditBox",nil,rulesFrame,"InputBoxTemplate")
         ruleValueInput:SetWidth(110); ruleValueInput:SetHeight(24); ruleValueInput:SetPoint("LEFT",ruleIdInput,"RIGHT",18,0)
         ruleValueInput:SetAutoFocus(false); ruleValueInput:SetNumeric(true); ruleValueInput:SetMaxLetters(10)
-        local add=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
-        add:SetWidth(90); add:SetHeight(24); add:SetPoint("LEFT",ruleValueInput,"RIGHT",12,0); add:SetText("Add")
-        add:SetScript("OnClick",function()
-          local group={id=ruleIdInput:GetText(),scope=ruleScopeButton.value,result=ruleResultButton.value,match="ALL",
-            predicates={{field=ruleFieldButton.value,op=ruleOpButton.value,value=tonumber(ruleValueInput:GetText())}}}
+        local addCondition=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
+        addCondition:SetWidth(120); addCondition:SetHeight(24); addCondition:SetPoint("LEFT",ruleValueInput,"RIGHT",12,0); addCondition:SetText("Add condition")
+        addCondition:SetScript("OnClick",function()
+          local value=tonumber(ruleValueInput:GetText())
+          if not value or value<0 or value>2147483647 or value~=math.floor(value) or
+              (ruleFieldButton.value=="quality" and value>7) then
+            self:Print("Condition needs a valid whole number."); return
+          end
+          if #ruleDraftPredicates>=10 then self:Print("A rule can have at most 10 conditions."); return end
+          ruleDraftProfileName=ruleDraftProfileName or (callbacks.activeProfileName and callbacks.activeProfileName())
+          ruleDraftPredicates[#ruleDraftPredicates+1]={field=ruleFieldButton.value,op=ruleOpButton.value,value=value}
+          ruleValueInput:SetText("")
+          self:UpdateRules(callbacks)
+        end)
+        local addRule=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
+        addRule:SetWidth(105); addRule:SetHeight(24); addRule:SetPoint("BOTTOMLEFT",rulesFrame,"BOTTOMLEFT",249,18); addRule:SetText("Add rule")
+        addRule:SetScript("OnClick",function()
+          local predicates={}
+          for _,predicate in ipairs(ruleDraftPredicates) do predicates[#predicates+1]=predicate end
+          if #predicates==0 then
+            local value=tonumber(ruleValueInput:GetText())
+            if value and value>=0 and value<=2147483647 and value==math.floor(value) and
+                (ruleFieldButton.value~="quality" or value<=7) then
+              predicates[1]={field=ruleFieldButton.value,op=ruleOpButton.value,value=value}
+            else self:Print("Add a condition with a valid whole number first."); return end
+          end
+          local group={id=ruleIdInput:GetText(),scope=ruleScopeButton.value,result=ruleResultButton.value,
+            match=ruleGroupButton.value,predicates=predicates}
           local added,reason=callbacks.addRule and callbacks.addRule(group)
-          self:Print(added and "Custom rule added." or ("Rule add failed: "..tostring(reason)))
-          if added then ruleIdInput:SetText(""); ruleValueInput:SetText("") end
+          if added then
+            ruleDraftPredicates={}; ruleDraftProfileName=nil; ruleIdInput:SetText(""); ruleValueInput:SetText("")
+            self:Print("Custom rule added.")
+          else self:Print("Rule add failed: "..tostring(reason or "INVALID_RULE")) end
           self:UpdateRules(callbacks)
         end)
         rulesSummary=rulesFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
@@ -564,10 +601,14 @@ function Runtime.New(environment)
           end
           self:UpdateRules(callbacks)
         end)
+        local clearDraft=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
+        clearDraft:SetWidth(105); clearDraft:SetHeight(24); clearDraft:SetPoint("LEFT",remove,"RIGHT",8,0); clearDraft:SetText("Clear draft")
+        clearDraft:SetScript("OnClick",function() ruleDraftPredicates={}; ruleDraftProfileName=nil; self:UpdateRules(callbacks) end)
         local back=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
         back:SetWidth(100); back:SetHeight(24); back:SetPoint("BOTTOMRIGHT",rulesFrame,"BOTTOMRIGHT",-20,18); back:SetText("Back")
         back:SetScript("OnClick",function() rulesFrame:Hide(); self:ShowConfig(callbacks) end)
-        ruleScopeButton.value="SELL"; ruleResultButton.value="JUNK"; ruleFieldButton.value="quality"; ruleOpButton.value="EQ"
+        ruleScopeButton.value="SELL"; ruleResultButton.value="JUNK"; ruleFieldButton.value="quality"
+        ruleOpButton.value="EQ"; ruleGroupButton.value="ALL"
       end
       self:UpdateRules(callbacks)
       rulesFrame:Show()
@@ -579,16 +620,24 @@ function Runtime.New(environment)
     ruleScopeButton:SetText("Action: "..ruleScopeButton.value)
     ruleResultButton:SetText("Result: "..ruleResultButton.value)
     ruleFieldButton:SetText("Field: "..ruleFieldButton.value)
-    ruleOpButton:SetText("Match: "..ruleOpButton.value)
+    ruleOpButton:SetText("Operator: "..ruleOpButton.value)
+    ruleGroupButton:SetText("Group: "..ruleGroupButton.value)
     local rules=callbacks.listRules and callbacks.listRules() or {}
     local profileName=callbacks.activeProfileName and callbacks.activeProfileName() or "unknown"
-    local lines={"Single-condition rules for active profile: "..tostring(profileName)}
+    local lines={"Rules for active profile: "..tostring(profileName)}
     for i,rule in ipairs(rules) do
-      if i>7 then lines[#lines+1]="... use /djw rules list for remaining rules"; break end
+      if i>5 then lines[#lines+1]="... use /djw rules list for remaining rules"; break end
       local predicate=rule.predicates and rule.predicates[1] or {}
       lines[#lines+1]=rule.id.." | "..rule.scope.." | "..rule.result.." | "..tostring(predicate.field).." "..tostring(predicate.op).." "..tostring(predicate.value)
     end
     if #rules==0 then lines[#lines+1]="No custom rules yet." end
+    if #ruleDraftPredicates>0 then
+      local draft={}
+      for _,predicate in ipairs(ruleDraftPredicates) do
+        draft[#draft+1]=predicate.field.." "..predicate.op.." "..predicate.value
+      end
+      lines[#lines+1]="Draft ("..ruleGroupButton.value.."): "..table.concat(draft,"; ")
+    end
     rulesSummary:SetText(table.concat(lines,"\n"))
   end
 
