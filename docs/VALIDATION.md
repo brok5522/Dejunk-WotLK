@@ -281,5 +281,7 @@ native panel needs original-client verification.
 
 The store suite also verifies that rules and thresholds stay isolated per
 profile across switches and save/reload. Current offline results: 53 behavior,
-15 store, 7 service, 11 destroyer and 62 UI-model cases; Lua 5.1 syntax and
-reproducible package checks pass.
+15 store, 7 service, 11 destroyer and 62 UI-model cases. An interactive UI
+fixture also exercised rule selectors, invalid/maximum conditions, add/remove,
+clear draft, profile isolation, list import/export, and report return navigation.
+Lua 5.1 syntax and reproducible package checks pass.

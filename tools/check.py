@@ -89,6 +89,7 @@ def main():
     run([args.lua, 'tests/service-tests.lua'])
     run([args.lua, 'tests/destroyer-tests.lua'])
     run([args.lua, 'tests/ui-tests.lua'])
+    run([args.lua, 'tests/ui-interaction-tests.lua'])
     with tempfile.TemporaryDirectory(prefix='dejunk-wotlk-check-') as directory:
         first, second = Path(directory) / 'first.zip', Path(directory) / 'second.zip'
         build(first)
