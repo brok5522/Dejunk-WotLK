@@ -88,13 +88,13 @@ test("modern table container shape is rejected", function()
   w:AddItem(0, 1); w:Load():Ready()
   equal(w.app.adapter:ReadSlot(0, 1).reason, "UNEXPECTED_API_SHAPE")
 end)
-test("nil lock and uncached metadata remain unknown", function()
+test("nil lock quest and refund flags follow legacy semantics; uncached metadata stays unknown", function()
   local w = populated(); local source = w.slots["0:1"]
   source.locked, source.uncached, source.price, source.quest, source.refundSeconds = nil, true, nil, nil, nil
   w:Ready()
   local item = w.app.cache:GetSnapshot().items["0:1"]
-  equal(item.locked, "unknown"); equal(item.metadata, "unknown")
-  equal(item.unitVendorPrice, nil); equal(item.quest, "unknown"); equal(item.refundable, "unknown")
+  equal(item.locked, false); equal(item.metadata, "unknown")
+  equal(item.unitVendorPrice, nil); equal(item.quest, false); equal(item.refundable, false)
 end)
 test("locked item is preserved as locked and never triggers pickup", function()
   local w = populated(); w.slots["0:1"].locked = true; w:Ready()
@@ -298,7 +298,7 @@ end)
 
 -- Reconstruct only the public item metadata and tuple shapes from owner evidence 01.
 -- The fixture does not claim to contain captured raw API values or tooltip text.
-test("reported 12340 nil flags and zero purchase returns remain unknown", function()
+test("reported 12340 falsey lock quest and refund flags follow stock FrameXML", function()
   local w = H.New()
   local item = w:AddItem(0, 1, {
     id = 6948, link = "|cffffffff|Hitem:6948:0:0:0:0:0:0:0|h[Hearthstone]|h|r",
@@ -321,7 +321,7 @@ test("reported 12340 nil flags and zero purchase returns remain unknown", functi
   equal(slot.containerShape, "7:string,number,nil,number,nil,nil,string")
   equal(slot.itemInfoShape, "11:string,string,number,number,number,string,string,number,string,string,number")
   equal(slot.questShape, "3:nil,nil,nil"); equal(slot.purchaseShape, "0:")
-  equal(slot.locked, "unknown"); equal(slot.quest, "unknown"); equal(slot.refundable, "unknown")
+  equal(slot.locked, false); equal(slot.quest, false); equal(slot.refundable, false)
   equal(slot.unitVendorPrice, 0); equal(slot.inEquipmentSet, false)
 end)
 

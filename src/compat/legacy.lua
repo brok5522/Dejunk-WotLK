@@ -29,6 +29,13 @@ local function boolean(value)
   if value == 0 then return false end
   return UNKNOWN
 end
+-- The pinned 3.3.5 FrameXML uses `if (not locked)` to enable split-stack
+-- interaction. A successful nil lock return is therefore the normal unlocked
+-- state; API failure still stays unknown because `read` returns nil on failure.
+local function lockedState(value)
+  if value == nil then return false end
+  return boolean(value)
+end
 local function idFromLink(link)
   if type(link) ~= "string" then return nil end
   local id = tonumber(link:match("item:(%d+):"))
@@ -105,7 +112,7 @@ function Legacy.New(api)
     end
     item.state, item.reason = "OCCUPIED", nil
     item.itemId, item.link, item.count, item.texture = id, link, info[2], info[1]
-    item.locked, item.readable, item.lootable = boolean(info[3]), boolean(info[5]), boolean(info[6])
+    item.locked, item.readable, item.lootable = lockedState(info[3]), boolean(info[5]), boolean(info[6])
     if integer(info[4], 0, 7) then item.quality = info[4] end
     local metadata = read(api, "GetItemInfo", link)
     item.itemInfoShape = shape(metadata)
@@ -119,12 +126,21 @@ function Legacy.New(api)
     end
     local quest = read(api, "GetContainerItemQuestInfo", bag, slot)
     item.questShape = shape(quest)
-    if quest then item.quest = boolean(quest[1]) end
+    if quest and quest.n >= 2 then
+      local questFlag = boolean(quest[1])
+      if questFlag == true or (quest[2] ~= nil and quest[2] ~= false) then item.quest = true
+      elseif (quest[1] == nil or quest[1] == false or quest[1] == 0) and
+          (quest[2] == nil or quest[2] == false) then item.quest = false end
+    end
     local purchase = read(api, "GetContainerItemPurchaseInfo", bag, slot, false)
     item.purchaseShape = shape(purchase)
-    if purchase and type(purchase[5]) == "number" and purchase[5] >= 0 and
-        purchase[5] < math.huge then
-      item.refundSeconds, item.refundable = purchase[5], purchase[5] > 0
+    if purchase then
+      -- Stock FrameXML hides the refund prompt when refundSec is absent, and
+      -- successful zero-return reads on this client use that same no-refund path.
+      if purchase[5] == nil then item.refundable = false
+      elseif type(purchase[5]) == "number" and purchase[5] >= 0 and purchase[5] < math.huge then
+        item.refundSeconds, item.refundable = purchase[5], purchase[5] > 0
+      end
     end
     if equipmentSets and equipmentSets.known then
       item.inEquipmentSet = equipmentSets.ids[id] == true

@@ -18,11 +18,11 @@ client is modified. Do not include character/account/server names. Commands are
 | --- | --- | --- |
 | Original 12340 startup and reload | READY after own ADDON_LOADED + login; no Lua errors | OBSERVED: startup report READY/zero callback errors; owner reload/status follow-up screenshot READY (command sequence not captured) |
 | Wrong client (if separately available) | DISABLED and no bag scans | PENDING; offline fixtures passed |
-| Known occupied and empty slot | Correct ID/count/lock/quality or EMPTY; no mutation | PARTIAL: occupied Hearthstone and EMPTY slot 16 observed; positive lock flag pending |
+| Known occupied and empty slot | Correct ID/count/lock/quality or EMPTY; no mutation | PARTIAL: eight occupied items appeared UNKNOWN due nil lock field; stock FrameXML semantics now map successful nil to unlocked; empty slots remained KEEP |
 | Container and GetItemInfo signatures | Tuple arity/types match legacy layout; localized class labels and base level | OBSERVED for one enUS item: 7 container / 11 item-info returns |
 | Uncached/unavailable metadata | UNKNOWN retained; at most two timed retries | PENDING; offline fixtures passed |
-| Refund purchase tuple | Fifth return semantics; nil remains unknown until evidence justifies interpretation | PARTIAL: zero returns on Hearthstone; refundable-item semantics pending |
-| Quest flag and binding strings | Explicit booleans or observed legacy 0/1; opt-in hidden tooltip probe; unknown text stays unknown | PARTIAL: three nil quest returns; bound=true on Hearthstone; positive quest/unbound cases pending |
+| Refund purchase tuple | Fifth return; absent timer follows stock FrameXML no-refund path | PARTIAL: zero returns on Hearthstone; refundable item not sampled |
+| Quest flag and binding strings | Nil quest tuple follows stock UI no-marker path; hidden tooltip binding probe remains tri-state | PARTIAL: three nil quest returns; bound=true on Hearthstone; positive quest/unbound cases pending |
 | Equipment sets, if configured | Correct count; all matching bag item IDs protected conservatively | PARTIAL: count=0; configured-set membership not observed |
 | Legacy UI_ERROR_MESSAGE, merchant and bag events | Report types/arity, e.g. first error argument string; no action on events | PARTIAL: bag/lock events and cache observed; MERCHANT_SHOW/CLOSED have zero args, repeated close harmless in sample; UI_ERROR_MESSAGE pending |
 | Diagnostic report UI | Text selectable/copyable, scrolls, Escape/close work; chat fallback available | PARTIAL: text supplied and chat screenshots; native scroll/close not explicitly confirmed |

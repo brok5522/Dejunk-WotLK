@@ -39,7 +39,8 @@ function Harness.New(options)
   end
   env.GetContainerItemQuestInfo = function(bag, slot)
     local item = world.slots[bag .. ":" .. slot]
-    return item and item.quest
+    if item then return item.quest, nil, nil end
+    return nil, nil, nil
   end
   env.GetContainerItemPurchaseInfo = function(bag, slot)
     local item = world.slots[bag .. ":" .. slot]

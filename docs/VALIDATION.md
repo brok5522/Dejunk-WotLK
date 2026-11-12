@@ -82,9 +82,10 @@ modification status was not included. See
 [the sanitized record](research/CLIENT-12340-01.md) and the updated acceptance table.
 
 A regression fixture reconstructed from the reported public metadata/tuple
-shapes verifies that nil lock/quest flags and a successful zero-return purchase
-call remain unknown. No runtime code or safety policy changed. The full Lua 5.1
-suite was rerun: **43 passed, zero failures**; TOC, boundary, documentation links,
+shapes initially retained nil lock/quest flags as unknown. Follow-up 05 records
+the FrameXML evidence that supersedes that conservative interpretation. No API
+failure is converted to unlocked/non-quest/non-refundable. The full Lua 5.1
+suite at that stage was rerun: **43 passed, zero failures**; TOC, boundary, documentation links,
 syntax and deterministic package checks passed. Historical 42-case results above
 refer to the initial Phase 1 implementation. No new addon download is required
 for this documentation/test-only follow-up.
@@ -139,3 +140,14 @@ Lua 5.1 validation: **50 behavior cases passed, 0 failed; 11 store cases passed*
 All 15 runtime/test Lua files compiled. Source boundary and TOC checks passed;
 deterministic 15-entry ZIP, CRC and overwrite-protection checks passed.
 Original build-12340 verification of the new preview/rule commands is pending.
+
+## Follow-up: falsey legacy item flags
+
+The owner preview showed all eight occupied items blocked by `LOCK_UNKNOWN`.
+Pinned 3.3.5 FrameXML uses `if (not locked)` for bag splitting
+(`ContainerFrame.lua:747`), hides the quest marker when both quest fields are
+nil (`ContainerFrame.lua:292`), and suppresses refund UI when `refundSec` is
+absent (`ContainerFrame.lua:633`). The compatibility adapter now interprets
+successful nil returns accordingly, while failed/missing API reads remain
+unknown. Lua 5.1 checks still pass: **50 behavior and 11 store cases**. New
+client evidence is recorded in `docs/research/CLIENT-12340-05.md`.

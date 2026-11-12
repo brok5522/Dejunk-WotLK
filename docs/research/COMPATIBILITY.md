@@ -13,8 +13,9 @@ inventory, not an exhaustive list of all globals or proof that every row fails.
 | TOC modern interfaces; WOW_PROJECT_* flags | Interface 30300; GetBuildInfo version/build/interface, reject mismatched client | U/P; exact target check in Phase 1 |
 | C_AddOns.GetAddOnMetadata | global GetAddOnMetadata | U/P; read-only startup probe |
 | GetNormalizedRealmName, fastrandom | UnitName + GetRealmName, deterministic persisted profile ID counter | U/P; do not normalize realm into collisions |
-| C_Container.GetContainerNumSlots/ItemID/ItemInfo | global functions; GetContainerItemInfo returns tuple, not table. Normalize texture,count,locked,quality,readable,lootable,link; use GetContainerItemLink if needed | F: ContainerFrame.lua:281, EquipmentManager.lua:282; extra tuple positions require probe |
-| C_Container.GetContainerItemPurchaseInfo table.refundSeconds | global tuple money,honor,arena,itemCount,refundSec (fifth return) | F: ContainerFrame.lua:632; never treat unknown as non-refundable |
+| C_Container.GetContainerNumSlots/ItemID/ItemInfo | global functions; GetContainerItemInfo returns tuple, not table. Normalize texture,count,locked,quality,readable,lootable,link; successful nil lock is unlocked because stock UI permits splitting under `if (not locked)` | F: ContainerFrame.lua:747; failed reads remain unknown |
+| GetContainerItemQuestInfo | legacy tuple; falsey quest flag and nil quest ID mean no quest marker in stock bag UI | F: ContainerFrame.lua:282,292; absent/failed tuple stays unknown |
+| C_Container.GetContainerItemPurchaseInfo table.refundSeconds | global tuple money,honor,arena,itemCount,refundSec (fifth return); absent refundSec hides refund prompt | F: ContainerFrame.lua:632-633; failed reads remain unknown |
 | C_Container.UseContainerItem / PickupContainerItem | global UseContainerItem / PickupContainerItem | F: ContainerFrame.lua:700, EquipmentManager.lua:97; planned executor only, never called in Phase 0 |
 | C_Item.GetItemInfo and extra class/subclass numeric returns | global GetItemInfo; old localized itemType/itemSubType returns; build locale-safe lookup from legacy class tables/client categories; use link for ID | F: MailFrame.lua:91; P for classification mapping; do not assume return 12/13 exist |
 | GetItemInfoInstant and modern uncached item handling | validate positive integer IDs; GetItemInfo + bounded retry on scheduler and bag refresh; unknown retained but ineligible | U/P; invalid/uncached IDs must not stall forever |
@@ -54,8 +55,9 @@ localized class/subclass labels without pretending they are numeric enums,
 uses the fifth refund return, and protects uncertainty with explicit unknowns.
 Equipment-set IDs are read conservatively. No class mapping or complete binding
 classification is claimed yet: binding is an opt-in localized tooltip probe,
-and absent text, missing APIs or nil flags stay unknown. Refund nil is also
-unknown pending actual-client evidence. `runtime.lua` owns legacy frames and
+and absent text or missing APIs stay unknown. Successful nil lock/quest/refund
+values follow the pinned FrameXML behavior above; this interpretation is
+distinct from a failed read. `runtime.lua` owns legacy frames and
 all game access. `core/diagnostics.lua` reports tuple arity/types and event
 argument types; report values exclude character names and hyperlinks.
 The offline harness verifies these contracts with synthetic legacy APIs.
