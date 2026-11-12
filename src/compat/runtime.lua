@@ -550,9 +550,18 @@ function Runtime.New(environment)
         rulesSummary:SetPoint("TOPLEFT",26,-190); rulesSummary:SetWidth(480); rulesSummary:SetJustifyH("LEFT")
         local remove=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
         remove:SetWidth(100); remove:SetHeight(24); remove:SetPoint("BOTTOMLEFT",rulesFrame,"BOTTOMLEFT",24,18); remove:SetText("Remove ID")
+        ruleIdInput:SetScript("OnTextChanged",function()
+          if (ruleIdInput:GetText() or "")=="" then remove:Disable() else remove:Enable() end
+        end)
+        remove:Disable()
         remove:SetScript("OnClick",function()
           local id=ruleIdInput:GetText(); local removed,reason=callbacks.removeRule and callbacks.removeRule(id)
-          self:Print(removed and "Custom rule removed." or ("Rule remove failed: "..tostring(reason)))
+          if removed then
+            ruleIdInput:SetText("")
+            self:Print("Custom rule removed.")
+          else
+            self:Print("Rule remove failed: "..tostring(reason or "UNKNOWN_RULE"))
+          end
           self:UpdateRules(callbacks)
         end)
         local back=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")

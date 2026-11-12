@@ -226,7 +226,9 @@ verification; previous list controls were observed in-game.
 Added a basic rule screen supporting one numeric predicate per rule, action
 scope (SELL/DESTROY/BOTH), result (JUNK/KEEP), field, operator and removal by
 rule ID. Complex ALL/ANY groups continue to use the chat command/model. Native
-client review of the new screen remains pending.
+client screenshots confirm action/result/field/operator cycling and rule add;
+the owner added and removed a temporary `ui-check` rule, leaving `test1`.
+The removal field now clears after success and Remove is disabled when empty.
 
 ## Phase 6 quality and threshold options
 

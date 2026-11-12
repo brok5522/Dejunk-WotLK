@@ -12,7 +12,8 @@ SELL and DESTROY previews open a read-only report with one decision per bag
 slot and totals for eligible, kept and unknown items. Closing the report
 returns to the configuration window. The rules screen names the active profile
 and explains the SELL/DESTROY/BOTH scope selector; it creates/removes
-single-predicate profile rules with action,
+single-predicate profile rules with action, clears the removal ID after success,
+and disables Remove while the ID field is empty.
 result, field and comparison controls. Poor-quality toggle and item previews
 remain read-only. Options provide quality toggles and item-level/vendor-value
 thresholds. Profile create/duplicate/rename are in the UI; reset/delete require
