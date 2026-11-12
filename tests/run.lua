@@ -418,8 +418,18 @@ test("help documents multi-condition rules and chat listing shows every predicat
   assert(found)
   w:Command("help")
   found=false
-  for _,line in ipairs(w.messages) do if line:find("Config > Rules for multi-condition rules",1,true) then found=true end end
+  for _,line in ipairs(w.messages) do if line:find("<field> <operator> <number> ...",1,true) then found=true end end
   assert(found)
+  w:Command("rules add cli-rule BOTH KEEP ANY itemId EQ 123 quality EQ 0")
+  equal(#w.app.store:GetActiveProfile().rules,2)
+  w:Command("rules list")
+  found=false
+  for _,line in ipairs(w.messages) do
+    if line:find("cli-rule BOTH KEEP ANY itemId EQ 123 OR quality EQ 0",1,true) then found=true end
+  end
+  assert(found)
+  w:Command("rules add incomplete BOTH KEEP ALL itemId EQ")
+  equal(#w.app.store:GetActiveProfile().rules,2)
 end)
 test("preview command reports read-only rows and invalidated snapshots fail closed", function()
   local w=H.New(); w:AddItem(0,1)

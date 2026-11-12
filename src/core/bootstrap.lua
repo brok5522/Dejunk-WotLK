@@ -424,10 +424,18 @@ function Addon.NewApplication(runtime)
         if raw~="off" and (not value or value<0 or value~=math.floor(value)) then ok,err=false,"INVALID_OPTION" end
         runtime:Print(ok and "Threshold updated." or ("Rule update failed: "..tostring(err)))
       elseif action=="add" then
-        local id,scope,result,match,field,op,value=args:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
-        local group={id=id,scope=scope and scope:upper(),result=result and result:upper(),match=match and match:upper(),
-          predicates={{field=field,op=op and op:upper(),value=tonumber(value)}}}
-        local ok,err=self.store:AddRule(group)
+        local id,scope,result,match,predicateText=args:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(.+)$")
+        local tokens={}
+        for token in (predicateText or ""):gmatch("%S+") do tokens[#tokens+1]=token end
+        local group={id=id,scope=scope and scope:upper(),result=result and result:upper(),match=match and match:upper(),predicates={}}
+        local valid=#tokens>=3 and #tokens<=30 and #tokens%3==0
+        if valid then
+          for index=1,#tokens,3 do
+            group.predicates[#group.predicates+1]={field=tokens[index],op=tokens[index+1]:upper(),value=tonumber(tokens[index+2])}
+          end
+        end
+        local ok,err=false,"INVALID_RULE"
+        if valid then ok,err=self.store:AddRule(group) end
         runtime:Print(ok and "Custom rule added." or ("Rule add failed: "..tostring(err)))
       elseif action=="remove" then
         local ok,err=self.store:RemoveRule(args)
@@ -446,7 +454,7 @@ function Addon.NewApplication(runtime)
         runtime:Print("Quality indexes enabled (0-7): "..table.concat((function() local values={} for i=0,7 do if options.quality and options.quality[i] then values[#values+1]=tostring(i) end end return values end)(),","))
       else
         runtime:Print("Use /djw rules list | quality <0-7> on|off | minlevel|maxlevel|maxprice <value|off>")
-        runtime:Print("Custom: /djw rules add <id> <SELL|DESTROY|BOTH> <JUNK|KEEP> <ALL|ANY> <itemId|quality|itemLevel|unitVendorPrice|count> <EQ|LT|GT> <number>")
+        runtime:Print("Custom: /djw rules add <id> <SELL|DESTROY|BOTH> <JUNK|KEEP> <ALL|ANY> <field> <EQ|LT|GT> <number> [<field> <operator> <number> ...]")
       end
     elseif command == "config" then
       self:OpenConfig()
@@ -466,7 +474,7 @@ function Addon.NewApplication(runtime)
       runtime:Print("Config: /djw config | Profiles: /djw profiles list | /djw profiles create <name> | /djw profiles switch <id>")
       runtime:Print("Lists: /djw lists show <global|profile> <inclusions|exclusions> | add/remove <scope> <list> <ID> | import <scope> <list> <IDs>")
       runtime:Print("Rules: /djw rules list | quality <0-7> on|off | minlevel|maxlevel|maxprice <value|off>")
-      runtime:Print("Single rule: /djw rules add <id> <SELL|DESTROY|BOTH> <JUNK|KEEP> <ALL|ANY> <field> <EQ|LT|GT> <number>; use Config > Rules for multi-condition rules.")
+      runtime:Print("Rule: /djw rules add <id> <SELL|DESTROY|BOTH> <JUNK|KEEP> <ALL|ANY> <field> <EQ|LT|GT> <number> [<field> <operator> <number> ...].")
       runtime:Print("Read-only: /djw preview sell|destroy | /djw slot <bag> <slot> | /djw report. No selling, destroying or repair is connected.")
     elseif command == "report" then
       runtime:ShowReport(self.diagnostics:Report(self))
