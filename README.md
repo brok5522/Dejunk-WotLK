@@ -8,6 +8,7 @@ The upstream Poor-quality junk default is enabled automatically for new profiles
 The owner has verified the configuration, profile selection, four-pane list view, row selection, item name/icon rendering, rule preview and Options windows in the target client. `/djw help` lists chat commands; `/djw config` provides settings, quality controls, read-only previews, profile controls, the four-pane list browser, an ALL/ANY multi-condition rule editor, and level/price thresholds. Seller, repair and destruction remain simulation-only and no game transaction can be triggered.
 
 See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
+For everyday use, see the [short Persian usage guide](docs/USAGE.fa.md).
 
 ## Documentation
 - [Phase 2 Persian install and test guide](docs/PHASE2.fa.md)
