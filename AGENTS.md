@@ -2,7 +2,9 @@
 
 ## Scope and approval
 - Target only the original World of Warcraft **3.3.5a, build 12340, Interface 30300, Lua 5.1**. Wrath Classic is a different API and is not evidence of compatibility.
-- The owner has explicitly directed continuing phase by phase. The current work adds configuration UI only; keep seller, repair and destruction simulation-only. Do not connect transaction services to real WoW APIs or invoke them against a live character until the owner reviews the code and separately authorizes a real-client operation test.
+- This project is a compatibility port of upstream Dejunk at commit `04bafd5e411441ef5b51bb8ed10d208f2d7758f5`, not a redesign. Use that revision's behavior, screens, settings, commands, defaults and interaction patterns as the specification. Add no user-facing features that are absent upstream. Omit only features that do not exist in original 3.3.5a and document those omissions. Replace incompatible APIs with verified legacy APIs while preserving behavior.
+- Port the upstream UI and interaction flow. Do not substitute a newly designed interface when an upstream screen/component can be adapted; do not mistake the Waffle layout library alone for completion of the upstream UI port.
+- The owner has explicitly directed continuing phase by phase. Transaction code may be developed and tested with mocks, but do not connect seller, repair or destruction services to real WoW APIs or invoke them against a live character until the owner reviews the code and separately authorizes a real-client operation test.
 - Never perform destructive inventory operations during development or verification. Do not connect automation to a live character's inventory. Use mocks and read-only probes. Future real-client transaction tests require separate explicit authorization and disposable items.
 - Do not publish releases, merge PRs, or enable automatic merging without owner authorization. Preserve existing user changes.
 

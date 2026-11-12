@@ -1,21 +1,23 @@
 # Dejunk-WotLK
 
-Planned recreation of [Dejunk](https://github.com/moody/Dejunk) for the original
+Compatibility port of [Dejunk](https://github.com/moody/Dejunk) for the original
 World of Warcraft **3.3.5a / build 12340 / Interface 30300 / Lua 5.1**.
 
-**Status: Phase 6 UI migration in progress for original WoW 3.3.5a.** The pinned upstream Waffle layout engine is now loaded for the main configuration window; the individual settings screens are still being migrated and must be checked in the original client.
+**Goal: preserve the pinned upstream Dejunk behavior on WoW 3.3.5a.** This is a compatibility port, not a redesign or feature expansion. The pinned upstream Waffle layout engine is loaded, but the original screens and core actions are not yet fully ported.
 The upstream Poor-quality junk default is enabled automatically for new profiles; the rule editor is for additional custom conditions, not required setup.
-Earlier screenshots verified several configuration screens and read-only previews, but those screens were built for this port and are not the original Dejunk UI. The migration now starts from the pinned upstream Waffle engine; do not treat the new shell as fully client-verified. Seller, repair and destruction remain simulation-only and no game transaction can be triggered.
+Earlier screenshots verified port-built configuration screens and read-only previews. They do not establish parity with the original Dejunk UI or actions. Seller, repair and destruction are not connected to live game actions yet.
 
-See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
-For everyday use, see the [short Persian usage guide](docs/USAGE.fa.md).
+See the [Persian project guide](docs/PHASE1.fa.md). Older phase guides describe
+development scaffolding, not a parity-complete release. The port is not yet
+ready for normal use.
 
 ## Documentation
 - [Phase 2 Persian install and test guide](docs/PHASE2.fa.md)
 - [Phase 3 Persian install and preview guide](docs/PHASE3.fa.md)
 - [Phase 4 Persian simulation-only guide](docs/PHASE4.fa.md)
 - [Phase 5 Persian simulation-only guide](docs/PHASE5.fa.md)
-- [Phase 6 Persian configuration guide](docs/PHASE6.fa.md)
+- [Current development status in Persian](docs/USAGE.fa.md)
+- [Historical Phase 6 UI notes](docs/PHASE6.fa.md)
 - [Phase 2 design and validation](docs/PHASE2.md)
 - [Phase 1 implementation contracts](docs/PHASE1.md)
 - [Historical Phase 0 Persian report](docs/PHASE0.fa.md)
@@ -38,9 +40,9 @@ For everyday use, see the [short Persian usage guide](docs/USAGE.fa.md).
 - `/djw lists add|remove <global|profile> <inclusions|exclusions> <itemID>`
 - `/djw lists import <global|profile> <inclusions|exclusions> <IDs>`
 
-These commands only edit settings and item-ID lists in Phase 2. Phase 3 adds a
-read-only rule evaluator and preview. Phase 4 adds mock-only transaction code,
-still not connected to a game action. Saved settings live in the account-level
+These commands document the current development scaffold and are not a claim
+of parity with upstream Dejunk's commands or screens. The final port must use
+the upstream interface and behavior. Saved settings live in the account-level
 `DejunkWotLKDB` variable; back it up with the game's WTF account folder before
 manual edits or addon removal.
 
@@ -58,8 +60,9 @@ checks; its historical no-runtime gate was replaced after Phase 1 approval.
 The package command refuses to overwrite existing files, creates a deterministic
 single-folder ZIP and never installs or publishes it.
 
-Phase 3 commands include `/djw rules` and `/djw preview sell|destroy`. Preview
-never triggers an action. Existing commands: `/djw status`, `/djw probe` (chat), `/djw report` (copy panel),
+Development-only commands include `/djw rules` and `/djw preview sell|destroy`;
+the generalized ALL/ANY rule editor is out of scope for the upstream port.
+Existing diagnostics include `/djw status`, `/djw probe` (chat), `/djw report` (copy panel),
 `/djw slot <bag 0..4> <slot>` (explicit slot probe), `/djw help`.
 `/dejunkwotlk` is an alias. The original addon's `/dejunk` is not intercepted.
 
