@@ -386,6 +386,26 @@ test("custom rule groups are ordered, scoped and data-only", function()
   groups[1].predicates[1].field="unknownField"
   equal(rules.Evaluate(item,"DESTROY",settings).reasonCode,"RULE_DATA_UNKNOWN")
 end)
+test("custom ALL and ANY rules handle multiple predicates and uncertainty", function()
+  local world=populated():Ready(); local rules=world.addon.Rules; local item=ruleItem()
+  local all={id="all",scope="SELL",result="KEEP",match="ALL",predicates={
+    {field="quality",op="EQ",value=0},{field="itemLevel",op="LT",value=11}}}
+  local settings={profile={rules={all},options={quality={[0]=true}}}}
+  local result=rules.Evaluate(item,"SELL",settings)
+  equal(result.reasonCode,"CUSTOM_RULE"); equal(result.ruleId,"all")
+  all.predicates[2].value=10
+  result=rules.Evaluate(item,"SELL",settings)
+  equal(result.reasonCode,"QUALITY")
+  local any={id="any",scope="SELL",result="KEEP",match="ANY",predicates={
+    {field="itemId",op="EQ",value=999},{field="quality",op="EQ",value=0}}}
+  settings.profile.rules={any}
+  result=rules.Evaluate(item,"SELL",settings)
+  equal(result.reasonCode,"CUSTOM_RULE"); equal(result.ruleId,"any")
+  any.predicates[2].value=1; item.itemLevel=world.addon.UNKNOWN
+  any.predicates[1]={field="itemLevel",op="LT",value=20}
+  result=rules.Evaluate(item,"SELL",settings)
+  equal(result.result,"UNKNOWN"); equal(result.reasonCode,"RULE_DATA_UNKNOWN")
+end)
 test("preview command reports read-only rows and invalidated snapshots fail closed", function()
   local w=H.New(); w:AddItem(0,1)
   w.api.GetItemInfo=function(link) return "Example",link,0,10,1,"Localized Class","Localized Subclass",20,"","texture",5 end

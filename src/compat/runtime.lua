@@ -12,7 +12,7 @@ function Runtime.New(environment)
   local importFrame,importTitle,importEdit,importStatus,importCommitButton,importPreview,importScope,importKind
   local reportReturnTarget
   local rulesFrame,rulesSummary,ruleIdInput,ruleValueInput,ruleScopeButton,ruleResultButton,ruleFieldButton,ruleOpButton,ruleGroupButton
-  local ruleDraftPredicates,ruleDraftProfileName={},nil
+  local ruleDraftPredicates,ruleDraftProfileId={},nil
   local optionsFrame,optionsQualityButtons,optionsFields
   local readingTooltip = false
   local itemPresentationCache={}
@@ -491,9 +491,9 @@ function Runtime.New(environment)
 
   function runtime:ShowRules(callbacks)
     callbacks=callbacks or {}
-    local activeName=callbacks.activeProfileName and callbacks.activeProfileName() or nil
-    if #ruleDraftPredicates>0 and ruleDraftProfileName and activeName and ruleDraftProfileName~=activeName then
-      ruleDraftPredicates={}; ruleDraftProfileName=nil
+    local activeId=callbacks.activeProfileId and callbacks.activeProfileId() or nil
+    if #ruleDraftPredicates>0 and ruleDraftProfileId and activeId and ruleDraftProfileId~=activeId then
+      ruleDraftPredicates={}; ruleDraftProfileId=nil
       self:Print("Unsaved rule draft cleared because the active profile changed.")
     end
     local ok=pcall(function()
@@ -557,7 +557,7 @@ function Runtime.New(environment)
             self:Print("Condition needs a valid whole number."); return
           end
           if #ruleDraftPredicates>=10 then self:Print("A rule can have at most 10 conditions."); return end
-          ruleDraftProfileName=ruleDraftProfileName or (callbacks.activeProfileName and callbacks.activeProfileName())
+          ruleDraftProfileId=ruleDraftProfileId or (callbacks.activeProfileId and callbacks.activeProfileId())
           ruleDraftPredicates[#ruleDraftPredicates+1]={field=ruleFieldButton.value,op=ruleOpButton.value,value=value}
           ruleValueInput:SetText("")
           self:UpdateRules(callbacks)
@@ -565,6 +565,13 @@ function Runtime.New(environment)
         local addRule=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
         addRule:SetWidth(105); addRule:SetHeight(24); addRule:SetPoint("BOTTOMLEFT",rulesFrame,"BOTTOMLEFT",249,18); addRule:SetText("Add rule")
         addRule:SetScript("OnClick",function()
+          local currentProfileId=callbacks.activeProfileId and callbacks.activeProfileId() or nil
+          if #ruleDraftPredicates>0 and ruleDraftProfileId and currentProfileId and ruleDraftProfileId~=currentProfileId then
+            ruleDraftPredicates={}; ruleDraftProfileId=nil
+            self:Print("Rule draft discarded because the active profile changed.")
+            self:UpdateRules(callbacks)
+            return
+          end
           local predicates={}
           for _,predicate in ipairs(ruleDraftPredicates) do predicates[#predicates+1]=predicate end
           if #predicates==0 then
@@ -578,7 +585,7 @@ function Runtime.New(environment)
             match=ruleGroupButton.value,predicates=predicates}
           local added,reason=callbacks.addRule and callbacks.addRule(group)
           if added then
-            ruleDraftPredicates={}; ruleDraftProfileName=nil; ruleIdInput:SetText(""); ruleValueInput:SetText("")
+            ruleDraftPredicates={}; ruleDraftProfileId=nil; ruleIdInput:SetText(""); ruleValueInput:SetText("")
             self:Print("Custom rule added.")
           else self:Print("Rule add failed: "..tostring(reason or "INVALID_RULE")) end
           self:UpdateRules(callbacks)
@@ -603,7 +610,7 @@ function Runtime.New(environment)
         end)
         local clearDraft=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
         clearDraft:SetWidth(105); clearDraft:SetHeight(24); clearDraft:SetPoint("LEFT",remove,"RIGHT",8,0); clearDraft:SetText("Clear draft")
-        clearDraft:SetScript("OnClick",function() ruleDraftPredicates={}; ruleDraftProfileName=nil; self:UpdateRules(callbacks) end)
+        clearDraft:SetScript("OnClick",function() ruleDraftPredicates={}; ruleDraftProfileId=nil; self:UpdateRules(callbacks) end)
         local back=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
         back:SetWidth(100); back:SetHeight(24); back:SetPoint("BOTTOMRIGHT",rulesFrame,"BOTTOMRIGHT",-20,18); back:SetText("Back")
         back:SetScript("OnClick",function() rulesFrame:Hide(); self:ShowConfig(callbacks) end)

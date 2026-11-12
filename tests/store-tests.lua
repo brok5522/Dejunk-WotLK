@@ -32,6 +32,13 @@ test(function()
   s:DeleteProfile(id); eq(s.state.characterProfiles.A,"default"); eq(s.state.characterProfiles.B,"default")
 end)
 test(function()
+  local predicates={}
+  for i=1,11 do predicates[i]={field="quality",op="EQ",value=0} end
+  local s=Store.Initialize(nil,"A")
+  local added,reason=s:AddRule({id="too-many",scope="BOTH",result="KEEP",match="ALL",predicates=predicates})
+  eq(added,false); eq(reason,"INVALID_RULE")
+end)
+test(function()
   local s=Store.Initialize(nil,"A"); local p=s:ImportPreview("global","inclusions","123, 45;123")
   eq(#p.add,2); assert(s:CommitImport(p)); eq(s:ExportList("global","inclusions"),"45\n123")
   local stale=s:ImportPreview("global","inclusions","8"); s:EditList("global","exclusions",9,true)

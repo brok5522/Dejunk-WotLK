@@ -346,6 +346,7 @@ function Addon.NewApplication(runtime)
       resetActiveProfile=function() return Addon.Config.ResetActiveProfile(self.store) end,
       deleteActiveProfile=function() return Addon.Config.DeleteActiveProfile(self.store) end,
       activeProfileName=function() return self.store:GetActiveProfile().name end,
+      activeProfileId=function() return self.store:GetActiveProfileId() end,
       switchProfile=function(id) return Addon.Config.SwitchProfile(self.store,id) end,
       listItems=function(scope,kind) return Addon.Config.ListItems(self.store,scope,kind) end,
       editItem=function(scope,kind,id,present) return Addon.Config.EditItem(self.store,scope,kind,id,present) end,
