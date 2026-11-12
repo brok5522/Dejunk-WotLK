@@ -16,7 +16,7 @@ local function listValid(value)
   end
   return true
 end
-local function profile(id, name) return { id=id, name=name, inclusions={}, exclusions={}, options={quality={}}, rules={} } end
+local function profile(id, name) return { id=id, name=name, inclusions={}, exclusions={}, options={quality={[0]=true}}, rules={} } end
 local RULE_FIELDS = { itemId=true, quality=true, itemLevel=true, unitVendorPrice=true, count=true }
 local function cleanRules(value)
   local result={}; if type(value)~="table" then return result end
@@ -44,7 +44,9 @@ local function cleanRules(value)
   return result
 end
 local function cleanOptions(value)
-  local out={quality={}}
+  -- Match upstream's default includeByQuality rule: Poor items are junk for
+  -- both SELL and DESTROY unless the user explicitly disabled quality 0.
+  local out={quality={[0]=true}}
   if type(value)~="table" then return out end
   if type(value.quality)=="table" then
     for quality,enabled in pairs(value.quality) do

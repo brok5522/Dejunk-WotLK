@@ -4,7 +4,8 @@ Planned recreation of [Dejunk](https://github.com/moody/Dejunk) for the original
 World of Warcraft **3.3.5a / build 12340 / Interface 30300 / Lua 5.1**.
 
 **Status: Phase 6 configuration UI in progress; profiles, rules, thresholds and a four-list searchable view are implemented.**
-The owner has verified the configuration, profile controls, four-pane list view, rule preview and Options windows in the target client. The latest list-row selection and icon update still need client verification. `/djw config` provides settings, quality controls, read-only previews, profile controls, the four-pane list browser, a basic custom-rule editor, and level/price thresholds. Seller, repair and destruction remain simulation-only and no game transaction can be triggered.
+The upstream Poor-quality junk default is enabled automatically for new profiles; the rule editor is for additional custom conditions, not required setup.
+The owner has verified the configuration, profile controls, four-pane list view, row selection, item name/icon rendering, rule preview and Options windows in the target client. `/djw config` provides settings, quality controls, read-only previews, profile controls, the four-pane list browser, a basic custom-rule editor, and level/price thresholds. Seller, repair and destruction remain simulation-only and no game transaction can be triggered.
 
 See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
 

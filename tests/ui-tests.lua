@@ -4,12 +4,12 @@ local w=H.New():Load(); local Addon=w.addon
 local passed=0
 local function eq(a,b) assert(a==b,"expected "..tostring(b)..", got "..tostring(a)) end
 local store=Addon.Store.Initialize(nil,"A")
-eq(Addon.Config.Summary(store):find("Poor quality rule: OFF",1,true)~=nil,true)
-local ok,reason,enabled=Addon.Config.ToggleQuality(store,0)
-eq(ok,true); eq(enabled,true)
 eq(Addon.Config.Summary(store):find("Poor quality rule: ON",1,true)~=nil,true)
-ok,reason,enabled=Addon.Config.ToggleQuality(store,0)
+local ok,reason,enabled=Addon.Config.ToggleQuality(store,0)
 eq(ok,true); eq(enabled,false)
+eq(Addon.Config.Summary(store):find("Poor quality rule: OFF",1,true)~=nil,true)
+ok,reason,enabled=Addon.Config.ToggleQuality(store,0)
+eq(ok,true); eq(enabled,true)
 ok,reason=Addon.Config.ToggleQuality(store,9); eq(ok,false); eq(reason,"INVALID_OPTION")
 local profiles=Addon.Config.ListProfiles(store); eq(#profiles,1); eq(profiles[1].id,"default"); eq(profiles[1].active,true)
 local created=Addon.Config.CreateProfile(store,"Raid UI"); eq(created,"profile-1")

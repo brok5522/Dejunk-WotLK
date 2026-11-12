@@ -42,6 +42,23 @@ Price comparisons use the whole stack, in copper, with strict above/below
 comparisons. Quality options cover poor through epic; equipment type rules have
 special cases (for example cloaks do not match the type selection).
 
+## Default filter settings observed in `src/store/default-states.lua`
+
+- `includeByQuality` is enabled for `BOTH`, with only `poor=true`; this makes
+  Poor-quality items the stock junk classification without user-created rules.
+- `excludeEquipmentSets` and `excludeQuestItems` are enabled for `BOTH`.
+- `autoSell`, `autoRepair`, and global `safeSell` are off; global `safeDestroy`
+  is on. Inclusions/exclusions and equipment-type lists start empty.
+- All other level, stack-price, unbound-equipment, and equipment-type filters
+  start disabled. Retail warband and artifact-relic filters do not apply to
+  WotLK; EquipmentSet and quest protections remain safety checks in the port.
+
+The WotLK store now defaults quality index 0 (Poor) on for new profiles and
+when a saved profile has no explicit value. A stored `false` is preserved as an
+explicit user choice. This adopts the upstream default declaratively; no upstream
+code is copied or executed. Other port safety behavior remains stricter where
+the legacy client cannot prove binding, quest, lock, or refund state.
+
 ## Observed service behavior and risks
 - Seller waits for bags to settle, sells one stack per tick, tracks attempted
   slots and cancels on merchant close. Safe Sell caps 12 calls when enabled.
