@@ -46,3 +46,8 @@ No runtime change or new addon download is needed. Keep the unobserved cases
 above as explicit evidence gaps; do not infer safety booleans from absent data.
 Phase 2 still requires separate owner authorization and review of this partial
 acceptance. Inventory services remain out of scope.
+
+## Phase 2 owner check
+Owner reports backup, install, profile creation, global inclusion edit, and both
+values persisting after `/reload` on the target client. Details are in
+[Phase 2 client evidence 04](research/CLIENT-12340-04.md).

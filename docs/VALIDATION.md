@@ -121,3 +121,9 @@ not started and no inventory operation has been added or executed.
 The owner authorized Phase 2. Versioned storage, profile lifecycle, list edits and import/export previews are implemented on the local branch. Phase 1 results do not validate Phase 2. Phase 2 checks have not been run. Do not install this branch until validation is completed.
 
 Phase 2 final run: 44 Phase 1 fixtures and 9 store cases passed with Lua 5.1. All 13 runtime/test Lua files compiled. TOC boundary, docs, package layout/CRC/reproducibility checks passed. Original-client SavedVariables persistence and slash command behavior remain for owner verification.
+
+Owner Phase 2 client evidence: the user created `profile-1` named `Test`, added
+item ID 6948 to global inclusions, ran `/reload`, and confirmed both the active
+profile and list entry persisted. The evidence is recorded in
+`docs/research/CLIENT-12340-04.md`. A reload persistence regression case now
+models the same store serialization/reinitialization sequence.
