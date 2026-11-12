@@ -413,6 +413,8 @@ test("bootstrap supplies rules, preview and config model when standalone modules
   assert(w.addon.Config.AddRule(w.app.store,{id="fallback",scope="SELL",result="JUNK",match="ALL",predicates={{field="quality",op="EQ",value=0}}}))
   equal(#w.addon.Config.ListRules(w.app.store),1)
   assert(w.addon.Config.RemoveRule(w.app.store,"fallback"))
+  assert(w.addon.Config.SetOption(w.app.store,"minItemLevel",10))
+  equal(w.addon.Config.GetOptions(w.app.store).minItemLevel,10)
   equal(w.mutations,0)
 end)
 

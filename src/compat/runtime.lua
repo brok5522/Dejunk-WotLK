@@ -10,6 +10,7 @@ function Runtime.New(environment)
   local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
   local listFrame,listSummary,listInput,listScopeButton,listKindButton
   local rulesFrame,rulesSummary,ruleIdInput,ruleValueInput,ruleScopeButton,ruleResultButton,ruleFieldButton,ruleOpButton
+  local optionsFrame,optionsQualityButtons,optionsFields
   local readingTooltip = false
 
   function runtime:Inspect() return Addon.Client.Inspect(api) end
@@ -147,6 +148,10 @@ function Runtime.New(environment)
         button("Rules",334,54,function()
           configFrame:Hide()
           self:ShowRules(callbacks)
+        end)
+        button("Options",334,88,function()
+          configFrame:Hide()
+          self:ShowOptions(callbacks)
         end)
       end
       configSummary:SetText(callbacks.summary and callbacks.summary() or "Settings unavailable.")
@@ -370,6 +375,76 @@ function Runtime.New(environment)
     end
     if #rules==0 then lines[#lines+1]="No custom rules yet." end
     rulesSummary:SetText(table.concat(lines,"\n"))
+  end
+
+  function runtime:ShowOptions(callbacks)
+    callbacks=callbacks or {}
+    local ok=pcall(function()
+      if not optionsFrame then
+        optionsFrame=api.CreateFrame("Frame",nil,api.UIParent)
+        optionsFrame:SetWidth(560); optionsFrame:SetHeight(420); optionsFrame:SetPoint("CENTER")
+        optionsFrame:SetFrameStrata("DIALOG"); optionsFrame:EnableMouse(true)
+        optionsFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
+        local title=optionsFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
+        title:SetPoint("TOPLEFT",20,-18); title:SetText("Dejunk-WotLK | Quality and thresholds")
+        local close=api.CreateFrame("Button",nil,optionsFrame,"UIPanelCloseButton")
+        close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() optionsFrame:Hide() end)
+        local qualityTitle=optionsFrame:CreateFontString(nil,"OVERLAY","GameFontHighlight")
+        qualityTitle:SetPoint("TOPLEFT",24,-52); qualityTitle:SetText("Click a quality to toggle its rule:")
+        local labels={"Poor","Common","Uncommon","Rare","Epic","Legendary","Artifact","Heirloom"}
+        optionsQualityButtons={}
+        for quality=0,7 do
+          local b=api.CreateFrame("Button",nil,optionsFrame,"UIPanelButtonTemplate")
+          b:SetWidth(120); b:SetHeight(24)
+          local col=quality%4; local row=math.floor(quality/4)
+          b:SetPoint("TOPLEFT",24+col*128,-78-row*32)
+          b:SetScript("OnClick",function()
+            local opts=callbacks.options and callbacks.options() or {}; local enabled=not (opts.quality or {})[quality]
+            local changed,reason=callbacks.setOption and callbacks.setOption("quality",{quality=quality,enabled=enabled})
+            self:Print(changed and (labels[quality+1].." quality rule "..(enabled and "enabled." or "disabled.")) or ("Rule update failed: "..tostring(reason)))
+            self:ShowOptions(callbacks)
+          end)
+          optionsQualityButtons[quality+1]=b
+        end
+        optionsFields={}
+        local rows={
+          {key="minItemLevel",label="Minimum item level"},
+          {key="maxItemLevel",label="Maximum item level"},
+          {key="maxStackVendorPrice",label="Maximum stack vendor value (copper)"}
+        }
+        for index,row in ipairs(rows) do
+          local y=-160-(index-1)*48
+          local label=optionsFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+          label:SetPoint("TOPLEFT",26,y); label:SetText(row.label)
+          local input=api.CreateFrame("EditBox",nil,optionsFrame,"InputBoxTemplate")
+          input:SetWidth(110); input:SetHeight(24); input:SetPoint("TOPLEFT",300,y+5)
+          input:SetAutoFocus(false); input:SetMaxLetters(10)
+          local apply=api.CreateFrame("Button",nil,optionsFrame,"UIPanelButtonTemplate")
+          apply:SetWidth(90); apply:SetHeight(24); apply:SetPoint("LEFT",input,"RIGHT",10,0); apply:SetText("Apply")
+          apply:SetScript("OnClick",function()
+            local raw=(input:GetText() or ""):lower(); local value=raw=="off" and nil or tonumber(raw)
+            local valid=raw=="off" or (value and value>=0 and value<=2147483647 and value==math.floor(value))
+            local changed,reason=false,"INVALID_OPTION"
+            if valid and callbacks.setOption then changed,reason=callbacks.setOption(row.key,value) end
+            self:Print(changed and (row.label.." updated.") or ("Setting update failed: "..tostring(reason)))
+            self:ShowOptions(callbacks)
+          end)
+          optionsFields[index]={key=row.key,input=input}
+        end
+        local back=api.CreateFrame("Button",nil,optionsFrame,"UIPanelButtonTemplate")
+        back:SetWidth(110); back:SetHeight(24); back:SetPoint("BOTTOMRIGHT",optionsFrame,"BOTTOMRIGHT",-20,18); back:SetText("Back")
+        back:SetScript("OnClick",function() optionsFrame:Hide(); self:ShowConfig(callbacks) end)
+      end
+      local opts=callbacks.options and callbacks.options() or {}
+      local labels={"Poor","Common","Uncommon","Rare","Epic","Legendary","Artifact","Heirloom"}
+      for quality=0,7 do
+        local enabled=opts.quality and opts.quality[quality]
+        optionsQualityButtons[quality+1]:SetText(labels[quality+1]..": "..(enabled and "ON" or "OFF"))
+      end
+      for _,entry in ipairs(optionsFields) do entry.input:SetText(tostring(opts[entry.key] or "off")) end
+      optionsFrame:Show()
+    end)
+    if not ok then self:Print("Options window unavailable; use /djw rules list and /djw rules quality|minlevel|maxlevel|maxprice.") end
   end
 
   -- A diagnostic copy panel, not the configuration UI planned for Phase 6.

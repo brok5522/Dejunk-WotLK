@@ -81,4 +81,14 @@ function Config.RemoveRule(store,id)
   return store:RemoveRule(id)
 end
 
+function Config.SetOption(store,key,value)
+  if not store then return false,"STORE_UNAVAILABLE" end
+  return store:SetOption(key,value)
+end
+
+function Config.GetOptions(store)
+  if not store then return nil,"STORE_UNAVAILABLE" end
+  return store:GetActiveProfile().options or {}
+end
+
 return Config

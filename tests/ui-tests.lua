@@ -27,9 +27,15 @@ eq(Addon.Config.AddRule(store,rule),true)
 eq(#Addon.Config.ListRules(store),1)
 eq(Addon.Config.RemoveRule(store,"ui-test"),true)
 eq(#Addon.Config.ListRules(store),0)
+eq(Addon.Config.SetOption(store,"minItemLevel",10),true)
+eq(Addon.Config.GetOptions(store).minItemLevel,10)
+eq(Addon.Config.SetOption(store,"maxItemLevel",0),true)
+eq(Addon.Config.GetOptions(store).maxItemLevel,0)
+eq(Addon.Config.SetOption(store,"maxStackVendorPrice",-1),false)
+eq(Addon.Config.SetOption(store,"maxItemLevel",nil),true)
 -- The fixture rejects named native frames; runtime must fall back to chat help.
 w:Ready(); w:Command("config")
 local found=false
 for _,line in ipairs(w.messages) do if line:find("Configuration panel unavailable",1,true) then found=true end end
 assert(found); eq(w.mutations,0)
-print("UI MODEL RESULT: 19 passed")
+print("UI MODEL RESULT: 25 passed")

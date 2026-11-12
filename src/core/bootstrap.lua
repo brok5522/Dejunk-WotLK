@@ -177,6 +177,14 @@ if type(Addon.Config) ~= "table" or type(Addon.Config.Summary) ~= "function" or
     if not store then return false,"STORE_UNAVAILABLE" end
     return store:RemoveRule(id)
   end
+  function Addon.Config.SetOption(store,key,value)
+    if not store then return false,"STORE_UNAVAILABLE" end
+    return store:SetOption(key,value)
+  end
+  function Addon.Config.GetOptions(store)
+    if not store then return nil,"STORE_UNAVAILABLE" end
+    return store:GetActiveProfile().options or {}
+  end
 end
 
 function Addon.NewApplication(runtime)
@@ -283,6 +291,8 @@ function Addon.NewApplication(runtime)
       listRules=function() return Addon.Config.ListRules(self.store) end,
       addRule=function(group) return Addon.Config.AddRule(self.store,group) end,
       removeRule=function(id) return Addon.Config.RemoveRule(self.store,id) end,
+      options=function() return Addon.Config.GetOptions(self.store) end,
+      setOption=function(key,value) return Addon.Config.SetOption(self.store,key,value) end,
       preview=function(action) self:Command("preview "..action) end
     })
   end

@@ -226,3 +226,16 @@ Added a basic rule screen supporting one numeric predicate per rule, action
 scope (SELL/DESTROY/BOTH), result (JUNK/KEEP), field, operator and removal by
 rule ID. Complex ALL/ANY groups continue to use the chat command/model. Native
 client review of the new screen remains pending.
+
+## Phase 6 quality and threshold options
+
+Added eight quality toggles and editable minimum/maximum item levels and
+maximum whole-stack vendor value (copper), where `off` clears a threshold.
+Configuration writes go only through the existing validated profile store;
+no item or merchant API is called. Offline checks are rerun for this revision;
+the in-game Options layout remains to be tested.
+
+The completed check for this revision passed: 50 behavior, 11 store, 7 service,
+11 destroyer and 25 UI-model cases; actual Lua 5.1 syntax for 22 files; source
+boundary and documentation checks; deterministic package verification. Original
+client Options layout remains pending owner review.
