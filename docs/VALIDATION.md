@@ -238,4 +238,6 @@ the in-game Options layout remains to be tested.
 The completed check for this revision passed: 50 behavior, 11 store, 7 service,
 11 destroyer and 25 UI-model cases; actual Lua 5.1 syntax for 22 files; source
 boundary and documentation checks; deterministic package verification. Original
-client Options layout remains pending owner review.
+client Options layout rendered without a visible error in owner screenshots.
+The screenshots do not show a threshold being applied; persistence and changed
+preview outcomes remain to be verified in-game.
