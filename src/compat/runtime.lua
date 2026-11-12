@@ -165,7 +165,8 @@ function Runtime.New(environment)
         close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() profileFrame:Hide() end)
         profileSummary=profileFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         profileSummary:SetPoint("TOPLEFT",22,-50); profileSummary:SetWidth(360); profileSummary:SetJustifyH("LEFT")
-        profileScroll=api.CreateFrame("ScrollFrame",nil,profileFrame,"UIPanelScrollFrameTemplate")
+        -- The 3.3.5 scroll template builds scrollbar globals from its frame name.
+        profileScroll=api.CreateFrame("ScrollFrame","DejunkWotLKProfileScrollFrame",profileFrame,"UIPanelScrollFrameTemplate")
         profileScroll:SetPoint("TOPLEFT",22,-72); profileScroll:SetPoint("BOTTOMRIGHT",-40,95)
         profileList=api.CreateFrame("Frame",nil,profileScroll); profileList:SetWidth(335); profileList:SetHeight(175); profileScroll:SetScrollChild(profileList); profileButtons={}
         profileNameBox=api.CreateFrame("EditBox",nil,profileFrame,"InputBoxTemplate")

@@ -204,3 +204,8 @@ profile picker is open; added a scrollable profile list and a Back button. The
 owner also supplied a later READY/SUPPORTED_READ_ONLY status screenshot after
 closing the panel, with no error reported. Original-client layout evidence for
 the correction remains pending.
+
+The owner then provided a Lua error while creating the profile scroll frame.
+The 3.3.5 scroll template expects a named frame for its scrollbar globals; the
+frame now has a stable name. Lua tests do not execute Blizzard templates, so
+the profile window must be retested in the original client.
