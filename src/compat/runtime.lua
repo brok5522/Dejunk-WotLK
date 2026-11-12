@@ -189,16 +189,59 @@ function Runtime.New(environment)
         profileNameBox:SetWidth(190); profileNameBox:SetHeight(24); profileNameBox:SetPoint("BOTTOMLEFT",profileFrame,"BOTTOMLEFT",24,52)
         profileNameBox:SetAutoFocus(false); profileNameBox:SetMaxLetters(32); profileNameBox:SetScript("OnEscapePressed",function() profileNameBox:ClearFocus() end)
         local create=api.CreateFrame("Button",nil,profileFrame,"UIPanelButtonTemplate")
-        create:SetWidth(100); create:SetHeight(24); create:SetPoint("LEFT",profileNameBox,"RIGHT",8,0); create:SetText("Create")
+        create:SetWidth(80); create:SetHeight(24); create:SetPoint("LEFT",profileNameBox,"RIGHT",8,0); create:SetText("Create")
         create:SetScript("OnClick",function()
           local name=profileNameBox:GetText() or ""
           local id,reason=callbacks.createProfile and callbacks.createProfile(name)
           if id then profileNameBox:SetText("") else self:Print("Profile creation failed: "..tostring(reason)) end
           self:ShowProfiles(callbacks)
         end)
-        local refresh=api.CreateFrame("Button",nil,profileFrame,"UIPanelButtonTemplate")
-        refresh:SetWidth(110); refresh:SetHeight(24); refresh:SetPoint("BOTTOMRIGHT",profileFrame,"BOTTOMRIGHT",-18,16); refresh:SetText("Back")
-        refresh:SetScript("OnClick",function() profileFrame:Hide(); self:ShowConfig(callbacks) end)
+        local duplicate=api.CreateFrame("Button",nil,profileFrame,"UIPanelButtonTemplate")
+        duplicate:SetWidth(90); duplicate:SetHeight(24); duplicate:SetPoint("LEFT",create,"RIGHT",8,0); duplicate:SetText("Duplicate")
+        duplicate:SetScript("OnClick",function()
+          local name=profileNameBox:GetText() or ""
+          local id,reason=callbacks.duplicateProfile and callbacks.duplicateProfile(name)
+          if id then profileNameBox:SetText("") else self:Print("Profile copy failed: "..tostring(reason)) end
+          self:ShowProfiles(callbacks)
+        end)
+        local rename=api.CreateFrame("Button",nil,profileFrame,"UIPanelButtonTemplate")
+        rename:SetWidth(90); rename:SetHeight(24); rename:SetPoint("BOTTOMLEFT",profileFrame,"BOTTOMLEFT",24,16); rename:SetText("Rename active")
+        rename:SetScript("OnClick",function()
+          local name=profileNameBox:GetText() or ""
+          local renamed,reason=callbacks.renameActiveProfile and callbacks.renameActiveProfile(name)
+          self:Print(renamed and "Profile renamed." or ("Rename failed: "..tostring(reason or "DEFAULT_PROFILE_PROTECTED")))
+          self:ShowProfiles(callbacks)
+        end)
+        local function confirmAction(action)
+          if type(api.StaticPopup_Show)~="function" then
+            self:Print("Confirmation dialog unavailable; use /djw profile "..action.." <profileID>.")
+            return
+          end
+          api.StaticPopupDialogs=api.StaticPopupDialogs or {}
+          api.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_CONFIRM={
+            text="Are you sure you want to %s profile %s?",
+            button1=api.YES or "Yes",button2=api.NO or "No",timeout=0,whileDead=1,hideOnEscape=1,
+            OnAccept=function(dialog)
+              local acceptedAction=dialog.data
+              local changed,reason
+              if acceptedAction=="reset" then changed,reason=callbacks.resetActiveProfile and callbacks.resetActiveProfile()
+              else changed,reason=callbacks.deleteActiveProfile and callbacks.deleteActiveProfile() end
+              self:Print(changed and (acceptedAction=="reset" and "Profile reset." or "Profile deleted.") or
+                ((acceptedAction=="reset" and "Reset" or "Delete").." failed: "..tostring(reason or "DEFAULT_PROFILE_PROTECTED")))
+              self:ShowProfiles(callbacks)
+            end
+          }
+          api.StaticPopup_Show("DEJUNKWOTLK_PROFILE_CONFIRM",action,callbacks.activeProfileName and callbacks.activeProfileName() or "active",action)
+        end
+        local reset=api.CreateFrame("Button",nil,profileFrame,"UIPanelButtonTemplate")
+        reset:SetWidth(75); reset:SetHeight(24); reset:SetPoint("LEFT",rename,"RIGHT",6,0); reset:SetText("Reset")
+        reset:SetScript("OnClick",function() confirmAction("reset") end)
+        local delete=api.CreateFrame("Button",nil,profileFrame,"UIPanelButtonTemplate")
+        delete:SetWidth(75); delete:SetHeight(24); delete:SetPoint("LEFT",reset,"RIGHT",6,0); delete:SetText("Delete")
+        delete:SetScript("OnClick",function() confirmAction("delete") end)
+        local back=api.CreateFrame("Button",nil,profileFrame,"UIPanelButtonTemplate")
+        back:SetWidth(85); back:SetHeight(24); back:SetPoint("BOTTOMRIGHT",profileFrame,"BOTTOMRIGHT",-18,16); back:SetText("Back")
+        back:SetScript("OnClick",function() profileFrame:Hide(); self:ShowConfig(callbacks) end)
       end
       local profiles=callbacks.profiles and callbacks.profiles() or {}
       local row=0
@@ -218,6 +261,7 @@ function Runtime.New(environment)
       end
       profileList:SetHeight(math.max(175,row*28))
       profileSummary:SetText("Select a profile to activate it:")
+      if callbacks.activeProfileName then profileNameBox:SetText(callbacks.activeProfileName()) end
       profileFrame:Show()
     end)
     if not ok then self:Print("Profiles window unavailable; use /djw profiles list|create|switch.") end

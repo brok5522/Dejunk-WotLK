@@ -152,6 +152,22 @@ if type(Addon.Config) ~= "table" or type(Addon.Config.Summary) ~= "function" or
     if not store then return nil,"STORE_UNAVAILABLE" end
     return store:CreateProfile(name)
   end
+  function Addon.Config.DuplicateProfile(store,name)
+    if not store then return nil,"STORE_UNAVAILABLE" end
+    return store:CreateProfile(name,store:GetActiveProfileId())
+  end
+  function Addon.Config.RenameActiveProfile(store,name)
+    if not store then return false,"STORE_UNAVAILABLE" end
+    return store:RenameProfile(store:GetActiveProfileId(),name)
+  end
+  function Addon.Config.ResetActiveProfile(store)
+    if not store then return false,"STORE_UNAVAILABLE" end
+    return store:ResetProfile(store:GetActiveProfileId())
+  end
+  function Addon.Config.DeleteActiveProfile(store)
+    if not store then return false,"STORE_UNAVAILABLE" end
+    return store:DeleteProfile(store:GetActiveProfileId())
+  end
   function Addon.Config.SwitchProfile(store,id)
     if not store then return false,"STORE_UNAVAILABLE" end
     if type(id)~="string" then return false,"INVALID_PROFILE" end
@@ -295,6 +311,11 @@ function Addon.NewApplication(runtime)
       end,
       profiles=function() return Addon.Config.ListProfiles(self.store) end,
       createProfile=function(name) return Addon.Config.CreateProfile(self.store,name) end,
+      duplicateProfile=function(name) return Addon.Config.DuplicateProfile(self.store,name) end,
+      renameActiveProfile=function(name) return Addon.Config.RenameActiveProfile(self.store,name) end,
+      resetActiveProfile=function() return Addon.Config.ResetActiveProfile(self.store) end,
+      deleteActiveProfile=function() return Addon.Config.DeleteActiveProfile(self.store) end,
+      activeProfileName=function() return self.store:GetActiveProfile().name end,
       switchProfile=function(id) return Addon.Config.SwitchProfile(self.store,id) end,
       listItems=function(scope,kind) return Addon.Config.ListItems(self.store,scope,kind) end,
       editItem=function(scope,kind,id,present) return Addon.Config.EditItem(self.store,scope,kind,id,present) end,

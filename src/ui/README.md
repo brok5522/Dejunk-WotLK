@@ -10,5 +10,6 @@ import/export.
 The rules screen creates/removes single-predicate profile rules with action,
 result, field and comparison controls. Poor-quality toggle and item previews
 remain read-only. Options provide quality toggles and item-level/vendor-value
-thresholds. Profile deletion/reset and multi-condition groups remain chat-only/
-future work; new native-frame behavior needs original-client review.
+thresholds. Profile create/duplicate/rename are in the UI; reset/delete require
+confirmation dialogs. Multi-condition groups remain future work; new native-
+frame behavior needs original-client review.

@@ -39,9 +39,19 @@ filtered=Addon.Config.FilterItemIds("123\n6948","sword",function() return "Iron 
 eq(#filtered,2)
 filtered=Addon.Config.FilterItemIds("123\n6948","iron",function(id) return id=="123" and "Iron Sword" or "Cloth" end)
 eq(#filtered,1); eq(filtered[1].id,"123")
+local duplicate=Addon.Config.DuplicateProfile(store,"Quality Copy"); eq(duplicate,"profile-2")
+eq(store:GetActiveProfile().options.quality[0],true)
+eq(Addon.Config.RenameActiveProfile(store,"Renamed Copy"),true)
+eq(store:GetActiveProfile().name,"Renamed Copy")
+eq(Addon.Config.ResetActiveProfile(store),true)
+eq(#Addon.Config.ListRules(store),0)
+eq(Addon.Config.DeleteActiveProfile(store),true)
+eq(store:GetActiveProfileId(),"default")
+eq(Addon.Config.DeleteActiveProfile(store),false)
+eq(Addon.Config.RenameActiveProfile(store,"Default Rename"),false)
 -- The fixture rejects named native frames; runtime must fall back to chat help.
 w:Ready(); w:Command("config")
 local found=false
 for _,line in ipairs(w.messages) do if line:find("Configuration panel unavailable",1,true) then found=true end end
 assert(found); eq(w.mutations,0)
-print("UI MODEL RESULT: 31 passed")
+print("UI MODEL RESULT: 41 passed")

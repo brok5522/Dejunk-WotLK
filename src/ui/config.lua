@@ -50,6 +50,26 @@ function Config.CreateProfile(store,name)
   return store:CreateProfile(name)
 end
 
+function Config.DuplicateProfile(store,name)
+  if not store then return nil,"STORE_UNAVAILABLE" end
+  return store:CreateProfile(name,store:GetActiveProfileId())
+end
+
+function Config.RenameActiveProfile(store,name)
+  if not store then return false,"STORE_UNAVAILABLE" end
+  return store:RenameProfile(store:GetActiveProfileId(),name)
+end
+
+function Config.ResetActiveProfile(store)
+  if not store then return false,"STORE_UNAVAILABLE" end
+  return store:ResetProfile(store:GetActiveProfileId())
+end
+
+function Config.DeleteActiveProfile(store)
+  if not store then return false,"STORE_UNAVAILABLE" end
+  return store:DeleteProfile(store:GetActiveProfileId())
+end
+
 function Config.SwitchProfile(store,id)
   if not store then return false,"STORE_UNAVAILABLE" end
   if type(id)~="string" then return false,"INVALID_PROFILE" end

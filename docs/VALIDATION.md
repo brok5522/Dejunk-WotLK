@@ -251,3 +251,15 @@ the owner supplied screenshots showing Hearthstone rendered in the global
 inclusion pane, and then selected its row to populate ID `6948` in the editor.
 Name and icon rendering and row selection are owner-observed; screenshots do
 not show clicking Add or Remove in this screen.
+
+## Phase 6 profile lifecycle controls
+
+Added duplicate and rename controls, plus confirmation dialogs before resetting
+or deleting the active profile. Default profile protections remain enforced by
+the store. Offline suites below validate these model actions; original-client
+popup-button behavior still needs verification.
+
+Profile lifecycle UI model checks pass. Full offline validation for 0.12.0-dev:
+50 main behavior cases, 12 store cases, 7 service cases, 11 destroyer cases,
+41 UI-model assertions; Lua 5.1 syntax, docs/API boundary and reproducible ZIP
+checks all pass. Native confirmation dialogs have not yet been exercised in-game.
