@@ -11,9 +11,15 @@ eq(Addon.Config.Summary(store):find("Poor quality rule: ON",1,true)~=nil,true)
 ok,reason,enabled=Addon.Config.ToggleQuality(store,0)
 eq(ok,true); eq(enabled,false)
 ok,reason=Addon.Config.ToggleQuality(store,9); eq(ok,false); eq(reason,"INVALID_OPTION")
+local profiles=Addon.Config.ListProfiles(store); eq(#profiles,1); eq(profiles[1].id,"default"); eq(profiles[1].active,true)
+local created=Addon.Config.CreateProfile(store,"Raid UI"); eq(created,"profile-1")
+profiles=Addon.Config.ListProfiles(store); eq(#profiles,2); eq(profiles[2].active,true)
+eq(Addon.Config.SwitchProfile(store,"default"),true)
+eq(Addon.Config.ListProfiles(store)[1].active,true)
+eq(Addon.Config.SwitchProfile(store,"missing"),false)
 -- The fixture rejects named native frames; runtime must fall back to chat help.
 w:Ready(); w:Command("config")
 local found=false
 for _,line in ipairs(w.messages) do if line:find("Configuration panel unavailable",1,true) then found=true end end
 assert(found); eq(w.mutations,0)
-print("UI MODEL RESULT: 4 passed")
+print("UI MODEL RESULT: 10 passed")

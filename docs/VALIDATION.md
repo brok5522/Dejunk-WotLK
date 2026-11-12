@@ -182,4 +182,16 @@ Added `/djw config`, a native-frame window with active-profile/rule summary,
 Poor-quality rule toggle and read-only SELL/DESTROY previews. Configuration
 logic is pure and unit-tested; native frame behavior has not been verified in
 the original client. Lua 5.1 checks: **50 behavior, 11 store, 7 seller/repair,
-11 destroyer, and 4 UI-model cases passed**. No transaction adapter was added.
+11 destroyer, and 10 UI-model cases passed**. No transaction adapter was added.
+
+## Phase 6 profile controls
+
+Added a profile window reachable from `/djw config`; it creates profiles and
+lets the owner activate one by clicking its row. The list shows six profiles at
+once; the existing `/djw profiles list|create|switch` commands cover larger
+lists. Reset and deletion remain on the existing profile commands. Ran
+`python3 tools/check.py --lua /workspace/work/lua51/usr/bin/lua5.1 --luac
+/workspace/work/lua51/usr/bin/luac5.1`: **PASS**, 22 Lua files syntax-checked;
+50 behavior, 11 store, 7 service, 11 destroyer and 10 UI model cases passed;
+read-only boundary, docs, and reproducible ZIP checks passed. Original-client
+profile-window behavior remains **NOT RUN** pending owner testing.

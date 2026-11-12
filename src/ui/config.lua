@@ -33,4 +33,27 @@ function Config.ToggleQuality(store,quality)
   return ok,reason,enabled
 end
 
+function Config.ListProfiles(store)
+  if not store then return nil,"STORE_UNAVAILABLE" end
+  local state=store:GetState()
+  local active=store:GetActiveProfileId()
+  local profiles={}
+  for id,value in pairs(state.profiles or {}) do
+    profiles[#profiles+1]={id=id,name=value.name or id,active=id==active}
+  end
+  table.sort(profiles,function(a,b) return a.id<b.id end)
+  return profiles
+end
+
+function Config.CreateProfile(store,name)
+  if not store then return nil,"STORE_UNAVAILABLE" end
+  return store:CreateProfile(name)
+end
+
+function Config.SwitchProfile(store,id)
+  if not store then return false,"STORE_UNAVAILABLE" end
+  if type(id)~="string" then return false,"INVALID_PROFILE" end
+  return store:SwitchProfile(id)
+end
+
 return Config

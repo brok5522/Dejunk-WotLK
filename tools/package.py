@@ -18,11 +18,11 @@ def build(destination):
             paths.append(path)
     entries = {path.relative_to(ROOT).as_posix(): path.read_bytes() for path in paths}
     entries['README.txt'] = (
-        'Dejunk-WotLK 0.6.1-dev - CONFIGURATION PREVIEW\n'
+        'Dejunk-WotLK 0.6.2-dev - CONFIGURATION PREVIEW\n'
         'Original WoW 3.3.5a / build 12340 / Interface 30300 only.\n'
         'Original-client testing is pending; this is not the complete addon.\n'
         'Extract so Interface/AddOns/Dejunk-WotLK/Dejunk-WotLK.toc exists.\n'
-        '/djw status | /djw profile | /djw lists | /djw rules | /djw preview sell|destroy | /djw report\n'
+        '/djw status | /djw profiles list|create|switch | /djw lists | /djw rules | /djw preview sell|destroy | /djw report\n'
         'The slot command reads only the chosen bag slot. The report can be copied.\n'
         'Seller/repair/destruction services are simulation-only. No game selling, repair, deletion or item use is connected.\n'
         'Disable in the AddOns menu or remove only this addon folder to uninstall.\n'

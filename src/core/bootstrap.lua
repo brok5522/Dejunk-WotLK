@@ -141,6 +141,22 @@ if type(Addon.Config) ~= "table" or type(Addon.Config.Summary) ~= "function" or
     local ok,reason=store:SetOption("quality",{quality=quality,enabled=enabled})
     return ok,reason,enabled
   end
+  function Addon.Config.ListProfiles(store)
+    if not store then return nil,"STORE_UNAVAILABLE" end
+    local state=store:GetState(); local active=store:GetActiveProfileId(); local profiles={}
+    for id,value in pairs(state.profiles or {}) do profiles[#profiles+1]={id=id,name=value.name or id,active=id==active} end
+    table.sort(profiles,function(a,b) return a.id<b.id end)
+    return profiles
+  end
+  function Addon.Config.CreateProfile(store,name)
+    if not store then return nil,"STORE_UNAVAILABLE" end
+    return store:CreateProfile(name)
+  end
+  function Addon.Config.SwitchProfile(store,id)
+    if not store then return false,"STORE_UNAVAILABLE" end
+    if type(id)~="string" then return false,"INVALID_PROFILE" end
+    return store:SwitchProfile(id)
+  end
 end
 
 function Addon.NewApplication(runtime)
@@ -239,6 +255,9 @@ function Addon.NewApplication(runtime)
         local ok,reason,enabled=Addon.Config.ToggleQuality(self.store,0)
         runtime:Print(ok and ("Poor quality rule "..(enabled and "enabled." or "disabled.")) or ("Rule update failed: "..tostring(reason)))
       end,
+      profiles=function() return Addon.Config.ListProfiles(self.store) end,
+      createProfile=function(name) return Addon.Config.CreateProfile(self.store,name) end,
+      switchProfile=function(id) return Addon.Config.SwitchProfile(self.store,id) end,
       preview=function(action) self:Command("preview "..action) end
     })
   end
@@ -320,6 +339,18 @@ function Addon.NewApplication(runtime)
       end
     elseif command == "config" then
       self:OpenConfig()
+    elseif command == "profiles" then
+      local action,args=rest:match("^(%S*)%s*(.-)%s*$"); action=(action or ""):lower()
+      if action=="create" then
+        local id,reason=Addon.Config.CreateProfile(self.store,args)
+        runtime:Print(id and ("Created and activated profile "..id..".") or ("Profile creation failed: "..tostring(reason)))
+      elseif action=="switch" then
+        local ok,reason=Addon.Config.SwitchProfile(self.store,args)
+        runtime:Print(ok and ("Active profile: "..self.store:GetActiveProfile().name.." ("..args..")") or ("Profile switch failed: "..tostring(reason or "UNKNOWN_PROFILE")))
+      elseif action=="list" or action=="" then
+        local profiles=Addon.Config.ListProfiles(self.store)
+        for _,profile in ipairs(profiles or {}) do runtime:Print((profile.active and "* " or "  ")..profile.id.." — "..profile.name) end
+      else runtime:Print("Use /djw profiles list | create <name> | switch <id>") end
     elseif command == "report" then
       runtime:ShowReport(self.diagnostics:Report(self))
     elseif command == "preview" then
@@ -351,7 +382,7 @@ function Addon.NewApplication(runtime)
       local item = self:ProbeSlot(bag, slot)
       for _, line in ipairs(self.diagnostics:SlotLines(item)) do runtime:Print(line) end
     else
-      runtime:Print("Commands: /djw status | config | report | probe | slot <bag> <slot> | preview sell|destroy | rules | profile | lists | help")
+      runtime:Print("Commands: /djw status | config | profiles list|create|switch | report | probe | slot <bag> <slot> | preview sell|destroy | rules | profile | lists | help")
       runtime:Print("Preview is read-only. Selling, destroying and repair are unavailable.")
     end
   end
