@@ -71,3 +71,20 @@ this evidence and separate owner authorization.
 
 This build contains no sale, pickup, cursor-clear, destruction, repair, item-open
 or SavedVariables implementation. The declared Phase 1 APIs are read-only.
+
+## Follow-up: owner client evidence
+The owner supplied an enUS 3.3.5/build-12340/Interface-30300 report with READY,
+zero callback errors and an occupied Hearthstone probe. Original-client startup,
+that sample's tuple shapes and copied report output now have user evidence;
+reload, empty-slot evidence, native-panel controls, positive safety states and
+merchant/error event delivery remain pending. Exact source commit/client
+modification status was not included. See
+[the sanitized record](research/CLIENT-12340-01.md) and the updated acceptance table.
+
+A regression fixture reconstructed from the reported public metadata/tuple
+shapes verifies that nil lock/quest flags and a successful zero-return purchase
+call remain unknown. No runtime code or safety policy changed. The full Lua 5.1
+suite was rerun: **43 passed, zero failures**; TOC, boundary, documentation links,
+syntax and deterministic package checks passed. Historical 42-case results above
+refer to the initial Phase 1 implementation. No new addon download is required
+for this documentation/test-only follow-up.

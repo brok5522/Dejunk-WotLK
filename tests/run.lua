@@ -296,6 +296,35 @@ test("cache invalidated during an adapter scan cannot become valid", function()
   w:Tick(0.1); equal(w.app.cache:GetSnapshot().valid, true)
 end)
 
+-- Reconstruct only the public item metadata and tuple shapes from owner evidence 01.
+-- The fixture does not claim to contain captured raw API values or tooltip text.
+test("reported 12340 nil flags and zero purchase returns remain unknown", function()
+  local w = H.New()
+  local item = w:AddItem(0, 1, {
+    id = 6948, link = "|cffffffff|Hitem:6948:0:0:0:0:0:0:0|h[Hearthstone]|h|r",
+    count = 1, quality = 1, price = 0
+  })
+  w.sizes[0] = 16
+  w.api.GetLocale = function() return "enUS" end
+  w.api.GetContainerItemInfo = function(bag, slot)
+    if bag == 0 and slot == 1 then return "texture", 1, nil, 1, nil, nil, item.link end
+    return nil
+  end
+  w.api.GetItemInfo = function()
+    return "Hearthstone", item.link, 1, 1, 0, "Miscellaneous", "Junk", 1, "", "texture", 0
+  end
+  w.api.GetContainerItemQuestInfo = function() return nil, nil, nil end
+  w.api.GetContainerItemPurchaseInfo = function() end
+  w:Load():Ready()
+  local slot = w.app.adapter:ReadSlot(0, 1, w.app.adapter:ReadEquipmentSets())
+  equal(slot.state, "OCCUPIED"); equal(slot.metadata, "known"); equal(slot.itemId, 6948)
+  equal(slot.containerShape, "7:string,number,nil,number,nil,nil,string")
+  equal(slot.itemInfoShape, "11:string,string,number,number,number,string,string,number,string,string,number")
+  equal(slot.questShape, "3:nil,nil,nil"); equal(slot.purchaseShape, "0:")
+  equal(slot.locked, "unknown"); equal(slot.quest, "unknown"); equal(slot.refundable, "unknown")
+  equal(slot.unitVendorPrice, 0); equal(slot.inEquipmentSet, false)
+end)
+
 test("all fixture worlds keep mutation sentinels untouched", function()
   for _, world in ipairs(H.worlds) do equal(world.mutations, 0) end
 end)

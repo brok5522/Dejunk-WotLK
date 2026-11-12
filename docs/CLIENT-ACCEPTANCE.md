@@ -1,6 +1,8 @@
-# Phase 1 original-client acceptance: PENDING
+# Phase 1 original-client acceptance: PARTIAL — user evidence received
 
-No actual WoW client is available in this environment. Do not mark these checks
+The owner supplied a build-12340 report and chat screenshots; see the sanitized
+[evidence record](research/CLIENT-12340-01.md). No actual WoW client is available
+in this development environment. Do not mark the remaining checks
 passed based on the Lua fixtures or a Wrath Classic client. The owner can follow
 [the Persian guide](PHASE1.fa.md); no executable `/run` macros are required.
 
@@ -10,16 +12,16 @@ client is modified. Do not include character/account/server names. Commands are
 
 | Evidence | Expected result | Actual |
 | --- | --- | --- |
-| Original 12340 startup and reload | READY after own ADDON_LOADED + login; no Lua errors | PENDING |
+| Original 12340 startup and reload | READY after own ADDON_LOADED + login; no Lua errors | PARTIAL: user report confirms startup/READY and zero callback errors; reload pending |
 | Wrong client (if separately available) | DISABLED and no bag scans | PENDING; offline fixtures passed |
-| Known occupied and empty slot | Correct ID/count/lock/quality or EMPTY; no mutation | PENDING |
-| Container and GetItemInfo signatures | Tuple arity/types match legacy layout; localized class labels and base level | PENDING |
+| Known occupied and empty slot | Correct ID/count/lock/quality or EMPTY; no mutation | PARTIAL: occupied Hearthstone read; empty slot and positive lock pending |
+| Container and GetItemInfo signatures | Tuple arity/types match legacy layout; localized class labels and base level | OBSERVED for one enUS item: 7 container / 11 item-info returns |
 | Uncached/unavailable metadata | UNKNOWN retained; at most two timed retries | PENDING; offline fixtures passed |
-| Refund purchase tuple | Fifth return semantics; nil remains unknown until evidence justifies interpretation | PENDING |
-| Quest flag and binding strings | Explicit booleans or observed legacy 0/1; opt-in hidden tooltip probe; unknown text stays unknown | PENDING |
-| Equipment sets, if configured | Correct count; all matching bag item IDs protected conservatively | PENDING |
+| Refund purchase tuple | Fifth return semantics; nil remains unknown until evidence justifies interpretation | PARTIAL: zero returns on Hearthstone; refundable-item semantics pending |
+| Quest flag and binding strings | Explicit booleans or observed legacy 0/1; opt-in hidden tooltip probe; unknown text stays unknown | PARTIAL: three nil quest returns; bound=true on Hearthstone; positive quest/unbound cases pending |
+| Equipment sets, if configured | Correct count; all matching bag item IDs protected conservatively | PARTIAL: count=0; configured-set membership not observed |
 | Legacy UI_ERROR_MESSAGE, merchant and bag events | Report types/arity, e.g. first error argument string; no action on events | PENDING |
-| Diagnostic report UI | Text selectable/copyable, scrolls, Escape/close work; chat fallback available | PENDING |
+| Diagnostic report UI | Text selectable/copyable, scrolls, Escape/close work; chat fallback available | PARTIAL: text supplied and chat screenshots; native scroll/close not explicitly confirmed |
 | Logout/reload behavior | No error; fresh startup, no persistent data | PENDING |
 
 Use already-present items and equipment sets; do not move, split, equip, sell,
