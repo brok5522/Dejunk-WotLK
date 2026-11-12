@@ -1,0 +1,14 @@
+name: Phase 0 foundation
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 tools/check_phase0.py
+      - run: git diff --check

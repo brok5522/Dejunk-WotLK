@@ -1,0 +1,49 @@
+# Development roadmap and feature parity
+
+Only Phase 0 is authorized. Later phases are ordered by dependency; estimates
+are intentionally withheld until original-client API probes resolve uncertainty.
+Each phase ends with a reviewable PR, updated evidence and owner acceptance.
+No phase implies permission to perform live inventory operations.
+
+| Phase | Deliverables | Acceptance / exit gate |
+| --- | --- | --- |
+| 0 — Research and foundation | Pinned upstream and legacy sources, API/dependency audit, architecture, safety policy, roadmap, AGENTS, scaffold, offline CI | Offline checks pass; limitations recorded; owner reviews and approves Phase 1 |
+| 1 — Read-only client foundation | Lua 5.1 harness, metadata-only target guard then bootstrap, Interface 30300 TOC, events/scheduler, readonly capability probes, normalized bag snapshots | Wrong builds rejected, nil/uncached/locked cases covered; original 12340 startup and read-only evidence recorded; no mutation adapter enabled |
+| 2 — Store and profiles | Versioned DB, defaults, four lists and import/export parser; profile create/duplicate/switch/rename/reset/delete and character assignment | Copy isolation, corrupt/future schema recovery, restart persistence and multi-character fixtures pass; defaults preserved |
+| 3 — Rules and preview | Upstream action scopes and precedence plus safety gates; declarative rule groups, explanation codes, equipment/quest/refund/binding protection; preview-only list | Table-driven parity/boundary and conflict cases pass; unknown never eligible; deliberate differences visible; no transaction path |
+| 4 — Safe selling and repair | Mock-first transaction state machine, manual/auto sell, merchant button actions, caps, cancellation and repair; controlled optional real-client tests | All race/timeout/cursor/session scenarios pass in mocks; explicit authorization before disposable-item real tests; no success from slot disappearance alone |
+| 5 — Single-stack destruction | User intent, confirm popup, post-confirmation revalidation and verified cursor handling | Stale/replaced/split/same-ID items and double acceptance blocked; no background destruction; explicit authorization before any real deletion tests |
+| 6 — Complete UI and integrations | All config screens, profiles, searchable lists and import/export, custom rule builder, junk/loot frames, tooltips, bag icons, minimap, commands/bindings, public query/events API | Every backlog row below has UI and behavioral evidence; localization/focus/scroll/combat checks; default bag mapping proven; third-party versions individually tested |
+| 7 — Release candidate | Performance limits, diagnostics, full regression, upgrade/recovery docs, packaging/license manifest, install/user docs, release checklist | Actual 12340 acceptance recorded; clean Lua 5.1 checks and tests; correct single-folder ZIP; owner approves publication separately |
+
+## Feature acceptance backlog
+| Feature | Phase | Required behavior / evidence |
+| --- | --- | --- |
+| Automatic and manual selling | 4 | Opt-in automation, eligibility reasons, refund protection, merchant-session cancellation, 12-stack cap |
+| Safe destruction | 5 | Single stack, explicit action, confirmation on, stale intent and cursor tests |
+| Custom rules | 3 + 6 | Declarative all/any predicates and order; SELL/DESTROY/BOTH scope; no executable imports |
+| Inclusion/exclusion lists | 2 + 3 + 6 | Global/profile lists, search, drag/drop and bindings, validated import/export, precedence tests |
+| Quality, level, price, equipment rules | 3 + 6 | Stack copper thresholds and strict boundaries, per-quality toggles, verified classes including WotLK relics |
+| Quest, unbound and equipment sets | 1 + 3 | Tri-state read-only evidence; mandatory quest/set gate; duplicate set IDs conservatively protected |
+| Profiles | 2 + 6 | Shared per-account profiles, character assignments, lifecycle and migration persistence |
+| Auto-repair | 4 | Off by default, personal funds, capability/cost checks, once per session |
+| Bag icons | 6 | Small/large, hide/update correctly on swaps, frame reuse and bag open order; default UI first |
+| Minimap and merchant buttons | 4 + 6 | Position persistence/reset, click modifiers, tooltip preview, no unsafe action from hover |
+| Item tooltips | 3 + 6 | Separate sell/destroy reasons, uncached/locked states, no recursion or mutation |
+| Full configuration | 6 | Profile/global options, lists, rules, profiles, keybindings and diagnostics; working legacy navigation |
+| Junk items window | 3 + 6 | Counts/value, per-row reasons, sell/destroy/exclude, auto-show only when configured |
+| Lootable items window | 6 | One user-triggered open at a time, session ignore, opt-in auto-show, no background item use |
+| Commands and bindings | 6 | /dejunk, sell, destroy, junk, loot, profiles, help; list toggles; conflict and combat behavior |
+| Public API | 6 | Read-only bag classification plus documented bag/state change events; stable names, no direct write bypass |
+| Chat and presentation | 6 | Reduced/verbose output, confirmed versus ambiguous results, counts/stack values, localization fallback |
+| Retail-only features | N/A | Artifact relics, warband and addon compartment omitted with explanation |
+| Third-party bags | 6 / follow-up | Version-specific Bagnon, ArkInventory and ElvUI compatibility only after actual evidence; otherwise documented unsupported |
+
+## Deliberate differences and unresolved research
+Safe Sell defaults on and applies per merchant session. Quest/equipment-set and
+refundable protections precede list inclusions. Legendary/heirloom items are
+protected in v1. Upstream defaults and precedence remain documented separately.
+Legacy tooltip binding certainty, class/subclass localization, refund semantics,
+equipment-set identity, original client protected actions, texture availability,
+and third-party bag versions remain evidence gates. Until resolved, retain
+UNKNOWN/unsupported state instead of guessing or quietly disabling safeguards.

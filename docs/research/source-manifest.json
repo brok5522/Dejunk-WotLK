@@ -1,0 +1,55 @@
+{
+  "inspectedOn": "2026-11-12",
+  "sources": [
+    {
+      "id": "dejunk",
+      "repository": "https://github.com/moody/Dejunk",
+      "commit": "04bafd5e411441ef5b51bb8ed10d208f2d7758f5",
+      "files": {
+        "Dejunk.toc": "f60b2228e16cfc8a91a8fb3789bb036560d1278b903014365493224153424cef",
+        "Dejunk.xml": "8bb91ce5a3b87e21638f50225a8b07e25f02caf7ec0cd9930054c39f93f43e3d",
+        "LICENSE": "5a2c80bb07b3ed3d618ea2aa5abadcac3736899479379b70033e2a1ec00232b7",
+        "README.md": "1500d3a375c648a200388f2eda2b88a70436af22ca5ad49fcb0ea9b4f606187f",
+        "src/addon.lua": "6a909d234218620eac5265f631c7a95a9332927d3e2ecbb54f9dbc6899675dce",
+        "src/blizzard/blizzard.lua": "b6b57b098267cd3e06c406f088f4f14e8f132cb21b0b7bc0a87914dabd360cd6",
+        "src/items/items.lua": "6b8e92c96c52c89df22aca580166f7ad7b6731e1b2dd361559a60b4717674e04",
+        "src/items/equipment-sets-cache.lua": "7089a43f376576c9653599624ec619af3a65c4c7b3de3956534354f4ad5311da",
+        "src/junk-filter/junk-filter.lua": "ca75ba05791bfdaf80e1d2fb7b6bd7070c0fdb0e5eeac53ee186ca1cc1ab9d1c",
+        "src/junk-filter/item-filters.lua": "c26513283ee4cdee8ba2c1620e0ae16e261a25cc32ccd982445db978f8356831",
+        "src/services/seller.lua": "29bcc3f34b635d695f6e0149a2d24586e1cc0b4a4b44c406d70bda725ea39ed5",
+        "src/services/destroyer.lua": "8a0e2989a2db82ea74ed372c3794f3219d6efe321f68abc5f78c6969deef5b93",
+        "src/services/confirmer.lua": "6187dfdd55a0b3d12d5fb0dd934d6281bd8f5ec4a5d67611b123752ab872758c",
+        "src/store/default-states.lua": "a3d93f7783a0121e20f51711c624269fb52d8142d311effcdbed89979e770add",
+        "src/store/migrations.lua": "de7627685680c1df1f3e12c3699b2a9e9acccb1811d5e68429ee9359197531fc",
+        "src/ui/item-icons.lua": "3187f81322d55264aac1dff626520f8a4a9cce980ede12171cdff0d19db1a626",
+        "src/ui/item-tooltip.lua": "59b1538df20c580a20c315f40d22a1e8f6139873eef3482912ab491656da1dc1",
+        "src/ui/blizzard/addon-category.lua": "0d3f9f84e733088b394e2180451682c1831d2e43d0a2ba8fb995ee623bad3d75",
+        "src/events/events.lua": "8cd3165a2c82ead9b7c352e0ffee081f298c1a8d640d001a48c05d2115da5738",
+        "src/utils/ticker-manager.lua": "6e80d79ef68ed51fd4ad3234bb795d05d86153a4220dc907316619cb1dbc3a4d",
+        "libs/LibStub.lua": "f93f7dfbd280c0f8e0328bb194faa6db541c3c50b3d4d37eb064c816f0ec5576",
+        "libs/CallbackHandler-1.0.lua": "84a15af505e728ac5e5eb6a8eaba8989d1131d5f8ba14d11abcfe4ce086de3c1",
+        "libs/LibDataBroker-1.1.lua": "f3d4758f2060215492c9764b1d7dc2a336826d4cd253cd54ff9ff7c6d78f04e2",
+        "libs/LibDBIcon-1.0.lua": "3df10b4728fb33781c144ee7fc118e825254d03a8a7eebe917a016c09cf9751c",
+        "libs/Waffle.lua": "bd668fb59160f4f9bc4b2b13298c7ca93cbad9be017892b21eac089a3015d396",
+        "libs/Wux.lua": "87fc57d80574bdf0078191af07fc76f1997f2577f247dfba2cec8418197bf6e3"
+      }
+    },
+    {
+      "id": "wotlk-framexml",
+      "repository": "https://github.com/wowgaming/3.3.5-interface-files",
+      "commit": "d0339b17b0221db76e6acd2dc2915d224a5b62ca",
+      "files": {
+        "ContainerFrame.lua": "3ffd924449f569cbfc38b5c4af2d5e6f377d94a99c3e7ae97d751fdf8c1ed724",
+        "ContainerFrame.xml": "8558be0a4561e6b2ce0e6479857a30aa64f9fa621ea6fedc5199d7f54063460d",
+        "EquipmentManager.lua": "5a1db25ad10a3ec4777535b6bc565b53815543b164d3e342d8bbe2770c1e265c",
+        "PaperDollFrame.lua": "924839471ca4780d2f9ad58418dab9805ea1663119218b32ff9edd667d54978e",
+        "UIErrorsFrame.lua": "d4d1865b12b06b2abeab1b1e3ec588dbfa8930185801ecc6e7cc9f7336ab0e5b",
+        "InterfaceOptionsFrame.lua": "334f9b0a17eb15e3cce83661f39250cf5616559be87779379a041139b843e0c7",
+        "MerchantFrame.lua": "c7d101ad0d8e54117762abf9c85616e53886b7bded36bfbf85b4f718e7dd1126",
+        "MerchantFrame.xml": "9461bc6632ac04787b364373e876a9af810683e9d55c4b2cf8781435a0e4f529",
+        "MailFrame.lua": "d97121320cc2cc7ee64ecc52708b968a199126382a0f20b6263d93f50c03e167",
+        "GlobalStrings.lua": "1d6662e6e77945a1d82d91dbc2fec70a5dffeb31e123c392e24adf7548d17dec"
+      }
+    }
+  ]
+}
