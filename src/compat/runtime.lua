@@ -9,6 +9,7 @@ function Runtime.New(environment)
   local frame, update, scanTooltip, reportFrame, reportEdit, reportTitle, configFrame, configSummary, poorButton
   local configWaffleRoot
   local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
+  local profileWaffleRoot,listsWaffleRoot,importWaffleRoot,rulesWaffleRoot,optionsWaffleRoot,reportWaffleRoot
   local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listPanels
   local importFrame,importTitle,importEdit,importStatus,importCommitButton,importPreview,importScope,importKind
   local reportReturnTarget
@@ -108,6 +109,21 @@ function Runtime.New(environment)
     if frame then
       frame:SetScript("OnUpdate", pending and function(_, elapsed) update(elapsed) end or nil)
     end
+  end
+  local function createWaffleWindow(name,width,height)
+    if not Addon.Waffle then return nil,nil end
+    local ok,root,window=pcall(function()
+      local component=Addon.Waffle:Flex({width=width,height=height,direction="COLUMN",visibility="GONE",
+        frameFactory=function()
+          local panel=api.CreateFrame("Frame",name,api.UIParent)
+          panel:SetFrameStrata("DIALOG"); panel:EnableMouse(true); panel:SetPoint("CENTER")
+          panel:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
+          return panel
+        end})
+      component:SetVisibility("VISIBLE"); component:Layout()
+      return component,component:GetFrame()
+    end)
+    return ok and root or nil,ok and window or nil
   end
   function runtime:Stop()
     if frame then
@@ -244,7 +260,8 @@ function Runtime.New(environment)
     callbacks=callbacks or {}
     local ok=pcall(function()
       if not profileFrame then
-        profileFrame=api.CreateFrame("Frame",nil,api.UIParent)
+        profileWaffleRoot,profileFrame=createWaffleWindow("DejunkWotLKProfiles",420,360)
+        profileFrame=profileFrame or api.CreateFrame("Frame",nil,api.UIParent)
         profileFrame:SetWidth(420); profileFrame:SetHeight(360); profileFrame:SetPoint("CENTER")
         profileFrame:SetFrameStrata("DIALOG"); profileFrame:EnableMouse(true)
         profileFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
@@ -344,7 +361,8 @@ function Runtime.New(environment)
     callbacks=callbacks or {}
     local ok=pcall(function()
       if not listFrame then
-        listFrame=api.CreateFrame("Frame",nil,api.UIParent)
+        listsWaffleRoot,listFrame=createWaffleWindow("DejunkWotLKLists",720,500)
+        listFrame=listFrame or api.CreateFrame("Frame",nil,api.UIParent)
         listFrame:SetWidth(720); listFrame:SetHeight(500); listFrame:SetPoint("CENTER")
         listFrame:SetFrameStrata("DIALOG"); listFrame:EnableMouse(true)
         listFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
@@ -489,7 +507,8 @@ function Runtime.New(environment)
     callbacks=callbacks or {}
     local ok=pcall(function()
       if not importFrame then
-        importFrame=api.CreateFrame("Frame",nil,api.UIParent)
+        importWaffleRoot,importFrame=createWaffleWindow("DejunkWotLKListImport",520,420)
+        importFrame=importFrame or api.CreateFrame("Frame",nil,api.UIParent)
         importFrame:SetWidth(560); importFrame:SetHeight(390); importFrame:SetPoint("CENTER")
         importFrame:SetFrameStrata("DIALOG"); importFrame:EnableMouse(true)
         importFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
@@ -568,7 +587,8 @@ function Runtime.New(environment)
     end
     local ok=pcall(function()
       if not rulesFrame then
-        rulesFrame=api.CreateFrame("Frame",nil,api.UIParent)
+        rulesWaffleRoot,rulesFrame=createWaffleWindow("DejunkWotLKRules",540,480)
+        rulesFrame=rulesFrame or api.CreateFrame("Frame",nil,api.UIParent)
         rulesFrame:SetWidth(540); rulesFrame:SetHeight(480); rulesFrame:SetPoint("CENTER")
         rulesFrame:SetFrameStrata("DIALOG"); rulesFrame:EnableMouse(true)
         rulesFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
@@ -726,7 +746,8 @@ function Runtime.New(environment)
     callbacks=callbacks or {}
     local ok=pcall(function()
       if not optionsFrame then
-        optionsFrame=api.CreateFrame("Frame",nil,api.UIParent)
+        optionsWaffleRoot,optionsFrame=createWaffleWindow("DejunkWotLKOptions",560,420)
+        optionsFrame=optionsFrame or api.CreateFrame("Frame",nil,api.UIParent)
         optionsFrame:SetWidth(560); optionsFrame:SetHeight(420); optionsFrame:SetPoint("CENTER")
         optionsFrame:SetFrameStrata("DIALOG"); optionsFrame:EnableMouse(true)
         optionsFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
@@ -803,7 +824,8 @@ function Runtime.New(environment)
   function runtime:ShowReport(text,titleText,returnTarget)
     local ok = pcall(function()
       if not reportFrame then
-        local panel = api.CreateFrame("Frame", "DejunkWotLKReadOnlyReport", api.UIParent)
+        reportWaffleRoot,reportFrame=createWaffleWindow("DejunkWotLKReadOnlyReport",600,420)
+        local panel = reportFrame or api.CreateFrame("Frame", "DejunkWotLKReadOnlyReport", api.UIParent)
         panel:SetWidth(600); panel:SetHeight(420); panel:SetPoint("CENTER")
         panel:SetFrameStrata("DIALOG"); panel:EnableMouse(true)
         panel:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border", tile = true, tileSize = 32, edgeSize = 32, insets = { left = 8, right = 8, top = 8, bottom = 8 } })

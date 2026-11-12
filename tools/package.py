@@ -19,7 +19,7 @@ def build(destination):
     entries = {path.relative_to(ROOT).as_posix(): path.read_bytes() for path in paths}
     entries['libs/Waffle-LICENSE.txt'] = (ROOT / 'libs/Waffle-LICENSE.txt').read_bytes()
     entries['README.txt'] = (
-        'Dejunk-WotLK 0.16.0-dev - ORIGINAL UI FRAMEWORK PREVIEW\n'
+        'Dejunk-WotLK 0.16.1-dev - ORIGINAL UI FRAMEWORK PREVIEW\n'
         'Original WoW 3.3.5a / build 12340 / Interface 30300 only.\n'
         'Original-client testing is pending; this is not the complete addon.\n'
         'Extract so Interface/AddOns/Dejunk-WotLK/Dejunk-WotLK.toc exists.\n'

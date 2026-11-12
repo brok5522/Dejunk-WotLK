@@ -1,6 +1,13 @@
 # src/ui
 
-Phase 6 provides native settings and profile windows, plus a list editor for
+Phase 6 uses the pinned upstream Waffle layout engine from the original Dejunk
+project for the main window and top-level configuration/report windows. The
+interior screens are being migrated; their controls still use legacy-compatible
+native WoW widgets while Waffle handles window creation and layout. Original
+Waffle visual components that depend on APIs absent from 3.3.5a are not copied
+blindly. Target-client verification is still required.
+
+The configuration currently provides profile windows, plus a list editor for
 global/profile inclusions and exclusions in four panes, with search by item ID
 or cached item name. Add/remove uses an item ID; each pane shows six matches at
 a time. Clicking a row selects its ID and its corresponding scope/list for the

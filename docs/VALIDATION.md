@@ -286,15 +286,15 @@ fixture also exercised rule selectors, invalid/maximum conditions, add/remove,
 clear draft, profile isolation, list import/export, and report return navigation.
 Lua 5.1 syntax and reproducible package checks pass.
 
-## Original UI framework migration — 0.16.0-dev
+## Original UI framework migration — 0.16.1-dev
 
 Pinned Waffle 0.12.2 from upstream Dejunk commit
 `04bafd5e411441ef5b51bb8ed10d208f2d7758f5` and loaded it before the runtime.
-The primary configuration shell now uses Waffle layout composition; the
-upstream MIT notice is packaged and the vendored source SHA-256 is checked by
-`tools/check.py`. The individual screens still use the existing port and have
-not yet been migrated to upstream components. Original-client rendering of
-this shell is NOT RUN.
+The primary configuration shell and top-level settings/report windows now use
+Waffle layout composition; the upstream MIT notice is packaged and the vendored
+source SHA-256 is checked by `tools/check.py`. Interior controls remain the
+legacy-compatible port; upstream screens/components have not been fully
+ported. Original-client rendering of this shell is NOT RUN.
 
 Validation command: `python3 tools/check.py --lua /workspace/work/lua51/usr/bin/lua5.1 --luac /workspace/work/lua51/usr/bin/luac5.1`.
 Result: 54 behavior, 15 store, 7 service, 11 destroyer, 62 UI model and the
