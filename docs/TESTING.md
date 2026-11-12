@@ -32,6 +32,12 @@ harness with legacy tuple APIs. No globally permissive modern API fallback mocks
 Pure modules must load with no WoW globals; only mocked adapter calls are allowed
 for transaction tests. Every test run resets globals, store and scheduler state.
 
+Phase 4 mock-only services currently cover adapter rejection unless explicitly
+marked simulation, stale slot/generation/settings rejection, unsafe context,
+JUNK-only sell eligibility, 12 attempts across repeated starts, failed and
+ambiguous evidence, cancellation, and repair capability/funds/once-per-session.
+They are not wired to the WoW runtime.
+
 Required behavioral cases:
 - Every rule/action scope, list conflict and precedence, exact thresholds,
   zero/nil prices, whole-stack prices, cloak/type exceptions and no-match keep.

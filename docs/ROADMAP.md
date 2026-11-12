@@ -1,8 +1,8 @@
 # Development roadmap and feature parity
 
-Phases 0, 1 and 2 are complete. Owner-reported original-client smoke checks
-confirmed Phase 1 diagnostics and Phase 2 persistence. Phase 3 read-only rules
-and preview are implemented locally and await original-client verification.
+Phases 0, 1 and 2 are complete; the owner also verified Phase 3 preview output.
+Phase 4 mock-only seller and repair kernels are implemented and tested. No
+transaction code is connected to live game APIs.
 Broader acceptance is **partial**, with explicit unobserved cases in
 docs/CLIENT-ACCEPTANCE.md. Later phases are ordered by dependency; estimates
 are intentionally withheld until original-client API probes resolve uncertainty.
@@ -14,8 +14,8 @@ No phase implies permission to perform live inventory operations.
 | 0 — Research and foundation | Pinned upstream and legacy sources, API/dependency audit, architecture, safety policy, roadmap, AGENTS, scaffold, offline CI | Offline checks pass; limitations recorded; owner reviews and approves Phase 1 |
 | 1 — Read-only client foundation (implemented; basic client smoke observed, broader acceptance partial) | Lua 5.1 harness, metadata-only target guard then bootstrap, Interface 30300 TOC, events/scheduler, readonly capability probes, normalized bag snapshots | Wrong builds rejected, nil/uncached/locked cases covered; original 12340 startup and read-only evidence recorded; no mutation adapter enabled |
 | 2 — Store, profiles and lists (complete) | Versioned DB, defaults, four lists and import/export parser; profile create/duplicate/switch/rename/reset/delete and character assignment | Offline fixtures pass; owner confirmed reload persistence for profile and global list |
-| 3 — Rules and preview (implemented; client review pending) | Action scopes and precedence plus safety gates; declarative profile rules, explanation codes, equipment/quest/refund/binding protection; read-only bag preview | 49 phase 1/3 behavior cases and 11 store cases pass; unknown never eligible; no transaction path; original client pending |
-| 4 — Safe selling and repair | Mock-first transaction state machine, manual/auto sell, merchant button actions, caps, cancellation and repair; controlled optional real-client tests | All race/timeout/cursor/session scenarios pass in mocks; explicit authorization before disposable-item real tests; no success from slot disappearance alone |
+| 3 — Rules and preview (implemented; client observed) | Action scopes and precedence plus safety gates; declarative profile rules, explanation codes, equipment/quest/refund/binding protection; read-only bag preview | 50 behavior cases, 11 store cases pass; owner observed 1 JUNK, 1 UNKNOWN, 14 KEEP; no transaction path |
+| 4 — Safe selling and repair (simulation only) | Mock-only transaction kernel; stale identity/settings rejection, repeated-start 12-attempt session cap, ambiguity handling, merchant/context cancellation, mock repair gates | 7 service cases plus other suites pass; no production adapter or inventory call; explicit authorization needed before real-client tests |
 | 5 — Single-stack destruction | User intent, confirm popup, post-confirmation revalidation and verified cursor handling | Stale/replaced/split/same-ID items and double acceptance blocked; no background destruction; explicit authorization before any real deletion tests |
 | 6 — Complete UI and integrations | All config screens, profiles, searchable lists and import/export, custom rule builder, junk/loot frames, tooltips, bag icons, minimap, commands/bindings, public query/events API | Every backlog row below has UI and behavioral evidence; localization/focus/scroll/combat checks; default bag mapping proven; third-party versions individually tested |
 | 7 — Release candidate | Performance limits, diagnostics, full regression, upgrade/recovery docs, packaging/license manifest, install/user docs, release checklist | Actual 12340 acceptance recorded; clean Lua 5.1 checks and tests; correct single-folder ZIP; owner approves publication separately |

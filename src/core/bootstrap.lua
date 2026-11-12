@@ -126,7 +126,7 @@ function Addon.NewApplication(runtime)
     if app.loaded and app.loggedIn and app.state ~= "READY" and app.client.supported then
       app.state = "READY"
       app.cache:Start()
-      runtime:Print("Phase 2 ready. /djw report opens diagnostics; /djw help lists commands.")
+      runtime:Print("Phase 4 ready (simulation services only). /djw report opens diagnostics; /djw help lists commands.")
     end
   end
   function app:HandleEvent(event, ...)

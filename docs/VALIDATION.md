@@ -158,3 +158,12 @@ seven other occupied keeps, eight empty-slot keeps; totals `eligible=1 keep=14
 unknown=1`. This is read-only classification evidence, not an attempted
 transaction. Exact addon commit is not visible in the screenshot; see
 `docs/research/CLIENT-12340-06.md`.
+
+# Phase 4 simulation-only kernel
+
+Added seller and repair services that require a fake adapter explicitly marked
+`simulation=true`. No runtime wiring or game mutation APIs were added. Lua 5.1
+checks pass: **50 behavior cases, 11 store cases, 7 service cases**. These cover
+merchant/context gates, stale intent, the 12-attempt cap, ambiguous outcomes,
+cancellation, and once-per-session repair with sufficient funds. Real client
+transactions are not implemented or tested.

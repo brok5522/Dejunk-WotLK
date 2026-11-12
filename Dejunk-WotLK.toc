@@ -1,9 +1,9 @@
 ## Interface: 30300
-## Title: Dejunk-WotLK (Phase 3 Preview)
+## Title: Dejunk-WotLK (Phase 4 Simulation)
 ## SavedVariables: DejunkWotLKDB
-## Notes: Read-only rules preview. No selling, destruction or repair.
+## Notes: Simulation-only seller and repair. No in-game actions are connected.
 ## Author: Dejunk-WotLK contributors
-## Version: 0.3.3-dev
+## Version: 0.4.0-dev
 
 src\namespace.lua
 src\compat\client.lua
@@ -16,4 +16,6 @@ src\core\diagnostics.lua
 src\store\store.lua
 src\rules\evaluator.lua
 src\services\preview.lua
+src\services\seller.lua
+src\services\repair.lua
 src\core\bootstrap.lua

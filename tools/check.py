@@ -56,7 +56,8 @@ def main():
         'src/namespace.lua', 'src/compat/client.lua', 'src/compat/legacy.lua',
         'src/compat/runtime.lua', 'src/core/events.lua', 'src/core/scheduler.lua',
         'src/core/bag-cache.lua', 'src/core/diagnostics.lua', 'src/store/store.lua',
-        'src/rules/evaluator.lua', 'src/services/preview.lua', 'src/core/bootstrap.lua',
+        'src/rules/evaluator.lua', 'src/services/preview.lua', 'src/services/seller.lua',
+        'src/services/repair.lua', 'src/core/bootstrap.lua',
     ]
     if load_order != expected:
         raise ValueError('Unexpected Phase 1 TOC load order; review the boundary before extending it')
@@ -85,6 +86,7 @@ def main():
     run([sys.executable, 'tools/check_phase0.py'])
     run([args.lua, 'tests/run.lua'])
     run([args.lua, 'tests/store-tests.lua'])
+    run([args.lua, 'tests/service-tests.lua'])
     with tempfile.TemporaryDirectory(prefix='dejunk-wotlk-check-') as directory:
         first, second = Path(directory) / 'first.zip', Path(directory) / 'second.zip'
         build(first)

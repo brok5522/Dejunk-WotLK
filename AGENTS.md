@@ -2,7 +2,7 @@
 
 ## Scope and approval
 - Target only the original World of Warcraft **3.3.5a, build 12340, Interface 30300, Lua 5.1**. Wrath Classic is a different API and is not evidence of compatibility.
-- The owner explicitly said “ادامه بده” after Phase 2, authorizing continued development. Phase 3 scope is the pure rules engine, persisted declarative profile rules, and read-only bag preview. No inventory mutation, selling, repair, item use, or transaction pathways are authorized by that instruction. Continue through the roadmap without asking the owner to restate the project goal; stop before Phase 4 inventory transactions.
+- The owner approved continuing through Phase 3 and has now said “بریم بعدی”, authorizing Phase 4 development. Implement mock-only seller and repair state machines, validation and evidence handling. Do not connect them to real WoW APIs or invoke them against a live character; keep Phase 4 simulation-only until the owner reviews the code and explicitly authorizes a real-client operation test. Destruction remains out of scope until Phase 5 and separate review.
 - Never perform destructive inventory operations during development or verification. Do not connect automation to a live character's inventory. Use mocks and read-only probes. Future real-client transaction tests require separate explicit authorization and disposable items.
 - Do not publish releases, merge PRs, or enable automatic merging without owner authorization. Preserve existing user changes.
 
