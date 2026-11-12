@@ -31,7 +31,7 @@ def main():
             parser.error(f'{executable} is not a Lua 5.1 tool')
 
     for deliverable in (
-        'docs/PHASE1.md', 'docs/PHASE1.fa.md', 'docs/CLIENT-ACCEPTANCE.md',
+        'docs/PHASE1.md', 'docs/PHASE1.fa.md', 'docs/PHASE2.md', 'docs/CLIENT-ACCEPTANCE.md',
         'docs/PULL_REQUEST_PHASE1.md', 'LICENSE', 'tools/package.py',
     ):
         if not (ROOT / deliverable).is_file():
@@ -40,8 +40,8 @@ def main():
     text = toc.read_text()
     if not re.search(r'^## Interface: 30300$', text, re.M):
         raise ValueError('TOC must target Interface 30300')
-    if 'SavedVariables' in text or 'Dependencies:' in text or 'LoadOnDemand:' in text:
-        raise ValueError('Phase 1 must not persist state or load external dependencies/on demand')
+    if text.count('## SavedVariables: DejunkWotLKDB') != 1 or 'Dependencies:' in text or 'LoadOnDemand:' in text:
+        raise ValueError('Phase 2 requires one namespaced SavedVariables declaration and no external dependencies')
     load_order = []
     for line in text.splitlines():
         if line.strip() and not line.lstrip().startswith('#'):

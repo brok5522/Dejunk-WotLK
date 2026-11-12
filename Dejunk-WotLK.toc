@@ -3,7 +3,6 @@
 ## SavedVariables: DejunkWotLKDB
 ## Notes: Profiles and lists. No selling, destruction or repair.
 ## Author: Dejunk-WotLK contributors
-## SavedVariables: DejunkWotLKDB
 ## Version: 0.2.0-dev
 
 src\namespace.lua
@@ -14,6 +13,5 @@ src\core\events.lua
 src\core\scheduler.lua
 src\core\bag-cache.lua
 src\core\diagnostics.lua
-src\store\store.lua
 src\store\store.lua
 src\core\bootstrap.lua

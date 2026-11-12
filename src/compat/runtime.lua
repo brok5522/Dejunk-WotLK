@@ -25,13 +25,6 @@ function Runtime.New(environment)
     if not okName or not okRealm or type(name) ~= "string" or type(realm) ~= "string" then return nil end
     return realm .. "\31" .. name
   end
-  function runtime:CharacterKey()
-    if type(api.UnitName) ~= "function" or type(api.GetRealmName) ~= "function" then return nil end
-    local okName, name = pcall(api.UnitName, "player")
-    local okRealm, realm = pcall(api.GetRealmName)
-    if not okName or not okRealm or type(name) ~= "string" or type(realm) ~= "string" then return nil end
-    return realm .. "\31" .. name
-  end
   function runtime:Locale()
     if type(api.GetLocale) ~= "function" then return "unknown" end
     local ok, locale = pcall(api.GetLocale)
