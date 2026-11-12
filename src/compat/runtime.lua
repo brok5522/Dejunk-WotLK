@@ -437,7 +437,8 @@ function Runtime.New(environment)
         importEdit:SetMultiLine(true); importEdit:SetAutoFocus(false); importEdit:SetMaxLetters(65536)
         importEdit:SetPoint("TOPLEFT",scroll,"TOPLEFT",8,-8); importEdit:SetWidth(455); importEdit:SetHeight(215)
         importEdit:SetFontObject(api.ChatFontNormal); importEdit:SetTextColor(1,1,1,1); importEdit:SetTextInsets(2,2,2,2)
-        importEdit:EnableMouse(true); importEdit:SetScript("OnMouseDown",function() importEdit:SetFocus() end)
+        importEdit:EnableMouse(true); importEdit:EnableKeyboard(true)
+        importEdit:SetScript("OnMouseDown",function() importEdit:SetFocus() end)
         importEdit:SetScript("OnEscapePressed",function() importEdit:ClearFocus() end)
         importEdit:SetScript("OnTextChanged",function()
           importPreview=nil
@@ -481,7 +482,7 @@ function Runtime.New(environment)
       -- The title region is the first FontString child created by this panel.
       importTitle:SetText(titleText)
       if listFrame then listFrame:Hide() end
-      importFrame:Show()
+      importFrame:Show(); importEdit:SetFocus()
     end)
     if not ok then self:Print("Import window unavailable; use /djw lists import <global|profile> <inclusions|exclusions> <IDs>.") end
   end
