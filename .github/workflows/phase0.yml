@@ -1,4 +1,4 @@
-name: Phase 0 foundation
+name: WotLK read-only foundation
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
@@ -10,5 +10,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python3 tools/check_phase0.py
+      - name: Install actual Lua 5.1
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1
+      - run: python3 tools/check.py
       - run: git diff --check

@@ -3,11 +3,29 @@
 ## Phase 0 (available offline)
 `python3 tools/check_phase0.py` checks required deliverables, local Markdown link
 resolution, immutable source/checksum manifest, API inventory format, intended
-scaffold and absence of executable addon artifacts. `git diff --check` checks
-whitespace. This is a foundation check, not an addon test suite. CI runs the same
-checks; no game credentials or network downloads are required by the validator.
+scaffold. The original absence-of-runtime gate applied only to Phase 0 and was
+retired with explicit Phase 1 approval. `git diff --check` checks whitespace.
+No game credentials or network downloads are required by the validators.
 
-## Phase 1 onward (not yet executed)
+## Phase 1 implemented checks
+`python3 tools/check.py` verifies the actual Interface 30300 TOC and load order,
+rejects inventory-mutating and modern API symbols in runtime source, rejects game
+globals outside compat, compiles all runtime/test Lua with Lua 5.1, runs the
+research/doc check and executes `tests/run.lua`. This static symbol check is a
+maintainable boundary check, not a security sandbox. Legacy fixtures contain
+mutation sentinels and assert that their call counts remain zero.
+
+The suite tests exact client gating, lifecycle and missing events, tuple shapes,
+locked/uncached/unknown states, failure isolation, bounded retries, generation
+invalidation, storm coalescing, defensive copies, equipment-set duplicate IDs,
+localized opt-in binding scans, changed probe slots, command rejection, event
+payload shapes and sanitized bounded reports. Native report widgets are not
+mocked as proof of UI compatibility; the fixture deliberately tests chat fallback.
+
+See [VALIDATION.md](VALIDATION.md) for actual results and
+[CLIENT-ACCEPTANCE.md](CLIENT-ACCEPTANCE.md) for the unfulfilled client gate.
+
+## Later runtime checks (not yet implemented)
 Use an actual Lua 5.1 interpreter/compiler. Add `luac5.1 -p` for every runtime and
 test file, explicit TOC/XML graph checks, localization keys and a minimal offline
 harness with legacy tuple APIs. No globally permissive modern API fallback mocks.

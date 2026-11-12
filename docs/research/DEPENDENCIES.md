@@ -28,3 +28,9 @@ No copied artwork, Blizzard FrameXML, upstream libraries or runtime code is
 included in this Phase 0 repository. A license for newly implemented port code
 must be selected and documented before distribution; Phase 0 does not silently
 relicense upstream materials.
+
+## Phase 1 update
+The read-only foundation is independently written, has no library dependencies,
+and uses legacy native frames. Its code is under the root MIT LICENSE (copyright
+2026 Dejunk-WotLK contributors). No upstream runtime or art was copied. The future
+vendor/notice policy above still applies if external code is introduced.

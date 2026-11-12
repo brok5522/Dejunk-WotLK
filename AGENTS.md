@@ -2,7 +2,7 @@
 
 ## Scope and approval
 - Target only the original World of Warcraft **3.3.5a, build 12340, Interface 30300, Lua 5.1**. Wrath Classic is a different API and is not evidence of compatibility.
-- Current authorized scope is **Phase 0 only**: research, architecture, documentation, repository scaffolding and checks. Stop after Phase 0. Explicit owner approval is required before Phase 1 or any addon runtime implementation.
+- Current authorized scope is **Phase 1: read-only foundation**, explicitly approved by the owner with “شروع کن” after the Phase 0 review. Implement target guard, bootstrap, legacy reads, events/scheduler, snapshots, diagnostics and Lua 5.1 tests. No inventory mutation, profile/rule implementation or Phase 2 work is authorized. Stop for review after Phase 1; original-client evidence remains a gate before progressing.
 - Never perform destructive inventory operations during development or verification. Do not connect automation to a live character's inventory. Use mocks and read-only probes. Future real-client transaction tests require separate explicit authorization and disposable items.
 - Do not publish releases, merge PRs, or enable automatic merging without owner authorization. Preserve existing user changes.
 
@@ -19,7 +19,7 @@
 - Evidence must include immutable source revisions and file/line references. Distinguish observed source behavior, proposed design and unverified client behavior.
 
 ## Validation and handoff
-- Run `python3 tools/check_phase0.py` and `git diff --check` in Phase 0. Later use actual Lua 5.1 syntax and behavioral tests, not only modern interpreters or mocks of modern APIs.
+- Run `python3 tools/check_phase0.py` (research/document checks), `python3 tools/check.py` (TOC, read-only boundary, Lua 5.1 syntax and behavior), and `git diff --check`. The historical no-runtime Phase 0 check was retired after Phase 1 authorization. Use actual Lua 5.1, not only modern interpreters or modern API mocks.
 - Record commands, results and skipped checks honestly in docs/VALIDATION.md. Never claim in-game compatibility from offline checks.
 - Add meaningful tests for rules, safety, migrations and transactions as those modules are implemented. Required scenarios are in docs/TESTING.md.
 - Update roadmap, compatibility and safety docs when decisions change. Explain results and remaining limitations to the owner in Persian, in non-programmer language.

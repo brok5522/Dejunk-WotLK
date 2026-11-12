@@ -3,13 +3,18 @@
 Planned recreation of [Dejunk](https://github.com/moody/Dejunk) for the original
 World of Warcraft **3.3.5a / build 12340 / Interface 30300 / Lua 5.1**.
 
-**Status: Phase 0 complete; implementation awaits owner approval.**
-This repository contains research, design and development scaffolding. There is
-no installable addon, TOC, runtime Lua, inventory action or vendored library yet.
-Do not copy this checkout into AddOns expecting a working addon.
+**Status: Phase 1 read-only foundation implemented; original-client acceptance pending.**
+The owner approved Phase 1 after reviewing Phase 0. This development build reads
+carried bags and produces diagnostics. It cannot sell, delete, repair, use items
+or persist profiles. There are no dependencies or SavedVariables. It is not the
+complete Dejunk addon and has not been tested in an actual WoW client here.
+
+See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
 
 ## Documentation
-- [Persian report](docs/PHASE0.fa.md)
+- [Phase 1 Persian guide](docs/PHASE1.fa.md) and [client evidence checklist](docs/CLIENT-ACCEPTANCE.md)
+- [Phase 1 implementation contracts](docs/PHASE1.md)
+- [Historical Phase 0 Persian report](docs/PHASE0.fa.md)
 - [Upstream analysis](docs/research/UPSTREAM.md)
 - [API compatibility and alternatives](docs/research/COMPATIBILITY.md)
 - [Dependency decisions](docs/research/DEPENDENCIES.md)
@@ -21,18 +26,28 @@ Do not copy this checkout into AddOns expecting a working addon.
 - [GitHub review and merge guide](docs/REVIEW.fa.md)
 - [Permanent agent instructions](AGENTS.md)
 
-## Local checks
+## Local checks and packaging
 ```sh
-python3 tools/check_phase0.py
+python3 tools/check.py
+python3 tools/package.py work/Dejunk-WotLK-phase1.zip
 git diff --check
 ```
-Python 3 is the only Phase 0 check dependency. No game or account is needed.
-Future runtime packaging will create a `Dejunk-WotLK/` addon folder with an
-Interface 30300 TOC and an explicit audited load order.
+Use Python 3.9+ and **lua5.1 / luac5.1**. If binaries are elsewhere, pass
+`--lua /path/to/lua5.1 --luac /path/to/luac5.1` to `tools/check.py`.
+The check verifies TOC/load order, the read-only source boundary, Lua 5.1 syntax,
+research/docs and the behavioral suite. `tools/check_phase0.py` retains research
+checks; its historical no-runtime gate was replaced after Phase 1 approval.
+The package command refuses to overwrite existing files, creates a deterministic
+single-folder ZIP and never installs or publishes it.
+
+Commands: `/djw status`, `/djw probe` (chat), `/djw report` (copy panel),
+`/djw slot <bag 0..4> <slot>` (explicit slot probe), `/djw help`.
+`/dejunkwotlk` is an alias. The original addon's `/dejunk` is not intercepted.
 
 ## Attribution
 Upstream Dejunk 3.5.1 was examined at commit
 `04bafd5e411441ef5b51bb8ed10d208f2d7758f5`, under MIT (copyright 2017–2026 moody).
+The independently written port code is licensed under [MIT](LICENSE).
 No upstream runtime code or artwork is distributed here. Preserve upstream MIT
 notices if code is adapted later; separately review artwork and library licenses.
 See [dependency policy](docs/research/DEPENDENCIES.md).

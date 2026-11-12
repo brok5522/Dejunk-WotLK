@@ -45,3 +45,18 @@ values on known bags/items, localized class/binding strings, equipment sets and
 merchant/error events. No pickup, use, cursor clearing, deletion, selling or
 repair calls in probes. Publish sanitized results without character/account
 identifiers. Until verified, refund/binding/set uncertainties block actions.
+
+## Phase 1 implementation evidence (offline only)
+The root TOC now uses Interface 30300. `src/compat/client.lua` accepts version
+3.3.5 or 3.3.5a only with build 12340 and Interface 30300; missing required read
+APIs disable startup. `legacy.lua` normalizes original tuple returns, reads
+localized class/subclass labels without pretending they are numeric enums,
+uses the fifth refund return, and protects uncertainty with explicit unknowns.
+Equipment-set IDs are read conservatively. No class mapping or complete binding
+classification is claimed yet: binding is an opt-in localized tooltip probe,
+and absent text, missing APIs or nil flags stay unknown. Refund nil is also
+unknown pending actual-client evidence. `runtime.lua` owns legacy frames and
+all game access. `core/diagnostics.lua` reports tuple arity/types and event
+argument types; report values exclude character names and hyperlinks.
+The offline harness verifies these contracts with synthetic legacy APIs.
+[Original-client verification](../CLIENT-ACCEPTANCE.md) remains pending.

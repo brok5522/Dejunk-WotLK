@@ -1,7 +1,9 @@
 # Proposed architecture
 
-Status: design only. Runtime begins only after Phase 1 approval. No automatic
-inventory operation is authorized by this design document.
+Status: the long-term design below remains proposed beyond the read-only
+foundation. Phase 1 is authorized and implemented; actual implementation details
+and differences are in [PHASE1.md](PHASE1.md). No inventory operation is
+authorized or implemented in Phase 1.
 
 ## Boundaries and flow
 ```mermaid

@@ -1,3 +1,3 @@
 # src/core
 
-Bootstrap, events, scheduler and immutable bag snapshots.
+Private namespace consumers, event bus, cancellable scheduler, defensive bag snapshot copies, diagnostics and gated bootstrap. No store, rules or transaction services are implemented.

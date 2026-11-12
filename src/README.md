@@ -1,3 +1,3 @@
 # src
 
-Future addon runtime; no executable Lua or TOC is authorized in Phase 0. See [architecture](../docs/ARCHITECTURE.md).
+Phase 1 has an explicit TOC and a read-only runtime. See [implementation contracts](../docs/PHASE1.md). No inventory mutation exists.

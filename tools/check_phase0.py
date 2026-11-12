@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline Phase 0 foundation checks; intentionally no game/API execution."""
+"""Preserved Phase 0 research/document checks; runtime checks now live in check.py."""
 import csv
 import json
 from pathlib import Path
@@ -28,13 +28,8 @@ for name in required:
     if not (ROOT / name).is_file():
         errors.append(f'Missing deliverable: {name}')
 
-# This scaffold is intentionally non-installable. Update this gate only after
-# explicit approval of implementation and replace it with runtime validation.
-for path in ROOT.rglob('*'):
-    if '.git' in path.parts or '__pycache__' in path.parts:
-        continue
-    if path.is_file() and path.suffix.lower() in {'.lua', '.toc', '.xml', '.tga', '.blp'}:
-        errors.append(f'Unexpected runtime/art asset in Phase 0: {path.relative_to(ROOT)}')
+# The Phase 0 no-runtime gate was retired after explicit Phase 1 authorization.
+# tools/check.py now enforces the read-only runtime boundary and TOC graph.
 
 markdown_files = sorted(ROOT.rglob('*.md'))
 link_count = 0
@@ -95,5 +90,4 @@ if errors:
     sys.exit(1)
 print(f'PASS: {len(required)} required deliverables, {len(markdown_files)} Markdown files, '
       f'{link_count} local links, {hash_count} source digests, {len(rows)} API references')
-print('PASS: no addon Lua, TOC, XML or runtime art assets; no inventory calls executed')
-print('NOT RUN: Lua/runtime/client tests (no addon implementation in Phase 0)')
+print('PASS: historical research and documentation checks; see tools/check.py for runtime validation')
