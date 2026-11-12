@@ -1,5 +1,118 @@
 local _, Addon = ...
 
+-- Keep read-only preview functional if an older or partial installation omits
+-- the two optional modules. The TOC still loads the canonical modules first;
+-- these compact fallbacks are used only when their registrations are absent.
+if type(Addon.Rules) ~= "table" or type(Addon.Rules.Evaluate) ~= "function" then
+  local Rules = {}
+  Addon.Rules = Rules
+  local function unknown(value) return value == nil or value == Addon.UNKNOWN end
+  local function result(kind, reason, action, ruleId)
+    return { result=kind, reasonCode=reason, action=action, ruleId=ruleId }
+  end
+  local function junk(action, reason, item, ruleId)
+    if action == "SELL" then
+      if unknown(item.unitVendorPrice) then return result("UNKNOWN", "PRICE_UNKNOWN", action, ruleId) end
+      if item.unitVendorPrice <= 0 then return result("KEEP", "NO_VENDOR_VALUE", action, ruleId) end
+    end
+    return result("JUNK", reason, action, ruleId)
+  end
+  function Rules.MatchGroup(item, group, action)
+    if type(group) ~= "table" then return false, true end
+    if group.scope ~= "BOTH" and group.scope ~= action then return false, false end
+    if (group.result ~= "JUNK" and group.result ~= "KEEP") or
+        (group.match ~= "ALL" and group.match ~= "ANY") or type(group.predicates) ~= "table" or #group.predicates == 0 then
+      return false, true
+    end
+    local yes, no, maybe = 0, 0, 0
+    for _, predicate in ipairs(group.predicates) do
+      if type(predicate) ~= "table" then return false, true end
+      local actual, expected, op = item[predicate.field], predicate.value, predicate.op
+      if unknown(actual) then maybe = maybe + 1
+      elseif op == "EQ" then if actual == expected then yes=yes+1 else no=no+1 end
+      elseif (op == "LT" or op == "GT") and type(actual) == "number" and type(expected) == "number" then
+        if (op == "LT" and actual < expected) or (op == "GT" and actual > expected) then yes=yes+1 else no=no+1 end
+      else return false, true end
+    end
+    if group.match == "ALL" then
+      if no > 0 then return false, false end
+      if maybe > 0 then return false, true end
+      return yes == #group.predicates, false
+    end
+    if yes > 0 then return true, false end
+    if maybe > 0 then return false, true end
+    return false, false
+  end
+  function Rules.Evaluate(item, action, settings)
+    settings=settings or {}
+    if action ~= "SELL" and action ~= "DESTROY" then return result("UNKNOWN","INVALID_ACTION",action) end
+    if type(item) ~= "table" or item.state == "UNKNOWN" then return result("UNKNOWN","ITEM_UNKNOWN",action) end
+    if item.state == "EMPTY" then return result("KEEP","EMPTY_SLOT",action) end
+    if item.state ~= "OCCUPIED" then return result("UNKNOWN","ITEM_UNKNOWN",action) end
+    if type(item.itemId)~="number" or type(item.count)~="number" or item.count<1 or item.metadata~="known" then
+      return result("UNKNOWN","METADATA_UNKNOWN",action)
+    end
+    for _, gate in ipairs({
+      {"locked","LOCK_UNKNOWN","LOCKED"}, {"quest","QUEST_UNKNOWN","QUEST_ITEM"},
+      {"inEquipmentSet","EQUIPMENT_SET_UNKNOWN","EQUIPMENT_SET_ITEM"},
+      {"refundable","REFUND_UNKNOWN","REFUNDABLE"}
+    }) do
+      local value=item[gate[1]]
+      if unknown(value) then return result("UNKNOWN",gate[2],action) end
+      if value then return result("KEEP",gate[3],action) end
+    end
+    if settings.maxItemLevel ~= nil then
+      if type(settings.maxItemLevel)~="number" or type(item.itemLevel)~="number" then return result("UNKNOWN","ITEM_LEVEL_UNKNOWN",action) end
+      if item.itemLevel>settings.maxItemLevel then return result("KEEP","ABOVE_MAX_ITEM_LEVEL",action) end
+    end
+    if settings.maxStackVendorPrice ~= nil then
+      if type(settings.maxStackVendorPrice)~="number" or type(item.unitVendorPrice)~="number" then return result("UNKNOWN","PRICE_UNKNOWN",action) end
+      if item.unitVendorPrice*item.count>settings.maxStackVendorPrice then return result("KEEP","ABOVE_MAX_STACK_PRICE",action) end
+    end
+    if item.equipLoc and item.equipLoc~="" and settings.protectUnboundEquipment~=false then
+      if unknown(item.bound) then return result("UNKNOWN","BINDING_UNKNOWN",action) end
+      if item.bound==false then return result("KEEP","UNBOUND_EQUIPMENT",action) end
+    end
+    local profile,global=settings.profile or {},settings.global or {}
+    if profile.exclusions and profile.exclusions[item.itemId] then return result("KEEP","PROFILE_EXCLUSION",action) end
+    if global.exclusions and global.exclusions[item.itemId] then return result("KEEP","GLOBAL_EXCLUSION",action) end
+    for _, group in ipairs(profile.rules or {}) do
+      local matches, uncertain=Rules.MatchGroup(item,group,action)
+      if uncertain then return result("UNKNOWN","RULE_DATA_UNKNOWN",action,group.id) end
+      if matches then
+        if group.result=="JUNK" then return junk(action,"CUSTOM_RULE",item,group.id) end
+        return result("KEEP","CUSTOM_RULE",action,group.id)
+      end
+    end
+    if profile.inclusions and profile.inclusions[item.itemId] then return junk(action,"PROFILE_INCLUSION",item) end
+    if global.inclusions and global.inclusions[item.itemId] then return junk(action,"GLOBAL_INCLUSION",item) end
+    local options=profile.options or {}
+    if options.quality and options.quality[item.quality] then return junk(action,"QUALITY",item) end
+    if settings.minItemLevel ~= nil then
+      if type(settings.minItemLevel)~="number" or type(item.itemLevel)~="number" then return result("UNKNOWN","ITEM_LEVEL_UNKNOWN",action) end
+      if item.itemLevel<settings.minItemLevel then return junk(action,"BELOW_MIN_ITEM_LEVEL",item) end
+    end
+    return result("KEEP","NO_RULE_MATCH",action)
+  end
+end
+
+if type(Addon.Preview) ~= "table" or type(Addon.Preview.EvaluateSnapshot) ~= "function" then
+  Addon.Preview = { EvaluateSnapshot=function(snapshot, settings, action)
+    local rows={}
+    if type(snapshot)~="table" or snapshot.valid~=true or snapshot.generation~=snapshot.currentGeneration then
+      return rows,"SNAPSHOT_INVALID"
+    end
+    for key,item in pairs(snapshot.items or {}) do
+      local row=Addon.Rules.Evaluate(item,action,settings)
+      row.slotKey=key; row.bag,row.slot=item.bag,item.slot
+      row.itemId,row.count,row.link=item.itemId,item.count,item.link
+      rows[#rows+1]=row
+    end
+    table.sort(rows,function(a,b) if a.bag~=b.bag then return (a.bag or -1)<(b.bag or -1) end return (a.slot or -1)<(b.slot or -1) end)
+    return rows
+  end }
+end
+
 function Addon.NewApplication(runtime)
   local app = {
     runtime = runtime, client = runtime:Inspect(), state = "WAITING_FOR_LOAD",
@@ -70,9 +183,6 @@ function Addon.NewApplication(runtime)
   end
 
   function app:Preview(action)
-    if type(Addon.Preview) ~= "table" or type(Addon.Preview.EvaluateSnapshot) ~= "function" then
-      return {}, "PREVIEW_MODULE_MISSING"
-    end
     local profile = self.store and self.store:GetActiveProfile() or {}
     local settings = {
       profile = profile,

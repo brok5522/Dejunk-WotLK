@@ -3,7 +3,7 @@
 ## SavedVariables: DejunkWotLKDB
 ## Notes: Read-only rules preview. No selling, destruction or repair.
 ## Author: Dejunk-WotLK contributors
-## Version: 0.3.1-dev
+## Version: 0.3.2-dev
 
 src\namespace.lua
 src\compat\client.lua

@@ -399,11 +399,14 @@ test("preview command reports read-only rows and invalidated snapshots fail clos
   w:Fire("BAG_UPDATE",0)
   local rows,reason=w.app:Preview("SELL"); equal(#rows,0); equal(reason,"SNAPSHOT_INVALID")
 end)
-test("missing preview module reports safely instead of raising a Lua error", function()
-  local w=populated():Ready(); local preview=w.addon.Preview; w.addon.Preview=nil
-  w:Command("preview sell")
-  local found=false; for _,line in ipairs(w.messages) do if line:find("PREVIEW_MODULE_MISSING",1,true) then found=true end end
-  assert(found); w.addon.Preview=preview; equal(w.mutations,0)
+test("bootstrap supplies rules and preview when standalone module files are absent", function()
+  local missing={ ["src/rules/evaluator.lua"]=true, ["src/services/preview.lua"]=true }
+  local w=H.New({skipFiles=missing}); w:AddItem(0,1)
+  w.api.GetItemInfo=function(link) return "Example",link,0,10,1,"Misc","Junk",20,"","texture",5 end
+  w:Load():Ready(); w:Command("lists add global inclusions 123"); w:Command("preview sell")
+  local found=false; for _,line in ipairs(w.messages) do if line:find("GLOBAL_INCLUSION",1,true) then found=true end end
+  assert(found); assert(type(w.addon.Rules)=="table"); assert(type(w.addon.Preview)=="table")
+  equal(w.mutations,0)
 end)
 
 test("all fixture worlds keep mutation sentinels untouched", function()

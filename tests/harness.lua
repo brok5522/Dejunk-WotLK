@@ -99,8 +99,10 @@ function Harness.New(options)
     for line in io.lines("Dejunk-WotLK.toc") do
       if not line:match("^%s*#") and line:match("%S") then
         local path = line:gsub("\\", "/")
-        local chunk = assert(loadfile(path))
-        setfenv(chunk, env)("Dejunk-WotLK", self.addon)
+        if not (options.skipFiles and options.skipFiles[path]) then
+          local chunk = assert(loadfile(path))
+          setfenv(chunk, env)("Dejunk-WotLK", self.addon)
+        end
       end
     end
     self.app = self.addon.Application
