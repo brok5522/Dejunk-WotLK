@@ -498,10 +498,12 @@ function Runtime.New(environment)
         rulesFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
         local title=rulesFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
         title:SetPoint("TOPLEFT",20,-18); title:SetText("Dejunk-WotLK | Custom rules")
+        local help=rulesFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+        help:SetPoint("TOPLEFT",24,-40); help:SetText("Action cycles SELL, DESTROY and BOTH. Rules apply to the active profile.")
         local close=api.CreateFrame("Button",nil,rulesFrame,"UIPanelCloseButton")
         close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() rulesFrame:Hide() end)
         ruleScopeButton=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
-        ruleScopeButton:SetWidth(135); ruleScopeButton:SetHeight(24); ruleScopeButton:SetPoint("TOPLEFT",24,-52)
+        ruleScopeButton:SetWidth(135); ruleScopeButton:SetHeight(24); ruleScopeButton:SetPoint("TOPLEFT",24,-62)
         ruleScopeButton:SetScript("OnClick",function()
           local order={"SELL","DESTROY","BOTH"}; local current=ruleScopeButton.value or "SELL"
           for i,v in ipairs(order) do if v==current then ruleScopeButton.value=order[i%#order+1]; break end end
@@ -511,7 +513,7 @@ function Runtime.New(environment)
         ruleResultButton:SetWidth(135); ruleResultButton:SetHeight(24); ruleResultButton:SetPoint("LEFT",ruleScopeButton,"RIGHT",10,0)
         ruleResultButton:SetScript("OnClick",function() ruleResultButton.value=ruleResultButton.value=="JUNK" and "KEEP" or "JUNK"; self:UpdateRules(callbacks) end)
         ruleFieldButton=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
-        ruleFieldButton:SetWidth(170); ruleFieldButton:SetHeight(24); ruleFieldButton:SetPoint("TOPLEFT",24,-90)
+        ruleFieldButton:SetWidth(170); ruleFieldButton:SetHeight(24); ruleFieldButton:SetPoint("TOPLEFT",24,-100)
         ruleFieldButton:SetScript("OnClick",function()
           local order={"itemId","quality","itemLevel","unitVendorPrice","count"}; local current=ruleFieldButton.value or order[1]
           for i,v in ipairs(order) do if v==current then ruleFieldButton.value=order[i%#order+1]; break end end
@@ -525,11 +527,11 @@ function Runtime.New(environment)
           self:UpdateRules(callbacks)
         end)
         local idLabel=rulesFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-        idLabel:SetPoint("TOPLEFT",28,-119); idLabel:SetText("Rule ID (also used for removal)")
+        idLabel:SetPoint("TOPLEFT",28,-129); idLabel:SetText("Rule ID (also used for removal)")
         local valueLabel=rulesFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-        valueLabel:SetPoint("TOPLEFT",206,-119); valueLabel:SetText("Number")
+        valueLabel:SetPoint("TOPLEFT",206,-129); valueLabel:SetText("Number")
         ruleIdInput=api.CreateFrame("EditBox",nil,rulesFrame,"InputBoxTemplate")
-        ruleIdInput:SetWidth(150); ruleIdInput:SetHeight(24); ruleIdInput:SetPoint("TOPLEFT",26,-140)
+        ruleIdInput:SetWidth(150); ruleIdInput:SetHeight(24); ruleIdInput:SetPoint("TOPLEFT",26,-150)
         ruleIdInput:SetAutoFocus(false); ruleIdInput:SetMaxLetters(32)
         ruleValueInput=api.CreateFrame("EditBox",nil,rulesFrame,"InputBoxTemplate")
         ruleValueInput:SetWidth(110); ruleValueInput:SetHeight(24); ruleValueInput:SetPoint("LEFT",ruleIdInput,"RIGHT",18,0)
@@ -545,7 +547,7 @@ function Runtime.New(environment)
           self:UpdateRules(callbacks)
         end)
         rulesSummary=rulesFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-        rulesSummary:SetPoint("TOPLEFT",26,-180); rulesSummary:SetWidth(480); rulesSummary:SetJustifyH("LEFT")
+        rulesSummary:SetPoint("TOPLEFT",26,-190); rulesSummary:SetWidth(480); rulesSummary:SetJustifyH("LEFT")
         local remove=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
         remove:SetWidth(100); remove:SetHeight(24); remove:SetPoint("BOTTOMLEFT",rulesFrame,"BOTTOMLEFT",24,18); remove:SetText("Remove ID")
         remove:SetScript("OnClick",function()
@@ -570,7 +572,8 @@ function Runtime.New(environment)
     ruleFieldButton:SetText("Field: "..ruleFieldButton.value)
     ruleOpButton:SetText("Match: "..ruleOpButton.value)
     local rules=callbacks.listRules and callbacks.listRules() or {}
-    local lines={"Single-condition rules for the active profile:"}
+    local profileName=callbacks.activeProfileName and callbacks.activeProfileName() or "unknown"
+    local lines={"Single-condition rules for active profile: "..tostring(profileName)}
     for i,rule in ipairs(rules) do
       if i>7 then lines[#lines+1]="... use /djw rules list for remaining rules"; break end
       local predicate=rule.predicates and rule.predicates[1] or {}

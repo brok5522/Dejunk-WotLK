@@ -10,7 +10,8 @@ and Export controls; imports preview new and existing IDs before the user
 commits them. `/djw lists` remains available as a chat-command fallback.
 SELL and DESTROY previews open a read-only report with one decision per bag
 slot and totals for eligible, kept and unknown items. Closing the report
-returns to the configuration window. The rules screen creates/removes
+returns to the configuration window. The rules screen names the active profile
+and explains the SELL/DESTROY/BOTH scope selector; it creates/removes
 single-predicate profile rules with action,
 result, field and comparison controls. Poor-quality toggle and item previews
 remain read-only. Options provide quality toggles and item-level/vendor-value
