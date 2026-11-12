@@ -157,6 +157,14 @@ if type(Addon.Config) ~= "table" or type(Addon.Config.Summary) ~= "function" or
     if type(id)~="string" then return false,"INVALID_PROFILE" end
     return store:SwitchProfile(id)
   end
+  function Addon.Config.ListItems(store,scope,kind)
+    if not store then return nil,"STORE_UNAVAILABLE" end
+    return store:ExportList(scope,kind)
+  end
+  function Addon.Config.EditItem(store,scope,kind,itemId,present)
+    if not store then return false,"STORE_UNAVAILABLE" end
+    return store:EditList(scope,kind,itemId,present)
+  end
 end
 
 function Addon.NewApplication(runtime)
@@ -258,6 +266,8 @@ function Addon.NewApplication(runtime)
       profiles=function() return Addon.Config.ListProfiles(self.store) end,
       createProfile=function(name) return Addon.Config.CreateProfile(self.store,name) end,
       switchProfile=function(id) return Addon.Config.SwitchProfile(self.store,id) end,
+      listItems=function(scope,kind) return Addon.Config.ListItems(self.store,scope,kind) end,
+      editItem=function(scope,kind,id,present) return Addon.Config.EditItem(self.store,scope,kind,id,present) end,
       preview=function(action) self:Command("preview "..action) end
     })
   end

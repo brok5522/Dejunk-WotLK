@@ -17,9 +17,14 @@ profiles=Addon.Config.ListProfiles(store); eq(#profiles,2); eq(profiles[2].activ
 eq(Addon.Config.SwitchProfile(store,"default"),true)
 eq(Addon.Config.ListProfiles(store)[1].active,true)
 eq(Addon.Config.SwitchProfile(store,"missing"),false)
+eq(Addon.Config.EditItem(store,"global","inclusions",6948,true),true)
+eq(Addon.Config.ListItems(store,"global","inclusions"),"6948")
+eq(Addon.Config.EditItem(store,"global","inclusions",6948,false),true)
+eq(Addon.Config.ListItems(store,"global","inclusions"),"")
+eq(Addon.Config.EditItem(store,"invalid","inclusions",6948,true),false)
 -- The fixture rejects named native frames; runtime must fall back to chat help.
 w:Ready(); w:Command("config")
 local found=false
 for _,line in ipairs(w.messages) do if line:find("Configuration panel unavailable",1,true) then found=true end end
 assert(found); eq(w.mutations,0)
-print("UI MODEL RESULT: 10 passed")
+print("UI MODEL RESULT: 15 passed")

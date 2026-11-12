@@ -209,3 +209,13 @@ The owner then provided a Lua error while creating the profile scroll frame.
 The 3.3.5 scroll template expects a named frame for its scrollbar globals; the
 frame now has a stable name. Lua tests do not execute Blizzard templates, so
 the profile window must be retested in the original client.
+
+## Phase 6 list editor
+
+Added a native list screen for adding/removing one numeric item ID at a time
+from global or active-profile inclusions/exclusions; bulk import/export stays
+available through `/djw lists`. The display shows up to twelve IDs at a time.
+No inventory APIs were added. Lua 5.1 validation passed: **50 behavior, 11 store, 7 service, 11 destroyer,
+and 15 UI model cases**; all 22 Lua files compile, source boundary and docs
+checks pass, and two ZIP builds are reproducible. Native client review of the
+new lists screen remains pending.

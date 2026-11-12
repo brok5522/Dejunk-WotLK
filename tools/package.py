@@ -18,7 +18,7 @@ def build(destination):
             paths.append(path)
     entries = {path.relative_to(ROOT).as_posix(): path.read_bytes() for path in paths}
     entries['README.txt'] = (
-        'Dejunk-WotLK 0.6.4-dev - CONFIGURATION PREVIEW\n'
+        'Dejunk-WotLK 0.7.0-dev - CONFIGURATION PREVIEW\n'
         'Original WoW 3.3.5a / build 12340 / Interface 30300 only.\n'
         'Original-client testing is pending; this is not the complete addon.\n'
         'Extract so Interface/AddOns/Dejunk-WotLK/Dejunk-WotLK.toc exists.\n'

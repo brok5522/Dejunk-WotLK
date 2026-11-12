@@ -8,6 +8,7 @@ function Runtime.New(environment)
   local runtime = { registration = {} }
   local frame, update, scanTooltip, reportFrame, reportEdit, configFrame, configSummary, poorButton
   local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
+  local listFrame,listSummary,listInput,listScopeButton,listKindButton
   local readingTooltip = false
 
   function runtime:Inspect() return Addon.Client.Inspect(api) end
@@ -138,6 +139,10 @@ function Runtime.New(environment)
           configFrame:Hide()
           self:ShowProfiles(callbacks)
         end)
+        button("Lists",22,54,function()
+          configFrame:Hide()
+          self:ShowLists(callbacks)
+        end)
       end
       configSummary:SetText(callbacks.summary and callbacks.summary() or "Settings unavailable.")
       if poorButton and poorButton.SetText and callbacks.poorEnabled then
@@ -205,6 +210,73 @@ function Runtime.New(environment)
       profileFrame:Show()
     end)
     if not ok then self:Print("Profiles window unavailable; use /djw profiles list|create|switch.") end
+  end
+
+  function runtime:ShowLists(callbacks)
+    callbacks=callbacks or {}
+    local ok=pcall(function()
+      if not listFrame then
+        listFrame=api.CreateFrame("Frame",nil,api.UIParent)
+        listFrame:SetWidth(500); listFrame:SetHeight(360); listFrame:SetPoint("CENTER")
+        listFrame:SetFrameStrata("DIALOG"); listFrame:EnableMouse(true)
+        listFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
+        local title=listFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
+        title:SetPoint("TOPLEFT",20,-18); title:SetText("Dejunk-WotLK | Inclusion and exclusion lists")
+        local close=api.CreateFrame("Button",nil,listFrame,"UIPanelCloseButton")
+        close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() listFrame:Hide() end)
+        listScopeButton=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
+        listScopeButton:SetWidth(150); listScopeButton:SetHeight(24); listScopeButton:SetPoint("TOPLEFT",24,-52)
+        listScopeButton:SetScript("OnClick",function()
+          listScopeButton.scope=listScopeButton.scope=="global" and "profile" or "global"
+          self:ShowLists(callbacks)
+        end)
+        listKindButton=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
+        listKindButton:SetWidth(180); listKindButton:SetHeight(24); listKindButton:SetPoint("LEFT",listScopeButton,"RIGHT",10,0)
+        listKindButton:SetScript("OnClick",function()
+          listKindButton.kind=listKindButton.kind=="inclusions" and "exclusions" or "inclusions"
+          self:ShowLists(callbacks)
+        end)
+        listInput=api.CreateFrame("EditBox",nil,listFrame,"InputBoxTemplate")
+        listInput:SetWidth(130); listInput:SetHeight(24); listInput:SetPoint("TOPLEFT",26,-94)
+        listInput:SetAutoFocus(false); listInput:SetNumeric(true); listInput:SetMaxLetters(10)
+        listInput:SetScript("OnEscapePressed",function() listInput:ClearFocus() end)
+        local function listButton(label,x,handler)
+          local b=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
+          b:SetWidth(90); b:SetHeight(24); b:SetPoint("LEFT",listInput,"RIGHT",x,0); b:SetText(label); b:SetScript("OnClick",handler); return b
+        end
+        listButton("Add",8,function() self:EditList(callbacks,true) end)
+        listButton("Remove",104,function() self:EditList(callbacks,false) end)
+        listSummary=listFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+        listSummary:SetPoint("TOPLEFT",26,-135); listSummary:SetWidth(440); listSummary:SetJustifyH("LEFT")
+        local back=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
+        back:SetWidth(110); back:SetHeight(24); back:SetPoint("BOTTOMRIGHT",listFrame,"BOTTOMRIGHT",-20,18); back:SetText("Back")
+        back:SetScript("OnClick",function() listFrame:Hide(); self:ShowConfig(callbacks) end)
+        listScopeButton.scope="global"; listKindButton.kind="inclusions"
+      end
+      local scope=listScopeButton.scope or "global"
+      local kind=listKindButton.kind or "inclusions"
+      listScopeButton:SetText("Scope: "..scope)
+      listKindButton:SetText(kind=="inclusions" and "Inclusions" or "Exclusions")
+      local raw=callbacks.listItems and callbacks.listItems(scope,kind) or ""
+      local ids={}
+      for id in (raw or ""):gmatch("%d+") do ids[#ids+1]=id end
+      local shown={}
+      for i=1,math.min(#ids,12) do shown[#shown+1]=ids[i] end
+      if #ids>12 then shown[#shown+1]="... "..(#ids-12).." more; use /djw lists show "..scope.." "..kind end
+      if #ids==0 then shown[1]="This list is empty." end
+      listSummary:SetText(table.concat(shown,"\n"))
+      listFrame:Show()
+    end)
+    if not ok then self:Print("Lists window unavailable; use /djw lists show|add|remove <global|profile> <inclusions|exclusions> <itemID>.") end
+  end
+
+  function runtime:EditList(callbacks,present)
+    local scope=listScopeButton and listScopeButton.scope or "global"
+    local kind=listKindButton and listKindButton.kind or "inclusions"
+    local id=listInput and listInput:GetText() or ""
+    local ok,reason=callbacks.editItem and callbacks.editItem(scope,kind,id,present)
+    self:Print(ok and "List updated." or ("List update failed: "..tostring(reason)))
+    self:ShowLists(callbacks)
   end
 
   -- A diagnostic copy panel, not the configuration UI planned for Phase 6.

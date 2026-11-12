@@ -408,6 +408,8 @@ test("bootstrap supplies rules, preview and config model when standalone modules
   local found=false; for _,line in ipairs(w.messages) do if line:find("GLOBAL_INCLUSION",1,true) then found=true end end
   assert(found); assert(type(w.addon.Rules)=="table"); assert(type(w.addon.Preview)=="table")
   assert(type(w.addon.Config)=="table"); assert(w.addon.Config.Summary(w.app.store):find("Active profile",1,true))
+  assert(w.addon.Config.EditItem(w.app.store,"global","inclusions",6948,true))
+  equal(w.addon.Config.ListItems(w.app.store,"global","inclusions"),"123\n6948")
   equal(w.mutations,0)
 end)
 

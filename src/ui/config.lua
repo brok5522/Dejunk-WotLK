@@ -56,4 +56,14 @@ function Config.SwitchProfile(store,id)
   return store:SwitchProfile(id)
 end
 
+function Config.ListItems(store,scope,kind)
+  if not store then return nil,"STORE_UNAVAILABLE" end
+  return store:ExportList(scope,kind)
+end
+
+function Config.EditItem(store,scope,kind,itemId,present)
+  if not store then return false,"STORE_UNAVAILABLE" end
+  return store:EditList(scope,kind,itemId,present)
+end
+
 return Config

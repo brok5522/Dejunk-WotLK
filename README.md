@@ -3,8 +3,8 @@
 Planned recreation of [Dejunk](https://github.com/moody/Dejunk) for the original
 World of Warcraft **3.3.5a / build 12340 / Interface 30300 / Lua 5.1**.
 
-**Status: Phase 6 configuration UI in progress; profile selection is added, native client verification pending.**
-The project includes owner-tested diagnostics, persistence and rule preview. `/djw config` provides a settings summary, quality toggle, preview buttons and profile creation/selection. Seller, repair and destruction remain simulation-only and no game transaction can be triggered.
+**Status: Phase 6 configuration UI in progress; profiles and list editor are available, native client verification pending.**
+The project includes owner-tested diagnostics, persistence and rule preview. `/djw config` provides a settings summary, quality toggle, read-only previews, profile controls and inclusion/exclusion list editing. Seller, repair and destruction remain simulation-only and no game transaction can be triggered.
 
 See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
 
