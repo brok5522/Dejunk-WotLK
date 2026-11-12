@@ -9,6 +9,7 @@ function Runtime.New(environment)
   local frame, update, scanTooltip, reportFrame, reportEdit, configFrame, configSummary, poorButton
   local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
   local listFrame,listSummary,listInput,listScopeButton,listKindButton
+  local rulesFrame,rulesSummary,ruleIdInput,ruleValueInput,ruleScopeButton,ruleResultButton,ruleFieldButton,ruleOpButton
   local readingTooltip = false
 
   function runtime:Inspect() return Addon.Client.Inspect(api) end
@@ -142,6 +143,10 @@ function Runtime.New(environment)
         button("Lists",22,54,function()
           configFrame:Hide()
           self:ShowLists(callbacks)
+        end)
+        button("Rules",334,54,function()
+          configFrame:Hide()
+          self:ShowRules(callbacks)
         end)
       end
       configSummary:SetText(callbacks.summary and callbacks.summary() or "Settings unavailable.")
@@ -277,6 +282,94 @@ function Runtime.New(environment)
     local ok,reason=callbacks.editItem and callbacks.editItem(scope,kind,id,present)
     self:Print(ok and "List updated." or ("List update failed: "..tostring(reason)))
     self:ShowLists(callbacks)
+  end
+
+  function runtime:ShowRules(callbacks)
+    callbacks=callbacks or {}
+    local ok=pcall(function()
+      if not rulesFrame then
+        rulesFrame=api.CreateFrame("Frame",nil,api.UIParent)
+        rulesFrame:SetWidth(540); rulesFrame:SetHeight(390); rulesFrame:SetPoint("CENTER")
+        rulesFrame:SetFrameStrata("DIALOG"); rulesFrame:EnableMouse(true)
+        rulesFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
+        local title=rulesFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
+        title:SetPoint("TOPLEFT",20,-18); title:SetText("Dejunk-WotLK | Custom rules")
+        local close=api.CreateFrame("Button",nil,rulesFrame,"UIPanelCloseButton")
+        close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() rulesFrame:Hide() end)
+        ruleScopeButton=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
+        ruleScopeButton:SetWidth(135); ruleScopeButton:SetHeight(24); ruleScopeButton:SetPoint("TOPLEFT",24,-52)
+        ruleScopeButton:SetScript("OnClick",function()
+          local order={"SELL","DESTROY","BOTH"}; local current=ruleScopeButton.value or "SELL"
+          for i,v in ipairs(order) do if v==current then ruleScopeButton.value=order[i%#order+1]; break end end
+          self:UpdateRules(callbacks)
+        end)
+        ruleResultButton=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
+        ruleResultButton:SetWidth(135); ruleResultButton:SetHeight(24); ruleResultButton:SetPoint("LEFT",ruleScopeButton,"RIGHT",10,0)
+        ruleResultButton:SetScript("OnClick",function() ruleResultButton.value=ruleResultButton.value=="JUNK" and "KEEP" or "JUNK"; self:UpdateRules(callbacks) end)
+        ruleFieldButton=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
+        ruleFieldButton:SetWidth(170); ruleFieldButton:SetHeight(24); ruleFieldButton:SetPoint("TOPLEFT",24,-90)
+        ruleFieldButton:SetScript("OnClick",function()
+          local order={"itemId","quality","itemLevel","unitVendorPrice","count"}; local current=ruleFieldButton.value or order[1]
+          for i,v in ipairs(order) do if v==current then ruleFieldButton.value=order[i%#order+1]; break end end
+          self:UpdateRules(callbacks)
+        end)
+        ruleOpButton=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
+        ruleOpButton:SetWidth(90); ruleOpButton:SetHeight(24); ruleOpButton:SetPoint("LEFT",ruleFieldButton,"RIGHT",10,0)
+        ruleOpButton:SetScript("OnClick",function()
+          local order={"EQ","LT","GT"}; local current=ruleOpButton.value or order[1]
+          for i,v in ipairs(order) do if v==current then ruleOpButton.value=order[i%#order+1]; break end end
+          self:UpdateRules(callbacks)
+        end)
+        ruleIdInput=api.CreateFrame("EditBox",nil,rulesFrame,"InputBoxTemplate")
+        ruleIdInput:SetWidth(150); ruleIdInput:SetHeight(24); ruleIdInput:SetPoint("TOPLEFT",26,-130)
+        ruleIdInput:SetAutoFocus(false); ruleIdInput:SetMaxLetters(32)
+        ruleValueInput=api.CreateFrame("EditBox",nil,rulesFrame,"InputBoxTemplate")
+        ruleValueInput:SetWidth(110); ruleValueInput:SetHeight(24); ruleValueInput:SetPoint("LEFT",ruleIdInput,"RIGHT",18,0)
+        ruleValueInput:SetAutoFocus(false); ruleValueInput:SetNumeric(true); ruleValueInput:SetMaxLetters(10)
+        local add=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
+        add:SetWidth(90); add:SetHeight(24); add:SetPoint("LEFT",ruleValueInput,"RIGHT",12,0); add:SetText("Add")
+        add:SetScript("OnClick",function()
+          local group={id=ruleIdInput:GetText(),scope=ruleScopeButton.value,result=ruleResultButton.value,match="ALL",
+            predicates={{field=ruleFieldButton.value,op=ruleOpButton.value,value=tonumber(ruleValueInput:GetText())}}}
+          local added,reason=callbacks.addRule and callbacks.addRule(group)
+          self:Print(added and "Custom rule added." or ("Rule add failed: "..tostring(reason)))
+          if added then ruleIdInput:SetText(""); ruleValueInput:SetText("") end
+          self:UpdateRules(callbacks)
+        end)
+        rulesSummary=rulesFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+        rulesSummary:SetPoint("TOPLEFT",26,-174); rulesSummary:SetWidth(480); rulesSummary:SetJustifyH("LEFT")
+        local remove=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
+        remove:SetWidth(100); remove:SetHeight(24); remove:SetPoint("BOTTOMLEFT",rulesFrame,"BOTTOMLEFT",24,18); remove:SetText("Remove ID")
+        remove:SetScript("OnClick",function()
+          local id=ruleIdInput:GetText(); local removed,reason=callbacks.removeRule and callbacks.removeRule(id)
+          self:Print(removed and "Custom rule removed." or ("Rule remove failed: "..tostring(reason)))
+          self:UpdateRules(callbacks)
+        end)
+        local back=api.CreateFrame("Button",nil,rulesFrame,"UIPanelButtonTemplate")
+        back:SetWidth(100); back:SetHeight(24); back:SetPoint("BOTTOMRIGHT",rulesFrame,"BOTTOMRIGHT",-20,18); back:SetText("Back")
+        back:SetScript("OnClick",function() rulesFrame:Hide(); self:ShowConfig(callbacks) end)
+        ruleScopeButton.value="SELL"; ruleResultButton.value="JUNK"; ruleFieldButton.value="quality"; ruleOpButton.value="EQ"
+      end
+      self:UpdateRules(callbacks)
+      rulesFrame:Show()
+    end)
+    if not ok then self:Print("Rules window unavailable; use /djw rules list|add|remove.") end
+  end
+
+  function runtime:UpdateRules(callbacks)
+    ruleScopeButton:SetText("Action: "..ruleScopeButton.value)
+    ruleResultButton:SetText("Result: "..ruleResultButton.value)
+    ruleFieldButton:SetText("Field: "..ruleFieldButton.value)
+    ruleOpButton:SetText("Match: "..ruleOpButton.value)
+    local rules=callbacks.listRules and callbacks.listRules() or {}
+    local lines={"Single-condition rules for the active profile:"}
+    for i,rule in ipairs(rules) do
+      if i>7 then lines[#lines+1]="... use /djw rules list for remaining rules"; break end
+      local predicate=rule.predicates and rule.predicates[1] or {}
+      lines[#lines+1]=rule.id.." | "..rule.scope.." | "..rule.result.." | "..tostring(predicate.field).." "..tostring(predicate.op).." "..tostring(predicate.value)
+    end
+    if #rules==0 then lines[#lines+1]="No custom rules yet." end
+    rulesSummary:SetText(table.concat(lines,"\n"))
   end
 
   -- A diagnostic copy panel, not the configuration UI planned for Phase 6.

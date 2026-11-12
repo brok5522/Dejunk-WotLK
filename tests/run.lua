@@ -410,6 +410,9 @@ test("bootstrap supplies rules, preview and config model when standalone modules
   assert(type(w.addon.Config)=="table"); assert(w.addon.Config.Summary(w.app.store):find("Active profile",1,true))
   assert(w.addon.Config.EditItem(w.app.store,"global","inclusions",6948,true))
   equal(w.addon.Config.ListItems(w.app.store,"global","inclusions"),"123\n6948")
+  assert(w.addon.Config.AddRule(w.app.store,{id="fallback",scope="SELL",result="JUNK",match="ALL",predicates={{field="quality",op="EQ",value=0}}}))
+  equal(#w.addon.Config.ListRules(w.app.store),1)
+  assert(w.addon.Config.RemoveRule(w.app.store,"fallback"))
   equal(w.mutations,0)
 end)
 

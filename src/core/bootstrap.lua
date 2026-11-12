@@ -165,6 +165,18 @@ if type(Addon.Config) ~= "table" or type(Addon.Config.Summary) ~= "function" or
     if not store then return false,"STORE_UNAVAILABLE" end
     return store:EditList(scope,kind,itemId,present)
   end
+  function Addon.Config.ListRules(store)
+    if not store then return nil,"STORE_UNAVAILABLE" end
+    return store:GetActiveProfile().rules or {}
+  end
+  function Addon.Config.AddRule(store,group)
+    if not store then return false,"STORE_UNAVAILABLE" end
+    return store:AddRule(group)
+  end
+  function Addon.Config.RemoveRule(store,id)
+    if not store then return false,"STORE_UNAVAILABLE" end
+    return store:RemoveRule(id)
+  end
 end
 
 function Addon.NewApplication(runtime)
@@ -268,6 +280,9 @@ function Addon.NewApplication(runtime)
       switchProfile=function(id) return Addon.Config.SwitchProfile(self.store,id) end,
       listItems=function(scope,kind) return Addon.Config.ListItems(self.store,scope,kind) end,
       editItem=function(scope,kind,id,present) return Addon.Config.EditItem(self.store,scope,kind,id,present) end,
+      listRules=function() return Addon.Config.ListRules(self.store) end,
+      addRule=function(group) return Addon.Config.AddRule(self.store,group) end,
+      removeRule=function(id) return Addon.Config.RemoveRule(self.store,id) end,
       preview=function(action) self:Command("preview "..action) end
     })
   end

@@ -22,9 +22,14 @@ eq(Addon.Config.ListItems(store,"global","inclusions"),"6948")
 eq(Addon.Config.EditItem(store,"global","inclusions",6948,false),true)
 eq(Addon.Config.ListItems(store,"global","inclusions"),"")
 eq(Addon.Config.EditItem(store,"invalid","inclusions",6948,true),false)
+local rule={id="ui-test",scope="SELL",result="JUNK",match="ALL",predicates={{field="quality",op="EQ",value=0}}}
+eq(Addon.Config.AddRule(store,rule),true)
+eq(#Addon.Config.ListRules(store),1)
+eq(Addon.Config.RemoveRule(store,"ui-test"),true)
+eq(#Addon.Config.ListRules(store),0)
 -- The fixture rejects named native frames; runtime must fall back to chat help.
 w:Ready(); w:Command("config")
 local found=false
 for _,line in ipairs(w.messages) do if line:find("Configuration panel unavailable",1,true) then found=true end end
 assert(found); eq(w.mutations,0)
-print("UI MODEL RESULT: 15 passed")
+print("UI MODEL RESULT: 19 passed")

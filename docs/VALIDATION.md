@@ -216,6 +216,13 @@ Added a native list screen for adding/removing one numeric item ID at a time
 from global or active-profile inclusions/exclusions; bulk import/export stays
 available through `/djw lists`. The display shows up to twelve IDs at a time.
 No inventory APIs were added. Lua 5.1 validation passed: **50 behavior, 11 store, 7 service, 11 destroyer,
-and 15 UI model cases**; all 22 Lua files compile, source boundary and docs
+and 19 UI model cases**; all 22 Lua files compile, source boundary and docs
 checks pass, and two ZIP builds are reproducible. Native client review of the
 new lists screen remains pending.
+
+## Phase 6 custom rule screen
+
+Added a basic rule screen supporting one numeric predicate per rule, action
+scope (SELL/DESTROY/BOTH), result (JUNK/KEEP), field, operator and removal by
+rule ID. Complex ALL/ANY groups continue to use the chat command/model. Native
+client review of the new screen remains pending.
