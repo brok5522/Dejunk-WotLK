@@ -211,6 +211,14 @@ if type(Addon.Config) ~= "table" or type(Addon.Config.Summary) ~= "function" or
     end
     return result
   end
+  function Addon.Config.PreviewListImport(store,scope,kind,text)
+    if not store then return nil,"STORE_UNAVAILABLE" end
+    return store:ImportPreview(scope,kind,text)
+  end
+  function Addon.Config.CommitListImport(store,preview)
+    if not store then return false,"STORE_UNAVAILABLE" end
+    return store:CommitImport(preview)
+  end
 end
 
 function Addon.NewApplication(runtime)
@@ -319,6 +327,8 @@ function Addon.NewApplication(runtime)
       switchProfile=function(id) return Addon.Config.SwitchProfile(self.store,id) end,
       listItems=function(scope,kind) return Addon.Config.ListItems(self.store,scope,kind) end,
       editItem=function(scope,kind,id,present) return Addon.Config.EditItem(self.store,scope,kind,id,present) end,
+      previewListImport=function(scope,kind,text) return Addon.Config.PreviewListImport(self.store,scope,kind,text) end,
+      commitListImport=function(preview) return Addon.Config.CommitListImport(self.store,preview) end,
       listRules=function() return Addon.Config.ListRules(self.store) end,
       addRule=function(group) return Addon.Config.AddRule(self.store,group) end,
       removeRule=function(id) return Addon.Config.RemoveRule(self.store,id) end,

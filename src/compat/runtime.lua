@@ -6,9 +6,10 @@ Addon.Runtime = Runtime
 function Runtime.New(environment)
   local api = environment or _G
   local runtime = { registration = {} }
-  local frame, update, scanTooltip, reportFrame, reportEdit, configFrame, configSummary, poorButton
+  local frame, update, scanTooltip, reportFrame, reportEdit, reportTitle, configFrame, configSummary, poorButton
   local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
   local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listPanels
+  local importFrame,importTitle,importEdit,importStatus,importCommitButton,importPreview,importScope,importKind
   local rulesFrame,rulesSummary,ruleIdInput,ruleValueInput,ruleScopeButton,ruleResultButton,ruleFieldButton,ruleOpButton
   local optionsFrame,optionsQualityButtons,optionsFields
   local readingTooltip = false
@@ -345,6 +346,19 @@ function Runtime.New(environment)
         local back=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
         back:SetWidth(110); back:SetHeight(24); back:SetPoint("BOTTOMRIGHT",listFrame,"BOTTOMRIGHT",-20,18); back:SetText("Back")
         back:SetScript("OnClick",function() listFrame:Hide(); self:ShowConfig(callbacks) end)
+        local export=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
+        export:SetWidth(90); export:SetHeight(24); export:SetPoint("BOTTOMLEFT",listFrame,"BOTTOMLEFT",22,18); export:SetText("Export")
+        export:SetScript("OnClick",function()
+          local scope=listScopeButton.scope or "global"; local kind=listKindButton.kind or "inclusions"
+          local text=callbacks.listItems and callbacks.listItems(scope,kind) or ""
+          self:ShowReport(text=="" and "" or text,"List export: "..scope.." "..kind)
+        end)
+        local import=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
+        import:SetWidth(90); import:SetHeight(24); import:SetPoint("LEFT",export,"RIGHT",8,0); import:SetText("Import")
+        import:SetScript("OnClick",function()
+          importScope=listScopeButton.scope or "global"; importKind=listKindButton.kind or "inclusions"
+          self:ShowListImport(callbacks)
+        end)
         listScopeButton.scope="global"; listKindButton.kind="inclusions"
       end
       local scope=listScopeButton.scope or "global"
@@ -397,6 +411,71 @@ function Runtime.New(environment)
     local ok,reason=callbacks.editItem and callbacks.editItem(scope,kind,id,present)
     self:Print(ok and "List updated." or ("List update failed: "..tostring(reason)))
     self:ShowLists(callbacks)
+  end
+
+  function runtime:ShowListImport(callbacks)
+    callbacks=callbacks or {}
+    local ok=pcall(function()
+      if not importFrame then
+        importFrame=api.CreateFrame("Frame",nil,api.UIParent)
+        importFrame:SetWidth(580); importFrame:SetHeight(380); importFrame:SetPoint("CENTER")
+        importFrame:SetFrameStrata("DIALOG"); importFrame:EnableMouse(true)
+        importFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
+        importTitle=importFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
+        importTitle:SetPoint("TOPLEFT",20,-18)
+        local close=api.CreateFrame("Button",nil,importFrame,"UIPanelCloseButton")
+        close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() importFrame:Hide() end)
+        local help=importFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+        help:SetPoint("TOPLEFT",24,-48); help:SetText("Paste item IDs separated by spaces, commas, semicolons or new lines.")
+        local scroll=api.CreateFrame("ScrollFrame","DejunkWotLKListImportScroll",importFrame,"UIPanelScrollFrameTemplate")
+        scroll:SetPoint("TOPLEFT",22,-70); scroll:SetPoint("BOTTOMRIGHT",-42,82)
+        importEdit=api.CreateFrame("EditBox",nil,scroll,"InputBoxTemplate")
+        importEdit:SetMultiLine(true); importEdit:SetAutoFocus(false); importEdit:SetMaxLetters(65536)
+        importEdit:SetWidth(500); importEdit:SetHeight(230); importEdit:SetFontObject(api.ChatFontNormal)
+        importEdit:SetScript("OnEscapePressed",function() importEdit:ClearFocus() end)
+        importEdit:SetScript("OnTextChanged",function()
+          importPreview=nil
+          if importCommitButton then importCommitButton:Disable() end
+          if importStatus then importStatus:SetText("Review the IDs before importing.") end
+        end)
+        scroll:SetScrollChild(importEdit)
+        importStatus=importFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+        importStatus:SetPoint("BOTTOMLEFT",24,48); importStatus:SetWidth(360); importStatus:SetJustifyH("LEFT")
+        local review=api.CreateFrame("Button",nil,importFrame,"UIPanelButtonTemplate")
+        review:SetWidth(100); review:SetHeight(24); review:SetPoint("BOTTOMLEFT",importFrame,"BOTTOMLEFT",22,16); review:SetText("Review")
+        review:SetScript("OnClick",function()
+          local text=importEdit:GetText() or ""
+          local preview,reason=callbacks.previewListImport and callbacks.previewListImport(importScope,importKind,text)
+          if not preview then
+            importPreview=nil; importCommitButton:Disable(); importStatus:SetText("Import rejected: "..tostring(reason))
+          else
+            importPreview=preview; importCommitButton:Enable()
+            importStatus:SetText("Ready: "..#preview.add.." new IDs; "..#preview.existing.." already present.")
+          end
+        end)
+        importCommitButton=api.CreateFrame("Button",nil,importFrame,"UIPanelButtonTemplate")
+        importCommitButton:SetWidth(100); importCommitButton:SetHeight(24); importCommitButton:SetPoint("LEFT",review,"RIGHT",8,0); importCommitButton:SetText("Import")
+        importCommitButton:Disable()
+        importCommitButton:SetScript("OnClick",function()
+          local committed,reason=callbacks.commitListImport and callbacks.commitListImport(importPreview)
+          if committed then
+            importStatus:SetText("Import complete."); importCommitButton:Disable(); importPreview=nil
+            importEdit:SetText(""); self:ShowLists(callbacks)
+          else importStatus:SetText("Import failed: "..tostring(reason)); importCommitButton:Disable(); importPreview=nil end
+        end)
+        local cancel=api.CreateFrame("Button",nil,importFrame,"UIPanelButtonTemplate")
+        cancel:SetWidth(100); cancel:SetHeight(24); cancel:SetPoint("BOTTOMRIGHT",importFrame,"BOTTOMRIGHT",-20,16); cancel:SetText("Cancel")
+        cancel:SetScript("OnClick",function() importFrame:Hide() end)
+      end
+      importPreview=nil; importCommitButton:Disable()
+      importEdit:SetText(""); importStatus:SetText("Review the IDs before importing.")
+      local scope=importScope or "global"; local kind=importKind or "inclusions"
+      local titleText="Import into "..scope.." "..kind
+      -- The title region is the first FontString child created by this panel.
+      importTitle:SetText(titleText)
+      importFrame:Show()
+    end)
+    if not ok then self:Print("Import window unavailable; use /djw lists import <global|profile> <inclusions|exclusions> <IDs>.") end
   end
 
   function runtime:ShowRules(callbacks)
@@ -562,7 +641,7 @@ function Runtime.New(environment)
   end
 
   -- A diagnostic copy panel, not the configuration UI planned for Phase 6.
-  function runtime:ShowReport(text)
+  function runtime:ShowReport(text,titleText)
     local ok = pcall(function()
       if not reportFrame then
         local panel = api.CreateFrame("Frame", "DejunkWotLKReadOnlyReport", api.UIParent)
@@ -571,7 +650,7 @@ function Runtime.New(environment)
         panel:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border", tile = true, tileSize = 32, edgeSize = 32, insets = { left = 8, right = 8, top = 8, bottom = 8 } })
         local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         title:SetPoint("TOPLEFT", 20, -18)
-        title:SetText("Dejunk-WotLK diagnostics | Ctrl+A, Ctrl+C to copy | Escape to close")
+        reportTitle=title
         local close = api.CreateFrame("Button", nil, panel, "UIPanelCloseButton")
         close:SetPoint("TOPRIGHT", -4, -4)
         close:SetScript("OnClick", function() panel:Hide() end)
@@ -585,6 +664,7 @@ function Runtime.New(environment)
         reportFrame, reportEdit = panel, edit
       end
       local _, newlines = text:gsub("\n", "")
+      reportTitle:SetText((titleText or "Dejunk-WotLK diagnostics").." | Ctrl+A, Ctrl+C to copy | Escape to close")
       reportEdit:SetHeight(math.max(340, (newlines + 1) * 16))
       reportEdit:SetText(text)
       reportFrame:Show(); reportEdit:SetFocus(); reportEdit:HighlightText()

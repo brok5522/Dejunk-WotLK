@@ -128,4 +128,14 @@ function Config.FilterItemIds(raw,query,resolveName)
   return result
 end
 
+function Config.PreviewListImport(store,scope,kind,text)
+  if not store then return nil,"STORE_UNAVAILABLE" end
+  return store:ImportPreview(scope,kind,text)
+end
+
+function Config.CommitListImport(store,preview)
+  if not store then return false,"STORE_UNAVAILABLE" end
+  return store:CommitImport(preview)
+end
+
 return Config

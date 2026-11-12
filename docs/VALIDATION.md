@@ -212,13 +212,13 @@ the profile window must be retested in the original client.
 
 ## Phase 6 list editor
 
-Added a native list screen for adding/removing one numeric item ID at a time
-from global or active-profile inclusions/exclusions; bulk import/export stays
-available through `/djw lists`. The display shows up to twelve IDs at a time.
-No inventory APIs were added. Lua 5.1 validation passed: **50 behavior, 11 store, 7 service, 11 destroyer,
-and 19 UI model cases**; all 22 Lua files compile, source boundary and docs
-checks pass, and two ZIP builds are reproducible. Native client review of the
-new lists screen remains pending.
+Added a native list screen for adding/removing numeric IDs and browsing global
+or active-profile inclusions/exclusions. Import accepts whitespace, comma,
+semicolon or newline-separated IDs, previews new versus existing entries, and
+commits only after an explicit click; edits invalidate the preview. Export
+opens a copyable report panel. The display shows up to six matches per pane.
+No inventory APIs were added. This new import/export dialog needs client
+verification; previous list controls were observed in-game.
 
 ## Phase 6 custom rule screen
 
@@ -259,7 +259,7 @@ or deleting the active profile. Default profile protections remain enforced by
 the store. Offline suites below validate these model actions; original-client
 popup-button behavior still needs verification.
 
-Profile lifecycle UI model checks pass. Full offline validation for 0.12.0-dev:
-50 main behavior cases, 12 store cases, 7 service cases, 11 destroyer cases,
-41 UI-model assertions; Lua 5.1 syntax, docs/API boundary and reproducible ZIP
-checks all pass. Native confirmation dialogs have not yet been exercised in-game.
+The owner verified duplicate, rename, reset and delete actions in-game, and
+profile persistence across reload. Full offline validation for 0.12.0-dev
+passed at that revision. Re-run the checker below for current changes; the new
+list import/export panels still need target-client verification.

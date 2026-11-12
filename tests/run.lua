@@ -419,6 +419,9 @@ test("bootstrap supplies rules, preview and config model when standalone modules
   assert(copy)
   local filtered=w.addon.Config.FilterItemIds("123\n6948","94")
   equal(#filtered,1); equal(filtered[1].id,"6948")
+  local preview=w.addon.Config.PreviewListImport(w.app.store,"global","inclusions","123, 6948, 55")
+  equal(#preview.existing,2); equal(#preview.add,1)
+  assert(w.addon.Config.CommitListImport(w.app.store,preview))
   equal(w.mutations,0)
 end)
 
