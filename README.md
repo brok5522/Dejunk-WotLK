@@ -3,13 +3,14 @@
 Planned recreation of [Dejunk](https://github.com/moody/Dejunk) for the original
 World of Warcraft **3.3.5a / build 12340 / Interface 30300 / Lua 5.1**.
 
-**Status: Phase 1 implemented; owner-reported basic client smoke checks passed; broader acceptance partial.**
-Phase 1 read-only diagnostics were exercised by the owner. Phase 2 adds persistent profiles and lists. No selling, deletion, repair or item use is implemented. Phase 2 validation is pending.
+**Status: Phase 3 read-only rules preview implemented; original-client check pending.**
+Phase 1 diagnostics and Phase 2 SavedVariables persistence were exercised by the owner. Phase 3 adds persistent profile rules and a bag preview with stable explanations. No selling, deletion, repair or item use is implemented.
 
 See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
 
 ## Documentation
 - [Phase 2 Persian install and test guide](docs/PHASE2.fa.md)
+- [Phase 3 Persian install and preview guide](docs/PHASE3.fa.md)
 - [Phase 2 design and validation](docs/PHASE2.md)
 - [Phase 1 implementation contracts](docs/PHASE1.md)
 - [Historical Phase 0 Persian report](docs/PHASE0.fa.md)
@@ -31,8 +32,8 @@ See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
 - `/djw lists add|remove <global|profile> <inclusions|exclusions> <itemID>`
 - `/djw lists import <global|profile> <inclusions|exclusions> <IDs>`
 
-These commands only edit settings and item-ID lists. There is no rule evaluator or
-inventory operation in this phase. Saved settings live in the account-level
+These commands only edit settings and item-ID lists in Phase 2. Phase 3 adds a
+read-only rule evaluator and preview, still with no inventory operation. Saved settings live in the account-level
 `DejunkWotLKDB` variable; back it up with the game's WTF account folder before
 manual edits or addon removal.
 
@@ -50,7 +51,8 @@ checks; its historical no-runtime gate was replaced after Phase 1 approval.
 The package command refuses to overwrite existing files, creates a deterministic
 single-folder ZIP and never installs or publishes it.
 
-Commands: `/djw status`, `/djw probe` (chat), `/djw report` (copy panel),
+Phase 3 commands include `/djw rules` and `/djw preview sell|destroy`. Preview
+never triggers an action. Existing commands: `/djw status`, `/djw probe` (chat), `/djw report` (copy panel),
 `/djw slot <bag 0..4> <slot>` (explicit slot probe), `/djw help`.
 `/dejunkwotlk` is an alias. The original addon's `/dejunk` is not intercepted.
 

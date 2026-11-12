@@ -69,6 +69,19 @@ function Addon.NewApplication(runtime)
     return Addon.Copy(item)
   end
 
+  function app:Preview(action)
+    local profile = self.store and self.store:GetActiveProfile() or {}
+    local settings = {
+      profile = profile,
+      global = self.store and self.store:GetState().global or {},
+      minItemLevel = profile.options and profile.options.minItemLevel,
+      maxItemLevel = profile.options and profile.options.maxItemLevel,
+      maxStackVendorPrice = profile.options and profile.options.maxStackVendorPrice,
+      protectUnboundEquipment = true
+    }
+    return Addon.Preview.EvaluateSnapshot(self.cache:GetSnapshot(), settings, action)
+  end
+
   function app:Command(input)
     input = type(input) == "string" and input or ""
     local command, rest = input:match("^%s*(%S*)%s*(.-)%s*$")
@@ -108,8 +121,60 @@ function Addon.NewApplication(runtime)
           runtime:Print(ok and ("Imported "..#preview.add.." new IDs; "..#preview.existing.." already present.") or ("Import failed: "..tostring(reason)))
         end
       else runtime:Print("Use /djw lists show|add|remove|import <global|profile> <inclusions|exclusions> [IDs]") end
+    elseif command == "rules" then
+      if not self.store then runtime:Print("Rule store unavailable."); return end
+      local action,args=rest:match("^(%S*)%s*(.-)%s*$"); action=(action or ""):lower()
+      if action=="quality" then
+        local quality,enabled=args:match("^(%d+)%s+(%S+)$"); quality=tonumber(quality); enabled=(enabled or ""):lower()
+        local ok,err=false,"INVALID_OPTION"
+        if quality and (enabled=="on" or enabled=="off") then ok,err=self.store:SetOption("quality",{quality=quality,enabled=enabled=="on"}) end
+        runtime:Print(ok and "Quality rule updated." or ("Rule update failed: "..tostring(err)))
+      elseif action=="minlevel" or action=="maxlevel" or action=="maxprice" then
+        local raw=args:lower(); local value=raw=="off" and nil or tonumber(raw)
+        local key=action=="minlevel" and "minItemLevel" or action=="maxlevel" and "maxItemLevel" or "maxStackVendorPrice"
+        local ok,err=self.store:SetOption(key,value)
+        if raw~="off" and (not value or value<0 or value~=math.floor(value)) then ok,err=false,"INVALID_OPTION" end
+        runtime:Print(ok and "Threshold updated." or ("Rule update failed: "..tostring(err)))
+      elseif action=="add" then
+        local id,scope,result,match,field,op,value=args:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
+        local group={id=id,scope=scope and scope:upper(),result=result and result:upper(),match=match and match:upper(),
+          predicates={{field=field,op=op and op:upper(),value=tonumber(value)}}}
+        local ok,err=self.store:AddRule(group)
+        runtime:Print(ok and "Custom rule added." or ("Rule add failed: "..tostring(err)))
+      elseif action=="remove" then
+        local ok,err=self.store:RemoveRule(args)
+        runtime:Print(ok and "Custom rule removed." or ("Rule remove failed: "..tostring(err)))
+      elseif action=="list" or action=="" then
+        local profile=self.store:GetActiveProfile(); local options=profile.options or {}
+        runtime:Print("Active rules for "..profile.name..": "..#(profile.rules or {}))
+        for _,rule in ipairs(profile.rules or {}) do
+          local predicate=rule.predicates[1]
+          runtime:Print(rule.id.." "..rule.scope.." "..rule.result.." "..rule.match.." "..predicate.field.." "..predicate.op.." "..predicate.value)
+        end
+        runtime:Print("Item level min/max: "..tostring(options.minItemLevel or "off").."/"..tostring(options.maxItemLevel or "off").."; max stack copper: "..tostring(options.maxStackVendorPrice or "off"))
+        runtime:Print("Quality indexes enabled (0-7): "..table.concat((function() local values={} for i=0,7 do if options.quality and options.quality[i] then values[#values+1]=tostring(i) end end return values end)(),","))
+      else
+        runtime:Print("Use /djw rules list | quality <0-7> on|off | minlevel|maxlevel|maxprice <value|off>")
+        runtime:Print("Custom: /djw rules add <id> <SELL|DESTROY|BOTH> <JUNK|KEEP> <ALL|ANY> <itemId|quality|itemLevel|unitVendorPrice|count> <EQ|LT|GT> <number>")
+      end
     elseif command == "report" then
       runtime:ShowReport(self.diagnostics:Report(self))
+    elseif command == "preview" then
+      local action = rest:upper()
+      if action ~= "SELL" and action ~= "DESTROY" then
+        runtime:Print("Usage: /djw preview sell|destroy (read only)")
+        return
+      end
+      if self.state ~= "READY" then runtime:Print("Preview unavailable: " .. self.state); return end
+      local rows, reason = self:Preview(action)
+      if reason then runtime:Print("Preview unavailable: " .. reason); return end
+      local counts = { JUNK=0, KEEP=0, UNKNOWN=0 }
+      for _, row in ipairs(rows) do
+        counts[row.result] = (counts[row.result] or 0) + 1
+        runtime:Print(row.result .. " bag=" .. tostring(row.bag) .. " slot=" .. tostring(row.slot) ..
+          " item=" .. tostring(row.itemId or "unknown") .. " reason=" .. row.reasonCode)
+      end
+      runtime:Print("Preview totals: eligible=" .. counts.JUNK .. " keep=" .. counts.KEEP .. " unknown=" .. counts.UNKNOWN .. ". No action taken.")
     elseif command == "probe" then
       for line in self.diagnostics:Report(self):gmatch("[^\n]+") do runtime:Print(line) end
     elseif command == "slot" then
@@ -123,8 +188,8 @@ function Addon.NewApplication(runtime)
       local item = self:ProbeSlot(bag, slot)
       for _, line in ipairs(self.diagnostics:SlotLines(item)) do runtime:Print(line) end
     else
-      runtime:Print("Commands: /djw status | report | probe | slot <bag> <slot> | profile | lists | help")
-      runtime:Print("Phase 2 stores profiles and lists. Selling, destroying and repair are unavailable.")
+      runtime:Print("Commands: /djw status | report | probe | slot <bag> <slot> | preview sell|destroy | rules | profile | lists | help")
+      runtime:Print("Preview is read-only. Selling, destroying and repair are unavailable.")
     end
   end
 

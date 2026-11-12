@@ -21,6 +21,7 @@ semicolon, rejects other text and oversized input, and returns a preview.
 Commit rejects stale previews and applies additions atomically. Export sorts IDs.
 No pasted data is evaluated as Lua. Slash commands expose the profile lifecycle and direct list edit/import/export operations; these only change settings. There is not yet a complete configuration window.
 
-Phase 2 validation and in-game checks have not been run. Prior Phase 1 results
-do not validate this implementation. This branch is not ready to install pending
-review and validation.
+At the original Phase 2 handoff, checks were pending. Subsequent Lua 5.1
+validation passed, and the owner confirmed profile/list persistence through
+`/reload`; see [client evidence 04](research/CLIENT-12340-04.md). Phase 3 details
+are in [the Persian guide](PHASE3.fa.md).

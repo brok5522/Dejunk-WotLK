@@ -1,9 +1,8 @@
 # Proposed architecture
 
-Status: the long-term design below remains proposed beyond the read-only
-foundation. Phase 1 is authorized and implemented; actual implementation details
-and differences are in [PHASE1.md](PHASE1.md). No inventory operation is
-authorized or implemented in Phase 1.
+Status: phases 1 and 2 are implemented. Phase 3 adds the pure evaluator and
+read-only preview; transaction design remains proposed. No inventory operation
+is authorized or implemented.
 
 ## Boundaries and flow
 ```mermaid
@@ -77,9 +76,11 @@ than overwriting data. No automatic upstream SavedVariables import in v1; a
 future explicit importer needs its own fixture-driven design.
 
 ## Rule composition
-Safety gates run first, then the observed upstream precedence in
-[UPSTREAM.md](research/UPSTREAM.md). Custom ordered rule groups run after ordinary
-exclusions and before built-in inclusions. Predicates are structured data
+Safety gates run first. Global and profile exclusions then precede ordered
+custom rule groups, followed by profile and global inclusions, then built-in
+quality and level rules. This is the port's explicit composition order; it is
+not identical to upstream's profile-inclusion-before-global-exclusion order.
+Predicates are structured data
 (quality, item level, stack vendor price, item ID and equipment category), with
 all/any groups and action scope; first matching group decides KEEP/JUNK.
 Groups cannot override mandatory safety or earlier list decisions. Missing

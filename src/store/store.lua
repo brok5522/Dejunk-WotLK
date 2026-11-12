@@ -16,7 +16,50 @@ local function listValid(value)
   end
   return true
 end
-local function profile(id, name) return { id=id, name=name, inclusions={}, exclusions={}, options={} } end
+local function profile(id, name) return { id=id, name=name, inclusions={}, exclusions={}, options={quality={}}, rules={} } end
+local RULE_FIELDS = { itemId=true, quality=true, itemLevel=true, unitVendorPrice=true, count=true }
+local function cleanRules(value)
+  local result={}; if type(value)~="table" then return result end
+  for _,group in ipairs(value) do
+    if #result>=100 then break end
+    if type(group)=="table" and type(group.id)=="string" and #group.id>0 and #group.id<=32 and
+        (group.scope=="SELL" or group.scope=="DESTROY" or group.scope=="BOTH") and
+        (group.result=="JUNK" or group.result=="KEEP") and
+        (group.match=="ALL" or group.match=="ANY") and type(group.predicates)=="table" and
+        #group.predicates>0 and #group.predicates<=10 then
+      local out={id=group.id,scope=group.scope,result=group.result,match=group.match,predicates={}}
+      local valid=true
+      for _,predicate in ipairs(group.predicates) do
+        local field=type(predicate)=="table" and predicate.field
+        local op=type(predicate)=="table" and predicate.op
+        local val=type(predicate)=="table" and predicate.value
+        if not RULE_FIELDS[field] or (op~="EQ" and op~="LT" and op~="GT") or
+            type(val)~="number" or val<0 or val>2147483647 or val~=math.floor(val) or
+            (field=="quality" and val>7) then valid=false; break end
+        out.predicates[#out.predicates+1]={field=field,op=op,value=val}
+      end
+      if valid then result[#result+1]=out end
+    end
+  end
+  return result
+end
+local function cleanOptions(value)
+  local out={quality={}}
+  if type(value)~="table" then return out end
+  if type(value.quality)=="table" then
+    for quality,enabled in pairs(value.quality) do
+      quality=tonumber(quality)
+      if quality and quality>=0 and quality<=7 and quality==math.floor(quality) and type(enabled)=="boolean" then
+        out.quality[quality]=enabled
+      end
+    end
+  end
+  for _,key in ipairs({"minItemLevel","maxItemLevel","maxStackVendorPrice"}) do
+    local n=value[key]
+    if type(n)=="number" and n>=0 and n<=2147483647 and n==math.floor(n) then out[key]=n end
+  end
+  return out
+end
 local function fresh()
   return { schemaVersion=Store.VERSION, global={inclusions={},exclusions={},minimap={hide=false}},
     profiles={[DEFAULT]=profile(DEFAULT,"Default")}, characterProfiles={}, nextProfileId=1 }
@@ -33,7 +76,8 @@ local function cleanProfile(value,id)
   if type(value)=="table" then
     if listValid(value.inclusions) then out.inclusions=copy(value.inclusions) end
     if listValid(value.exclusions) then out.exclusions=copy(value.exclusions) end
-    if type(value.options)=="table" then out.options=copy(value.options) end
+    out.options=cleanOptions(value.options)
+    out.rules=cleanRules(value.rules)
   end
   if id==DEFAULT then out.name="Default" end
   return out
@@ -101,6 +145,37 @@ end
 function Store:RenameProfile(id,name)
   name=cleanName(name); if self.readonly or id==DEFAULT or not name or not self.state.profiles[id] then return false end
   self.state.profiles[id].name=name; self:Changed(); return true
+end
+function Store:SetOption(key,value)
+  if self.readonly then return false,"READ_ONLY" end
+  local options=self.state.profiles[self:GetActiveProfileId()].options
+  if key=="quality" then
+    if type(value)~="table" then return false,"INVALID_OPTION" end
+    local quality,enabled=value.quality,value.enabled
+    if type(quality)~="number" or quality<0 or quality>7 or quality~=math.floor(quality) or type(enabled)~="boolean" then return false,"INVALID_OPTION" end
+    options.quality[quality]=enabled
+  elseif key=="minItemLevel" or key=="maxItemLevel" or key=="maxStackVendorPrice" then
+    if value~=nil and (type(value)~="number" or value<0 or value>2147483647 or value~=math.floor(value)) then return false,"INVALID_OPTION" end
+    options[key]=value
+  else return false,"INVALID_OPTION" end
+  self:Changed(); return true
+end
+function Store:AddRule(group)
+  if self.readonly then return false,"READ_ONLY" end
+  local profile=self.state.profiles[self:GetActiveProfileId()]
+  for _,rule in ipairs(profile.rules) do if rule.id==group.id then return false,"DUPLICATE_RULE" end end
+  local clean=cleanRules({group})[1]
+  if not clean then return false,"INVALID_RULE" end
+  if #profile.rules>=100 then return false,"RULE_LIMIT" end
+  profile.rules[#profile.rules+1]=clean; self:Changed(); return true
+end
+function Store:RemoveRule(id)
+  if self.readonly then return false,"READ_ONLY" end
+  local profile=self.state.profiles[self:GetActiveProfileId()]
+  for index,rule in ipairs(profile.rules) do
+    if rule.id==id then table.remove(profile.rules,index); self:Changed(); return true end
+  end
+  return false,"UNKNOWN_RULE"
 end
 function Store:ResetProfile(id)
   if self.readonly or id==DEFAULT or not self.state.profiles[id] then return false end

@@ -2,7 +2,7 @@
 
 ## Scope and approval
 - Target only the original World of Warcraft **3.3.5a, build 12340, Interface 30300, Lua 5.1**. Wrath Classic is a different API and is not evidence of compatibility.
-- Current authorized scope is **Phase 2: store, profiles and lists**, explicitly approved by the owner with “شروع کن”. Phase 1 read-only client smoke evidence was reported. Implement versioned SavedVariables, per-character profile assignment, profile lifecycle, global/profile inclusion and exclusion lists, and safe plain-text list import/export. No rules engine, UI, inventory mutation, selling, repair or destruction is authorized. Stop for review after Phase 2.
+- The owner explicitly said “ادامه بده” after Phase 2, authorizing continued development. Phase 3 scope is the pure rules engine, persisted declarative profile rules, and read-only bag preview. No inventory mutation, selling, repair, item use, or transaction pathways are authorized by that instruction. Continue through the roadmap without asking the owner to restate the project goal; stop before Phase 4 inventory transactions.
 - Never perform destructive inventory operations during development or verification. Do not connect automation to a live character's inventory. Use mocks and read-only probes. Future real-client transaction tests require separate explicit authorization and disposable items.
 - Do not publish releases, merge PRs, or enable automatic merging without owner authorization. Preserve existing user changes.
 

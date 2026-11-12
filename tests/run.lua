@@ -342,6 +342,64 @@ test("reported zero-return empty slot stays empty without item metadata reads", 
   equal(w.app.cache:GetSnapshot().valid, true)
 end)
 
+local function ruleItem(overrides)
+  local item = { state="OCCUPIED", itemId=123, count=2, metadata="known", locked=false,
+    quest=false, inEquipmentSet=false, refundable=false, quality=0, itemLevel=10,
+    unitVendorPrice=5, equipLoc="", bound="unknown" }
+  for key, value in pairs(overrides or {}) do item[key]=value end
+  return item
+end
+test("rule safety gates keep mandatory protected and unknown data non-junk", function()
+  local w=populated():Ready(); local rules=w.addon.Rules
+  equal(rules.Evaluate(ruleItem({quest=true}),"SELL",{}).reasonCode,"QUEST_ITEM")
+  equal(rules.Evaluate(ruleItem({inEquipmentSet="unknown"}),"SELL",{}).result,"UNKNOWN")
+  equal(rules.Evaluate(ruleItem({locked="unknown"}),"DESTROY",{}).result,"UNKNOWN")
+  equal(rules.Evaluate(ruleItem({refundable=true}),"DESTROY",{}).reasonCode,"REFUNDABLE")
+  equal(rules.Evaluate(ruleItem({equipLoc="INVTYPE_HEAD"}),"SELL",{}).reasonCode,"BINDING_UNKNOWN")
+end)
+test("rule precedence keeps exclusions before custom rules and inclusions", function()
+  local rules=populated():Ready().addon.Rules
+  local item=ruleItem()
+  local global={exclusions={[123]=true},inclusions={}}
+  local result=rules.Evaluate(item,"SELL",{profile={exclusions={[123]=true},inclusions={[123]=true}},global=global})
+  equal(result.reasonCode,"PROFILE_EXCLUSION"); equal(result.result,"KEEP")
+  result=rules.Evaluate(item,"SELL",{profile={exclusions={},inclusions={[123]=true}},global=global})
+  equal(result.reasonCode,"GLOBAL_EXCLUSION"); equal(result.result,"KEEP")
+  result=rules.Evaluate(item,"SELL",{profile={exclusions={},inclusions={[123]=true}},global={exclusions={},inclusions={}}})
+  equal(result.reasonCode,"PROFILE_INCLUSION"); equal(result.result,"JUNK")
+end)
+test("rule thresholds use whole-stack copper with strict comparison", function()
+  local rules=populated():Ready().addon.Rules; local item=ruleItem()
+  equal(rules.Evaluate(item,"SELL",{maxStackVendorPrice=10}).result,"KEEP")
+  equal(rules.Evaluate(item,"SELL",{maxStackVendorPrice=9}).reasonCode,"ABOVE_MAX_STACK_PRICE")
+  equal(rules.Evaluate(item,"SELL",{minItemLevel=11}).reasonCode,"BELOW_MIN_ITEM_LEVEL")
+  equal(rules.Evaluate(ruleItem({unitVendorPrice=0}),"SELL",{profile={inclusions={[123]=true}}}).reasonCode,"NO_VENDOR_VALUE")
+end)
+test("custom rule groups are ordered, scoped and data-only", function()
+  local rules=populated():Ready().addon.Rules; local item=ruleItem()
+  local groups={{id="g1",scope="DESTROY",result="JUNK",match="ALL",predicates={{field="quality",op="EQ",value=0}}},
+    {id="g2",scope="BOTH",result="JUNK",match="ALL",predicates={{field="itemLevel",op="LT",value=20}}}}
+  local settings={profile={rules=groups}}
+  equal(rules.Evaluate(item,"SELL",settings).ruleId,"g2")
+  equal(rules.Evaluate(item,"DESTROY",settings).ruleId,"g1")
+  groups[1].predicates[1].field="unknownField"
+  equal(rules.Evaluate(item,"DESTROY",settings).reasonCode,"RULE_DATA_UNKNOWN")
+end)
+test("preview command reports read-only rows and invalidated snapshots fail closed", function()
+  local w=H.New(); w:AddItem(0,1)
+  w.api.GetItemInfo=function(link) return "Example",link,0,10,1,"Localized Class","Localized Subclass",20,"","texture",5 end
+  w:Load():Ready(); w:Command("lists add global inclusions 123")
+  w:Command("rules quality 0 on")
+  equal(w.app.store:GetActiveProfile().options.quality[0],true)
+  w:Command("rules add sample SELL JUNK ALL quality EQ 0")
+  equal(#w.app.store:GetActiveProfile().rules,1)
+  w:Command("preview sell")
+  local found=false; for _,line in ipairs(w.messages) do if line:find("CUSTOM_RULE",1,true) then found=true end end
+  assert(found); equal(w.mutations,0)
+  w:Fire("BAG_UPDATE",0)
+  local rows,reason=w.app:Preview("SELL"); equal(#rows,0); equal(reason,"SNAPSHOT_INVALID")
+end)
+
 test("all fixture worlds keep mutation sentinels untouched", function()
   for _, world in ipairs(H.worlds) do equal(world.mutations, 0) end
 end)

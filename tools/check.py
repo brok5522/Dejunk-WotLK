@@ -55,7 +55,8 @@ def main():
     expected = [
         'src/namespace.lua', 'src/compat/client.lua', 'src/compat/legacy.lua',
         'src/compat/runtime.lua', 'src/core/events.lua', 'src/core/scheduler.lua',
-        'src/core/bag-cache.lua', 'src/core/diagnostics.lua', 'src/store/store.lua', 'src/core/bootstrap.lua',
+        'src/core/bag-cache.lua', 'src/core/diagnostics.lua', 'src/store/store.lua',
+        'src/rules/evaluator.lua', 'src/services/preview.lua', 'src/core/bootstrap.lua',
     ]
     if load_order != expected:
         raise ValueError('Unexpected Phase 1 TOC load order; review the boundary before extending it')
