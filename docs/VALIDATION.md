@@ -102,3 +102,17 @@ metadata, quest/refund APIs or binding tooltips. **44 Lua 5.1 cases passed, zero
 failures**; syntax, source boundary, documentation and ZIP checks also passed.
 No runtime changes; no new download required. Remaining client checks are listed
 in the acceptance table, and Phase 2 remains unauthorized.
+
+## Follow-up 03: merchant events and basic smoke summary
+The owner's third report records MERCHANT_SHOW and two MERCHANT_CLOSED events,
+all with zero arguments, while READY, callbackErrors=0 and current cache
+validity are preserved. This confirms delivery, not just registration. The
+basic owner read-only smoke sequence is now successful for the reported enUS
+12340 client; broader coverage remains partial. See
+[evidence 03](research/CLIENT-12340-03.md) and the acceptance table for limitations.
+
+This follow-up changes documentation only: no runtime or tests changed and no
+new addon download is required. Research/document/link validation and whitespace
+checks passed; the last behavioral result remains **44 passed**. No additional
+broad runtime test run was needed for these documentation changes. Phase 2 has
+not started and no inventory operation has been added or executed.

@@ -2,7 +2,10 @@
 
 The owner supplied a build-12340 report and chat screenshots; see the sanitized
 [occupied-slot record](research/CLIENT-12340-01.md) and
-[empty-slot/event/reload follow-up](research/CLIENT-12340-02.md). No actual WoW client is available
+[empty-slot/event/reload follow-up](research/CLIENT-12340-02.md), and
+[merchant event record](research/CLIENT-12340-03.md). The basic read-only smoke
+sequence has user evidence and succeeded; broader acceptance remains partial.
+No actual WoW client is available
 in this development environment. Do not mark the remaining checks
 passed based on the Lua fixtures or a Wrath Classic client. The owner can follow
 [the Persian guide](PHASE1.fa.md); no executable `/run` macros are required.
@@ -21,7 +24,7 @@ client is modified. Do not include character/account/server names. Commands are
 | Refund purchase tuple | Fifth return semantics; nil remains unknown until evidence justifies interpretation | PARTIAL: zero returns on Hearthstone; refundable-item semantics pending |
 | Quest flag and binding strings | Explicit booleans or observed legacy 0/1; opt-in hidden tooltip probe; unknown text stays unknown | PARTIAL: three nil quest returns; bound=true on Hearthstone; positive quest/unbound cases pending |
 | Equipment sets, if configured | Correct count; all matching bag item IDs protected conservatively | PARTIAL: count=0; configured-set membership not observed |
-| Legacy UI_ERROR_MESSAGE, merchant and bag events | Report types/arity, e.g. first error argument string; no action on events | PARTIAL: BAG_UPDATE (1 number), lock events (2 numbers) and current cache observed; merchant/error pending |
+| Legacy UI_ERROR_MESSAGE, merchant and bag events | Report types/arity, e.g. first error argument string; no action on events | PARTIAL: bag/lock events and cache observed; MERCHANT_SHOW/CLOSED have zero args, repeated close harmless in sample; UI_ERROR_MESSAGE pending |
 | Diagnostic report UI | Text selectable/copyable, scrolls, Escape/close work; chat fallback available | PARTIAL: text supplied and chat screenshots; native scroll/close not explicitly confirmed |
 | Logout/reload behavior | No error; fresh startup, no persistent data | PARTIAL: READY screenshot supplied after reload/status request; full logout and post-reload diagnostics not captured |
 
@@ -36,3 +39,10 @@ A copied report is not stored by the addon. Inspect it before sharing: it includ
 the selected item's ID/count/vendor value and localized category labels, but no
 character/account identifiers, item links, raw tooltip lines or raw event values.
 Resolve failures here before Phase 2 acceptance or any inventory-action work.
+
+## Handoff after the basic smoke checks
+The requested owner checks are recorded without requiring inventory operations.
+No runtime change or new addon download is needed. Keep the unobserved cases
+above as explicit evidence gaps; do not infer safety booleans from absent data.
+Phase 2 still requires separate owner authorization and review of this partial
+acceptance. Inventory services remain out of scope.

@@ -3,11 +3,13 @@
 Planned recreation of [Dejunk](https://github.com/moody/Dejunk) for the original
 World of Warcraft **3.3.5a / build 12340 / Interface 30300 / Lua 5.1**.
 
-**Status: Phase 1 read-only foundation implemented; original-client acceptance pending.**
+**Status: Phase 1 implemented; owner-reported basic client smoke checks passed; broader acceptance partial.**
 The owner approved Phase 1 after reviewing Phase 0. This development build reads
 carried bags and produces diagnostics. It cannot sell, delete, repair, use items
 or persist profiles. There are no dependencies or SavedVariables. It is not the
-complete Dejunk addon and has not been tested in an actual WoW client here.
+complete Dejunk addon. The owner supplied original-client reports; there is no
+WoW client in the development environment. See the acceptance checklist for
+observations and remaining gaps.
 
 See [installation and read-only verification in Persian](docs/PHASE1.fa.md).
 
