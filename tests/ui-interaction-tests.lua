@@ -202,6 +202,11 @@ local listCallbacks={
 runtime:ShowConfig(listCallbacks)
 control("Button","Lists"):Click()
 assert(namedFrame("DejunkWotLKLists"),"Lists page frame was not created")
+assert(lastControl("Button","Scope: global").template==nil,"list scope still uses a red Blizzard template")
+assert(lastControl("Button","Export").template==nil,"list export still uses a red Blizzard template")
+assert(lastControl("Button","X").template==nil,"configuration close still uses a red Blizzard template")
+assert(lastControl("Button","Scope: global").template==nil,"list scope still uses a red Blizzard template")
+assert(lastControl("Button","Export").template==nil,"list export still uses a red Blizzard template")
 local listFrame=namedFrame("DejunkWotLKLists")
 local mainWindow=namedFrame("DejunkWotLK_MainWindow")
 assert(listFrame and listFrame.width and listFrame.width>0 and listFrame.height and listFrame.height>0 and listFrame.shown,
@@ -242,7 +247,7 @@ assert(report and report.shown and listFrame.shown==false)
 assert(namedFrame("DejunkWotLKReadOnlyReport"),"report window did not use the Waffle window factory")
 local exported=lastControl("EditBox","6948\n6949")
 assert(exported.focused and exported.highlighted)
-lastControl("Button",nil,"UIPanelCloseButton"):Click()
+lastControl("Button","X"):Click()
 assert(listFrame.shown==true)
 
 control("Button","Import"):Click()
@@ -290,7 +295,9 @@ assert(configFrame and configFrame.shown)
 for _,message in ipairs(messages) do assert(not message:find("Waffle configuration UI failed",1,true)) end
 control("Button","Preview SELL"):Click()
 assert(configFrame.shown==false)
-lastChild(report,"Button","UIPanelCloseButton"):Click()
+local reportClose=lastChild(report,"Button")
+assert(reportClose.text=="X")
+reportClose:Click()
 assert(configFrame.shown==true)
 runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function() return "default" end})
 local profilesPage=namedFrame("DejunkWotLKProfiles")
@@ -301,6 +308,8 @@ assert(profilesPage.width and profilesPage.width>0 and profilesPage.height and p
 assert(profilesPage.alpha~=0,"Profiles page was made transparent by the legacy page visibility path")
 assert(profilesPage.backdrop==nil,"Profiles page retained its own dialog backdrop")
 assert(profilesPage.shown,"Profiles page was not visible when selected")
+assert(lastControl("Button","Create").template==nil,"profile create still uses a red Blizzard template")
+assert(lastControl("Button","Back").template==nil,"profile Back still uses a red Blizzard template")
 control("Button","Lists"):Click()
 assert(profilesPage.shown==false and namedFrame("DejunkWotLKLists").shown,"Lists navigation left the Profiles page visible")
 runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function() return "default" end})
@@ -391,6 +400,7 @@ for _,frame in ipairs(uiFrames) do
   elseif afterEditor and frame.kind=="Button" and frame.text=="Apply" and frame.parent==optionsPage.contentFrame then applyThreshold=frame; break end
 end
 assert(applyThreshold,"profile threshold Apply control was not created")
+assert(applyThreshold.template==nil,"profile Apply still uses the red Blizzard button template")
 applyThreshold:Click()
 assert(optionState.includeBelowItemLevel.enabled and optionState.includeBelowItemLevel.value==60,"minimum item level did not persist through the UI")
 local minimumScope,afterApply
