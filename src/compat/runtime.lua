@@ -289,6 +289,12 @@ function Runtime.New(environment)
     end
   end
 
+  local function setConfigPageVisible(page,visible)
+    if not page then return end
+    if page.SetAlpha then page:SetAlpha(visible and 1 or 0) end
+    if visible then page:Show() else page:Hide() end
+  end
+
   function runtime:ShowProfiles(callbacks)
     callbacks=callbacks or {}
     runtime.configCallbacks=callbacks
@@ -298,9 +304,9 @@ function Runtime.New(environment)
       configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
       mainContentFrame=configContentComponent:GetFrame()
     end
-    if listFrame then listFrame:Hide() end
-    if profileFrame then profileFrame:Hide() end
-    if optionsFrame then optionsFrame:Hide() end
+    setConfigPageVisible(listFrame,false)
+    setConfigPageVisible(profileFrame,false)
+    setConfigPageVisible(optionsFrame,false)
     local ok,optionsError=pcall(function()
       if not profileFrame then
         if mainContentFrame then profileFrame=api.CreateFrame("Frame","DejunkWotLKProfiles",mainContentFrame)
@@ -402,9 +408,9 @@ function Runtime.New(environment)
       profileList:SetHeight(math.max(175,row*28))
       profileSummary:SetText("Select a profile to activate it:")
       if callbacks.activeProfileName then profileNameBox:SetText(callbacks.activeProfileName()) end
-      if listFrame then listFrame:Hide() end
-      if optionsFrame then optionsFrame:Hide() end
-      profileFrame:Show()
+      setConfigPageVisible(listFrame,false)
+      setConfigPageVisible(optionsFrame,false)
+      setConfigPageVisible(profileFrame,true)
     end)
     if not ok then self:Print("Profiles window unavailable; use /djw profiles list|create|switch.") end
   end
@@ -418,6 +424,8 @@ function Runtime.New(environment)
       configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
       mainContentFrame=configContentComponent:GetFrame()
     end
+    setConfigPageVisible(profileFrame,false)
+    setConfigPageVisible(optionsFrame,false)
     local ok=pcall(function()
       if not listFrame then
         if mainContentFrame then
@@ -623,9 +631,9 @@ function Runtime.New(environment)
       else
         listFrame:SetScript("OnUpdate",nil)
       end
-      if profileFrame then profileFrame:Hide() end
-      if optionsFrame then optionsFrame:Hide() end
-      listFrame:Show()
+      setConfigPageVisible(profileFrame,false)
+      setConfigPageVisible(optionsFrame,false)
+      setConfigPageVisible(listFrame,true)
     end)
     if not ok then self:Print("Lists window unavailable; use /djw lists show|add|remove <global|profile> <inclusions|exclusions> <itemID>.") end
   end
@@ -883,7 +891,19 @@ function Runtime.New(environment)
     check.text=labelText
     if check.labelRegion then check.labelRegion:SetText(labelText) end
   end
-
+  local function setOptionCheckHandler(check,handler)
+    check:SetScript("OnClick",handler)
+    check.optionClickHandler=handler
+    if check.labelHit then
+      check.labelHit:SetScript("OnClick",function() handler(check,"LeftButton") end)
+    end
+  end
+  local function setOptionCheckEnabled(check,enabled)
+    if enabled then check:Enable() else check:Disable() end
+    if check.labelHit then
+      if enabled then check.labelHit:Enable() else check.labelHit:Disable() end
+    end
+  end
   function runtime:ShowOptions(callbacks,scope)
     callbacks=callbacks or {}
     runtime.configCallbacks=callbacks; optionsCallbacks=callbacks
@@ -894,7 +914,10 @@ function Runtime.New(environment)
       configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
       mainContentFrame=configContentComponent:GetFrame()
     end
-    local ok=pcall(function()
+    setConfigPageVisible(listFrame,false)
+    setConfigPageVisible(profileFrame,false)
+    setConfigPageVisible(optionsFrame,false)
+    local ok,optionsError=pcall(function()
       if not optionsFrame then
         if mainContentFrame then optionsFrame=api.CreateFrame("Frame","DejunkWotLKOptions",mainContentFrame)
         else
@@ -905,7 +928,11 @@ function Runtime.New(environment)
         if mainContentFrame then optionsFrame:SetParent(mainContentFrame); optionsFrame:ClearAllPoints(); optionsFrame:SetPoint("TOPLEFT",mainContentFrame,"TOPLEFT",0,0)
         else optionsFrame:SetPoint("CENTER") end
         optionsFrame:SetFrameStrata("DIALOG"); optionsFrame:EnableMouse(true)
-        if not mainContentFrame then optionsFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}}) end
+        if not mainContentFrame then optionsFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
+        else
+          optionsFrame:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",tile=true,tileSize=8})
+          optionsFrame:SetBackdropColor(0.01,0.01,0.01,1)
+        end
         local title=optionsFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
         title:SetPoint("TOPLEFT",20,-18); optionsFrame.pageTitle=title
         local description=optionsFrame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
@@ -929,10 +956,14 @@ function Runtime.New(environment)
         local function createOptionCheck(labelText,x,y,hitWidth)
           optionCheckSerial=optionCheckSerial+1
           local check=api.CreateFrame("CheckButton","DejunkWotLKOptionCheck"..optionCheckSerial,optionsContentFrame,"UICheckButtonTemplate")
-          check:SetWidth(hitWidth or 260); check:SetHeight(18); check:SetPoint("TOPLEFT",x,y)
-          local label=check:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-          label:SetPoint("LEFT",check,"RIGHT",4,0)
+          check:SetWidth(24); check:SetHeight(24); check:SetPoint("TOPLEFT",x,y)
+          local labelHit=api.CreateFrame("Button",nil,check)
+          labelHit:SetWidth(math.max(16,(hitWidth or 220)-28)); labelHit:SetHeight(20)
+          labelHit:SetPoint("LEFT",check,"RIGHT",2,0)
+          local label=labelHit:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+          label:SetPoint("LEFT",labelHit,"LEFT",0,0)
           check.labelRegion=label
+          check.labelHit=labelHit
           setOptionCheckText(check,labelText)
           return check
         end
@@ -942,7 +973,7 @@ function Runtime.New(environment)
           for index,choice in ipairs(choices) do
             local control=createOptionCheck(choice.label,x+(index-1)*step,y,step-4)
             control.scopeKey=key; control.scopeValue=choice.value
-            control:SetScript("OnClick",function()
+            setOptionCheckHandler(control,function()
               local currentCallbacks=optionsCallbacks or callbacks
               local current=currentCallbacks.options and currentCallbacks.options() or {}
               local previous=current[key] or defaultValue or {enabled=true,scope="BOTH",qualities={}}
@@ -1026,13 +1057,13 @@ function Runtime.New(environment)
           self:Print(changed and "Include by quality updated." or ("Option update failed: "..tostring(reason)))
           self:ShowOptions(currentCallbacks,"profile")
         end
-        qualityTitle:SetScript("OnClick",toggleQualityFilter)
+        setOptionCheckHandler(qualityTitle,toggleQualityFilter)
         bindCardClick("includeByQuality",toggleQualityFilter)
         local labels={"Poor","Common","Uncommon","Rare","Epic"}
         optionsQualityButtons={}
         for quality=0,4 do
-          local b=createOptionCheck(labels[quality+1],110+quality*82,-296,78)
-          b:SetScript("OnClick",function()
+          local b=createOptionCheck(labels[quality+1],110+quality*92,-296,88)
+          setOptionCheckHandler(b,function()
             local currentCallbacks=optionsCallbacks or callbacks
             local opts=currentCallbacks.options and currentCallbacks.options() or {}
             local values=(opts.includeByQuality and opts.includeByQuality.qualities) or {}
@@ -1064,7 +1095,7 @@ function Runtime.New(environment)
             self:Print(changed and (row.label.." updated.") or ("Option update failed: "..tostring(reason)))
             self:ShowOptions(currentCallbacks,optionsFrame.scope)
           end
-          button:SetScript("OnClick",toggleOption)
+          setOptionCheckHandler(button,toggleOption)
           bindCardClick(row.key,toggleOption)
           optionsFields[index]={key=row.key,button=button,label=row.label}
         end
@@ -1099,9 +1130,9 @@ function Runtime.New(environment)
         for quality=1,5 do
           local q=quality
           local name=({"Poor","Common","Uncommon","Rare","Epic"})[quality]
-          local button=createOptionCheck(name,110+(quality-1)*82,-1960,78)
+          local button=createOptionCheck(name,110+(quality-1)*92,-1960,88)
           button.optionGroup="excludeUnboundEquipment"; button.optionQuality=({"poor","common","uncommon","rare","epic"})[quality]
-          button:SetScript("OnClick",function()
+          setOptionCheckHandler(button,function()
             local currentCallbacks=optionsCallbacks or callbacks
             local current=currentCallbacks.options and currentCallbacks.options() or {}
             local previous=current.excludeUnboundEquipment or {enabled=false,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}}
@@ -1131,7 +1162,7 @@ function Runtime.New(environment)
             self:Print(changed and (row.label.." updated.") or ("Option update failed: "..tostring(reason)))
             self:ShowOptions(currentCallbacks,"profile")
           end
-          label:SetScript("OnClick",toggleThreshold)
+          setOptionCheckHandler(label,toggleThreshold)
           bindCardClick(row.key,toggleThreshold)
           local valueLabel=addProfileText(row.key:find("Price") and "Price" or "Item level",24,valueY,78)
           local scopeLabel=addProfileText("Applies to",24,scopeY,78)
@@ -1183,9 +1214,9 @@ function Runtime.New(environment)
           for quality=1,5 do
             local q=quality
             local qualityName=({"Poor","Common","Uncommon","Rare","Epic"})[quality]
-            local button=createOptionCheck(qualityName,110+(quality-1)*82,qualityY,78)
+            local button=createOptionCheck(qualityName,110+(quality-1)*92,qualityY,88)
             button.optionGroup=row.key; button.optionQuality=qualityKeys[q]
-            button:SetScript("OnClick",function()
+            setOptionCheckHandler(button,function()
               local currentCallbacks=optionsCallbacks or callbacks
               local current=currentCallbacks.options and currentCallbacks.options() or {}
               local previous=current[row.key] or {}
@@ -1233,7 +1264,7 @@ function Runtime.New(environment)
             self:Print(changed and (titleText.." updated.") or ("Option update failed: "..tostring(reason)))
             self:ShowOptions(currentCallbacks,"profile")
           end
-          toggle:SetScript("OnClick",toggleEquipmentType)
+          setOptionCheckHandler(toggle,toggleEquipmentType)
           bindCardClick(key,toggleEquipmentType)
           field.toggle=toggle
           field.scopeChoices=addScopeChoices(key,110,top-264,98,typeDefaults())
@@ -1255,7 +1286,7 @@ function Runtime.New(environment)
               local position=index-1
               local column=position%columns; local row=math.floor(position/columns)
               local button=createOptionCheck(itemType.name,24+column*step,y-row*24,step-4)
-              button:SetScript("OnClick",function()
+              setOptionCheckHandler(button,function()
                 local currentCallbacks=optionsCallbacks or callbacks
                 local current=currentCallbacks.options and currentCallbacks.options() or {}
                 local previous=current[key] or typeDefaults()
@@ -1270,7 +1301,7 @@ function Runtime.New(environment)
               field.typeButtons[#field.typeButtons+1]={button=button,item=itemType,property=property}
             end
           end
-          addTypeButtons(4,"armor",top-86,96,98,5)
+          addTypeButtons(4,"armor",top-86,96,104,5)
           addTypeButtons(2,"weapons",top-156,170,176,3)
           local qualityLabel=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
           qualityLabel:SetPoint("TOPLEFT",24,top-290); qualityLabel:SetText("Qualities")
@@ -1278,9 +1309,9 @@ function Runtime.New(environment)
           field.qualityButtons={}
           local qualityKeys={"poor","common","uncommon","rare","epic"}
           for index,name in ipairs(qualityKeys) do
-            local button=createOptionCheck(name,110+(index-1)*82,top-290,78)
+            local button=createOptionCheck(name,110+(index-1)*92,top-290,88)
             button.optionGroup=key; button.optionQuality=name
-            button:SetScript("OnClick",function()
+            setOptionCheckHandler(button,function()
               local currentCallbacks=optionsCallbacks or callbacks
               local current=currentCallbacks.options and currentCallbacks.options() or {}
               local previous=current[key] or typeDefaults()
@@ -1319,6 +1350,7 @@ function Runtime.New(environment)
         if mainContentFrame then back:Hide() end
       end
       local opts=callbacks.options and callbacks.options() or {}
+      local qualityRule=opts.includeByQuality or {enabled=true}
       optionsFrame.scope=scope
       local activeProfile=callbacks.activeProfileName and callbacks.activeProfileName() or nil
       optionsFrame.pageTitle:SetText(scope=="global" and "Dejunk | Global Options" or
@@ -1332,6 +1364,7 @@ function Runtime.New(environment)
       end
       for _,button in ipairs(optionsQualityButtons) do
         if scope=="profile" then button:Show() else button:Hide() end
+        setOptionCheckEnabled(button,qualityRule.enabled~=false)
       end
       for _,entry in ipairs(optionsThresholdFields) do
         if scope=="profile" then entry.label:Show(); entry.apply:Show()
@@ -1361,7 +1394,7 @@ function Runtime.New(environment)
         for _,control in ipairs(entry.scopeChoices) do
           control:SetChecked(control.scopeValue==optionScope)
           if scope=="profile" then control:Show() else control:Hide() end
-          if type(option)=="table" and option.enabled then control:Enable() else control:Disable() end
+          setOptionCheckEnabled(control,type(option)=="table" and option.enabled==true)
         end
         for quality,button in ipairs(entry.qualityButtons) do
           local name=({"poor","common","uncommon","rare","epic"})[quality]
@@ -1369,7 +1402,7 @@ function Runtime.New(environment)
           button:SetChecked(enabled)
           setOptionCheckText(button,({"Poor","Com","Unc","Rare","Epic"})[quality])
           if scope=="profile" then button:Show() else button:Hide() end
-          if type(option)=="table" and option.enabled then button:Enable() else button:Disable() end
+          setOptionCheckEnabled(button,type(option)=="table" and option.enabled==true)
         end
       end
       for _,entry in ipairs(optionsScopeFields) do
@@ -1378,11 +1411,9 @@ function Runtime.New(environment)
         for _,control in ipairs(entry.choices) do
           control:SetChecked(control.scopeValue==selectedScope)
           if scope=="profile" then control:Show() else control:Hide() end
-          if entry.key=="includeByQuality" or (type(option)=="table" and option.enabled) then control:Enable()
-          else control:Disable() end
+          setOptionCheckEnabled(control,type(option)=="table" and option.enabled==true)
         end
       end
-      local qualityRule=opts.includeByQuality or {enabled=true}
       optionsFrame.qualityTitle:SetChecked(qualityRule.enabled~=false)
       local unbound=opts.excludeUnboundEquipment
       if scope=="profile" then optionsUnboundQualityFields.title:Show() else optionsUnboundQualityFields.title:Hide() end
@@ -1392,7 +1423,7 @@ function Runtime.New(environment)
         button:SetChecked(enabled)
         setOptionCheckText(button,({"Poor","Com","Unc","Rare","Epic"})[quality])
         if scope=="profile" then button:Show() else button:Hide() end
-        if type(unbound)=="table" and unbound.enabled then button:Enable() else button:Disable() end
+        setOptionCheckEnabled(button,type(unbound)=="table" and unbound.enabled==true)
       end
       for _,entry in ipairs(optionsEquipmentTypeFields or {}) do
         local option=opts[entry.key] or {enabled=false,scope="BOTH",qualities={},armor={},weapons={}}
@@ -1403,7 +1434,7 @@ function Runtime.New(environment)
         for _,control in ipairs(entry.scopeChoices) do
           control:SetChecked(control.scopeValue==(option.scope or "BOTH"))
           if scope=="profile" then control:Show() else control:Hide() end
-          if option.enabled then control:Enable() else control:Disable() end
+          setOptionCheckEnabled(control,option.enabled==true)
         end
         for _,frame in ipairs(entry.labels) do if scope=="profile" then frame:Show() else frame:Hide() end end
         for _,control in ipairs(entry.typeButtons) do
@@ -1412,14 +1443,14 @@ function Runtime.New(environment)
           control.button:SetChecked(enabled)
           setOptionCheckText(control.button,control.item.name)
           if scope=="profile" then control.button:Show() else control.button:Hide() end
-          if option.enabled then control.button:Enable() else control.button:Disable() end
+          setOptionCheckEnabled(control.button,option.enabled==true)
         end
         for _,control in ipairs(entry.qualityButtons) do
           local enabled=type(option.qualities)~="table" or option.qualities[control.name]~=false
           control.button:SetChecked(enabled)
           setOptionCheckText(control.button,control.name)
           if scope=="profile" then control.button:Show() else control.button:Hide() end
-          if option.enabled then control.button:Enable() else control.button:Disable() end
+          setOptionCheckEnabled(control.button,option.enabled==true)
         end
       end
       local labels={"Poor","Common","Uncommon","Rare","Epic"}
@@ -1443,9 +1474,9 @@ function Runtime.New(environment)
       local activeProfile=callbacks.activeProfileName and callbacks.activeProfileName() or nil
       optionsFrame.pageTitle:SetText(scope=="global" and "Dejunk | Global Options" or
         ("Dejunk | Profile Options"..(activeProfile and (" ("..activeProfile..")") or "")))
-      if listFrame then listFrame:Hide() end
-      if profileFrame then profileFrame:Hide() end
-      optionsFrame:Show()
+      setConfigPageVisible(listFrame,false)
+      setConfigPageVisible(profileFrame,false)
+      setConfigPageVisible(optionsFrame,true)
     end)
     if not ok then self:Print("Options window error: "..tostring(optionsError).."; use /djw rules list and /djw rules quality|minlevel|maxlevel|maxprice.") end
   end

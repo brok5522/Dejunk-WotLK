@@ -13,6 +13,7 @@ local function object(kind,name,parent,template)
   local frame={kind=kind,name=name,parent=parent,template=template,scripts={},children={},enabled=true,text=""}
   function frame:SetWidth(value) self.width=value end
   function frame:SetHeight(value) self.height=value end
+  function frame:SetAlpha(value) self.alpha=value end
   function frame:SetPoint(...) self.point={...} end
   function frame:ClearAllPoints() self.point=nil end
   function frame:SetParent(parent) self.parent=parent end
@@ -303,7 +304,8 @@ runtime:ShowOptions(optionCallbacks,"profile")
 local optionsPage=namedFrame("DejunkWotLKOptions")
 assert(optionsPage,"options page was not created")
 assert(optionsPage.parent==profilesPage.parent,"Options page is outside the main configuration content")
-assert(optionsPage.backdrop==nil,"Options page retained its own dialog backdrop")
+assert(optionsPage.backdrop~=nil,"Options page is missing the opaque active-page background")
+assert(optionsPage.backdropColor and optionsPage.backdropColor[4]==1,"Options page background is not opaque over inactive screens")
 assert(optionsPage.scrollFrame and optionsPage.scrollFrame.template=="UIPanelScrollFrameTemplate","Profile options must use the legacy scroll-panel pattern")
 assert(optionsPage.contentFrame and optionsPage.contentFrame.height>=2040,"Profile option groups must fit in the scroll content")
 local sectionOrder={}
@@ -326,7 +328,8 @@ for i=1,#cards-1 do
 end
 assert(profilesPage.shown==false,"Profiles page remained visible while Options was selected")
 local listsPage=namedFrame("DejunkWotLKLists")
-assert(not listsPage or listsPage.shown==false,"Lists remained visible behind Profile Options")
+assert(not listsPage or (listsPage.shown==false and listsPage.alpha==0),"Lists remained visible behind Profile Options")
+assert(optionsPage.alpha==1,"Profile Options did not become the active opaque page")
 assert(control("CheckButton","Auto Sell").shown,"profile options were hidden on the Profile Options page")
 assert(control("Button","Safe Sell: OFF").shown==false,"global options leaked into Profile Options")
 local enableMinimum
@@ -354,16 +357,16 @@ for _,frame in ipairs(uiFrames) do
   elseif afterApply and frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.scopeKey=="includeBelowItemLevel" and frame.scopeValue=="SELL" then minimumScope=frame; break end
 end
 assert(minimumScope,"threshold scope control was not created")
-minimumScope:Click()
+minimumScope.labelHit:Click()
 assert(optionState.includeBelowItemLevel.scope=="SELL","threshold action scope did not update through the UI")
 local minimumPoor
 for _,frame in ipairs(uiFrames) do if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionGroup=="includeBelowItemLevel" and frame.optionQuality=="poor" then minimumPoor=frame end end
 assert(minimumPoor,"threshold quality control was not created")
-assert(minimumPoor.width==78,"threshold quality chip is not sized as a clickable labeled choice")
+assert(minimumPoor.width==24 and minimumPoor.labelHit.width==60,"threshold quality choice is not a compact checkbox with a clickable text label")
 assert(minimumPoor.labelRegion and minimumPoor.labelRegion.text=="Poor","legacy checkbox label is not rendered through its own FontString")
 local minScopeWidth
 for _,frame in ipairs(uiFrames) do if frame==minimumScope then minScopeWidth=frame.width end end
-assert(minScopeWidth==94,"threshold scope choice is not sized as a clickable labeled choice")
+assert(minScopeWidth==24 and minimumScope.labelHit.width==66,"threshold scope choice is not a compact checkbox with a clickable text label")
 local minQualityRow={}
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionGroup=="includeBelowItemLevel" and frame.optionQuality then minQualityRow[#minQualityRow+1]=frame end
@@ -371,9 +374,9 @@ end
 table.sort(minQualityRow,function(a,b) return a.point[2]<b.point[2] end)
 assert(#minQualityRow==5,"minimum item level should have five quality controls")
 for i=1,#minQualityRow-1 do
-  assert(minQualityRow[i+1].point[2]-minQualityRow[i].point[2]>=56,"threshold quality chips overlap horizontally")
+  assert(minQualityRow[i+1].point[2]-minQualityRow[i].point[2]>=92,"threshold quality choices overlap horizontally")
 end
-minimumPoor:Click()
+minimumPoor.labelHit:Click()
 assert(optionState.includeBelowItemLevel.qualities.poor==false,"threshold quality selection did not update through the UI")
 local setScope
 for _,frame in ipairs(uiFrames) do if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.scopeKey=="excludeEquipmentSets" and frame.scopeValue=="SELL" then setScope=frame end end
