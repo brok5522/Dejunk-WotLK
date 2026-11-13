@@ -294,15 +294,24 @@ function Runtime.New(environment)
     if page.SetAlpha then page:SetAlpha(visible and 1 or 0) end
     if visible then page:Show() else page:Hide() end
   end
+  local function getMainConfigContent()
+    if not configContentComponent then return nil end
+    local content=configContentComponent:GetFrame()
+    if content then mainContentFrame=content end
+    return content
+  end
 
   function runtime:ShowProfiles(callbacks)
     callbacks=callbacks or {}
     runtime.configCallbacks=callbacks
     if not configWaffleRoot then self:ShowConfig(callbacks) end
     if configWaffleRoot and configContentComponent and configOverviewComponent then
+      setConfigPageVisible(listFrame,false)
+      setConfigPageVisible(profileFrame,false)
+      setConfigPageVisible(optionsFrame,false)
       configOverviewComponent:SetVisibility("GONE")
       configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
-      mainContentFrame=configContentComponent:GetFrame()
+      mainContentFrame=getMainConfigContent()
     end
     setConfigPageVisible(listFrame,false)
     setConfigPageVisible(profileFrame,false)
@@ -420,9 +429,12 @@ function Runtime.New(environment)
     runtime.configCallbacks=callbacks
     if not configWaffleRoot then self:ShowConfig(callbacks) end
     if configWaffleRoot and configContentComponent and configOverviewComponent then
+      setConfigPageVisible(listFrame,false)
+      setConfigPageVisible(profileFrame,false)
+      setConfigPageVisible(optionsFrame,false)
       configOverviewComponent:SetVisibility("GONE")
       configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
-      mainContentFrame=configContentComponent:GetFrame()
+      mainContentFrame=getMainConfigContent()
     end
     setConfigPageVisible(profileFrame,false)
     setConfigPageVisible(optionsFrame,false)
@@ -910,15 +922,19 @@ function Runtime.New(environment)
     scope=scope=="global" and "global" or "profile"
     if not configWaffleRoot then self:ShowConfig(callbacks) end
     if configWaffleRoot and configContentComponent and configOverviewComponent then
+      setConfigPageVisible(listFrame,false)
+      setConfigPageVisible(profileFrame,false)
+      setConfigPageVisible(optionsFrame,false)
       configOverviewComponent:SetVisibility("GONE")
       configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
-      mainContentFrame=configContentComponent:GetFrame()
+      mainContentFrame=getMainConfigContent()
     end
     setConfigPageVisible(listFrame,false)
     setConfigPageVisible(profileFrame,false)
     setConfigPageVisible(optionsFrame,false)
-    local ok,optionsError=pcall(function()
+    local ok,optionsError=xpcall(function()
       if not optionsFrame then
+        mainContentFrame=getMainConfigContent()
         if mainContentFrame then optionsFrame=api.CreateFrame("Frame","DejunkWotLKOptions",mainContentFrame)
         else
           optionsWaffleRoot,optionsFrame=createWaffleWindow("DejunkWotLKOptions",560,420)
@@ -1477,8 +1493,16 @@ function Runtime.New(environment)
       setConfigPageVisible(listFrame,false)
       setConfigPageVisible(profileFrame,false)
       setConfigPageVisible(optionsFrame,true)
+    end,function(err)
+      if api.debugstack then return tostring(err).."\n"..api.debugstack(2,8,8) end
+      return tostring(err)
     end)
-    if not ok then self:Print("Options window error: "..tostring(optionsError).."; use /djw rules list and /djw rules quality|minlevel|maxlevel|maxprice.") end
+    if not ok then
+      self:Print("Options window error: "..tostring(optionsError).."; use /djw rules list and /djw rules quality|minlevel|maxlevel|maxprice.")
+      if optionsFrame then optionsFrame:Hide() end
+      if configOverviewComponent then configOverviewComponent:SetVisibility("VISIBLE") end
+      if configWaffleRoot then configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout() end
+    end
   end
 
   -- A diagnostic copy panel, not the configuration UI planned for Phase 6.
