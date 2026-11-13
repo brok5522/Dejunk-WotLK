@@ -306,6 +306,10 @@ function Addon.NewApplication(runtime)
     if app.loaded and app.loggedIn and app.state ~= "READY" and app.client.supported then
       app.state = "READY"
       app.cache:Start()
+      if not app.optionsCategoryRegistered then
+        local registered=runtime:RegisterOptionsCategory(function(screen) app:OpenConfig(screen) end)
+        app.optionsCategoryRegistered=registered==true
+      end
       runtime:Print("Development compatibility port ready. Previews are read-only; /djw help lists commands.")
     end
   end
@@ -321,10 +325,14 @@ function Addon.NewApplication(runtime)
         else
           self.store = Addon.Store.Initialize(DejunkWotLKDB, runtime:CharacterKey())
           if not self.store.readonly then
-            self.store:OnChange(function(state) DejunkWotLKDB = state end)
+            self.store:OnChange(function(state)
+              DejunkWotLKDB = state
+              self.bus:Emit("StateUpdated",Addon.Copy(state))
+            end)
             DejunkWotLKDB = self.store:Serialize()
           end
         end
+        self.bus:Emit("StateUpdated",self.store:GetState())
         activate()
       end
     elseif event == "PLAYER_LOGIN" then
@@ -362,6 +370,22 @@ function Addon.NewApplication(runtime)
     return Addon.Copy(item)
   end
 
+  function app:ClassifySlot(bag,slot,action)
+    if self.state~="READY" or not self.store then return nil,"APP_NOT_READY" end
+    local item=self:ProbeSlot(bag,slot)
+    if not item then return nil,"SLOT_UNAVAILABLE" end
+    local settings={profile=self.store:GetActiveProfile(),global=self.store:GetState().global or {}}
+    if action then
+      local result=Addon.Rules.Evaluate(item,action,settings)
+      return result.result=="JUNK",result.reasonCode,result
+    end
+    local sell=Addon.Rules.Evaluate(item,"SELL",settings)
+    if sell.result=="JUNK" then return true,sell.reasonCode,sell end
+    local destroy=Addon.Rules.Evaluate(item,"DESTROY",settings)
+    if destroy.result=="JUNK" then return true,destroy.reasonCode,destroy end
+    return false,sell.reasonCode or destroy.reasonCode,sell.result=="UNKNOWN" and sell or destroy
+  end
+
   function app:Preview(action)
     local profile = self.store and self.store:GetActiveProfile() or {}
     local settings = {
@@ -372,7 +396,7 @@ function Addon.NewApplication(runtime)
     return Addon.Preview.EvaluateSnapshot(self.cache:GetSnapshot(), settings, action)
   end
 
-  function app:OpenConfig()
+  function app:OpenConfig(initialScreen)
     local function profile()
       return self.store and self.store:GetActiveProfile() or nil
     end
@@ -421,6 +445,7 @@ function Addon.NewApplication(runtime)
         runtime:ShowReport(report,"Read-only preview: "..requested,"config")
       end
     })
+    if initialScreen=="profiles" then runtime:ShowProfiles(runtime.configCallbacks) end
   end
 
   function app:Command(input)

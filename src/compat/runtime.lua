@@ -43,6 +43,7 @@ function Runtime.New(environment)
     return button
   end
   local frame, update, scanTooltip, reportFrame, reportEdit, reportTitle, configFrame, configSummary, poorButton
+  local optionsCategoryFrame,optionsCategoryButtons
   local configWaffleRoot
   local configContentComponent,configOverviewComponent,mainContentFrame
   local optionsPageComponent,profilePageComponent,listPageComponent
@@ -134,6 +135,32 @@ function Runtime.New(environment)
       else callback(input) end
     end
   end
+  function runtime:RegisterOptionsCategory(onOpen)
+    if optionsCategoryFrame then return true end
+    if type(api.InterfaceOptions_AddCategory)~="function" or type(api.CreateFrame)~="function" then return false,"OPTIONS_CATEGORY_UNAVAILABLE" end
+    local ok,panel=pcall(api.CreateFrame,"Frame","DejunkWotLKOptionsCategory",api.UIParent)
+    if not ok or not panel then return false,"OPTIONS_CATEGORY_FRAME_FAILED" end
+    optionsCategoryFrame=panel; optionsCategoryButtons={}
+    panel.name="Dejunk"
+    panel:SetWidth(650); panel:SetHeight(260)
+    local title=panel:CreateFontString(nil,"ARTWORK","GameFontNormalLarge")
+    title:SetPoint("TOPLEFT",16,-16); title:SetText("Dejunk"); setTextColor(title,"blue")
+    local description=panel:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
+    description:SetPoint("TOPLEFT",title,"BOTTOMLEFT",0,-10)
+    description:SetText("Open Dejunk settings and profile management.")
+    local function addButton(label,y,screen)
+      local button=styleThemedButton(api.CreateFrame("Button",nil,panel),label)
+      button:SetWidth(250); button:SetHeight(30); button:SetPoint("TOPLEFT",16,y)
+      button:SetScript("OnClick",function() if type(onOpen)=="function" then onOpen(screen) end end)
+      optionsCategoryButtons[#optionsCategoryButtons+1]=button
+    end
+    addButton("Open Dejunk",-72,"main")
+    addButton("Open Profiles",-112,"profiles")
+    local added,reason=pcall(api.InterfaceOptions_AddCategory,panel)
+    if not added then optionsCategoryFrame=nil; return false,tostring(reason) end
+    return true
+  end
+  function runtime:GetOptionsCategory() return optionsCategoryFrame end
   function runtime:Start(onEvent, onUpdate)
     if type(api.CreateFrame) ~= "function" then return false end
     local ok, result = pcall(api.CreateFrame, "Frame")

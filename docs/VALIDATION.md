@@ -41,7 +41,13 @@ current UI has not been exercised in the original client at this revision.
 7. **Packaging:** deterministic development ZIP generation with overwrite
    protection. Earlier development ZIPs were uploaded to private review branches
    in the owner's GitHub repository; none is a release.
-8. **Options state and thresholds:** migrated upstream global defaults into the
+8. **Safe upstream integrations:** added the legacy Interface Options category
+   with entry points for the main page and profiles, plus the public read-only
+   `DejunkApi` surface (`IsJunk`, removable `AddListener`, `BagsUpdated` and
+   `StateUpdated`). Offline fixtures cover category routing, slot validation,
+   event delivery and unsubscription. These are not yet verified in the game
+   client; the API does not invoke inventory actions.
+9. **Options state and thresholds:** migrated upstream global defaults into the
    WotLK store, accepted legacy minimap state, validated global option writes,
    and added profile minimum/maximum item levels and minimum/maximum stack
    vendor value controls with per-filter scope and quality selection. Store
@@ -92,14 +98,14 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results: Lua 5.1 syntax for 24 files passed; runtime suite **59 passed, 0
-failed**; store **21 passed**; service **8 passed**; destroyer **11 passed**;
-UI model **62 passed**; UI interaction flows passed. TOC/API read-only boundary,
-documentation and package checks passed. Two generated ZIPs were reproducible
-and passed content, layout, CRC and overwrite checks. `tools/check_phase0.py`
-passed its 31 required deliverables, 45 Markdown files, 54 local links, 39 source
-digests and 153 API references. `git diff --check` passed. These offline checks
-do not validate WoW rendering or inputs.
+Results for this revision: Lua 5.1 syntax for 25 files passed; runtime suite
+**60 passed, 0 failed**; store **21 passed**; service **8 passed**; destroyer
+**11 passed**; UI model **62 passed**; UI interaction flows passed. TOC/API
+read-only boundary, documentation and package checks passed. Two generated ZIPs
+were reproducible and passed content, layout, CRC and overwrite checks.
+`tools/check_phase0.py` passed its 31 required deliverables, 46 Markdown files,
+57 local links, 39 source digests and 153 API references. `git diff --check`
+passed. These offline checks do not validate WoW rendering or inputs.
 
 ## Still required to complete the upstream port
 

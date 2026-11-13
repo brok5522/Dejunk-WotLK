@@ -488,6 +488,25 @@ test("preview command reports read-only rows and invalidated snapshots fail clos
   w:Fire("BAG_UPDATE",0)
   local rows,reason=w.app:Preview("SELL"); equal(#rows,0); equal(reason,"SNAPSHOT_INVALID")
 end)
+test("public Dejunk API classifies read-only slots and publishes removable update listeners", function()
+  local w=H.New(); w:AddItem(0,1)
+  w.api.GetItemInfo=function(link) return "Example",link,0,10,1,"Misc","Junk",20,"","texture",5 end
+  w:Load():Ready()
+  local isJunk,reason=w.api.DejunkApi:IsJunk(0,1)
+  assert(isJunk); equal(reason,"QUALITY")
+  local invalid,invalidReason=w.api.DejunkApi:IsJunk(5,1)
+  assert(not invalid); equal(invalidReason,"INVALID_SLOT")
+  local seen={}
+  local listener=function(event) seen[#seen+1]=event end
+  local remove=w.api.DejunkApi:AddListener(listener)
+  w.app.bus:Emit("BagsUpdated")
+  assert(w.app.store:SetOption("quality",{quality=0,enabled=false}))
+  equal(seen[1],w.api.DejunkApi.Events.BagsUpdated)
+  equal(seen[2],w.api.DejunkApi.Events.StateUpdated)
+  assert(remove()==listener)
+  w.app.bus:Emit("BagsUpdated"); equal(#seen,2)
+  equal(w.mutations,0)
+end)
 test("bootstrap supplies rules, preview and config model when standalone modules are absent", function()
   local missing={ ["src/rules/evaluator.lua"]=true, ["src/services/preview.lua"]=true, ["src/ui/config.lua"]=true }
   local w=H.New({skipFiles=missing}); w:AddItem(0,1)

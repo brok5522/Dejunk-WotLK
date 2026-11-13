@@ -13,6 +13,9 @@ Options are sibling Waffle screens. A single screen controller marks the
 previous screen `GONE`, selects the new screen and lays out the root, following
 the pinned upstream `MainWindow` controller flow. Embedded screens are no
 longer manually sized dialog overlays.
+The legacy AddOns options category provides direct buttons to open the window
+and Profiles. The public `DejunkApi` currently exposes the upstream read-only
+`IsJunk` and removable bag/state listener contract.
 Profile Options now follows the upstream screen's scrollable General, Include
 and Exclude groups and card order. The cards include the panel description,
 option descriptions, divider-separated settings lines, card-wide toggle

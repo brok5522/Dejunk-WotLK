@@ -58,7 +58,7 @@ def main():
         'src/compat/runtime.lua', 'src/core/events.lua', 'src/core/scheduler.lua',
         'src/core/bag-cache.lua', 'src/core/diagnostics.lua', 'src/store/store.lua',
         'src/rules/evaluator.lua', 'src/services/preview.lua', 'src/services/seller.lua',
-        'src/services/repair.lua', 'src/services/destroyer.lua', 'src/ui/config.lua', 'src/core/bootstrap.lua',
+        'src/services/repair.lua', 'src/services/destroyer.lua', 'src/ui/config.lua', 'src/core/bootstrap.lua', 'src/api.lua',
     ]
     if load_order != expected:
         raise ValueError('Unexpected TOC load order; review the runtime and vendored UI boundary')

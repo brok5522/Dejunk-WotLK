@@ -8,6 +8,7 @@ setmetatable(ui,{__index=world.api})
 local cursorItemId
 ui.GetCursorInfo=function() if cursorItemId then return "item",cursorItemId end end
 ui.ClearCursor=function() cursorItemId=nil end
+ui.InterfaceOptions_AddCategory=function(panel) ui.registeredOptionsCategory=panel end
 
 local function object(kind,name,parent,template)
   local frame={kind=kind,name=name,parent=parent,template=template,scripts={},children={},enabled=true,text=""}
@@ -97,6 +98,19 @@ local activeName="Test"
 local rules={}
 local messages={}
 local runtime=Addon.Runtime.New(setmetatable({print=function(message) messages[#messages+1]=message end},{__index=ui}))
+local openedCategoryTarget
+assert(runtime:RegisterOptionsCategory(function(screen) openedCategoryTarget=screen end),
+  "legacy AddOns category was not registered")
+assert(ui.registeredOptionsCategory==runtime:GetOptionsCategory() and ui.registeredOptionsCategory.name=="Dejunk",
+  "AddOns category did not register the named Dejunk panel")
+local openOptions,openProfiles
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="Button" and frame.text=="Open Dejunk" then openOptions=frame end
+  if frame.kind=="Button" and frame.text=="Open Profiles" then openProfiles=frame end
+end
+assert(openOptions and openProfiles,"AddOns category is missing the main or profile entry")
+openOptions:Click(); assert(openedCategoryTarget=="main")
+openProfiles:Click(); assert(openedCategoryTarget=="profiles")
 local callbacks={
   activeProfileId=function() return activeId end,
   activeProfileName=function() return activeName end,
