@@ -13,6 +13,10 @@ replaced or removed. The Waffle engine alone does not constitute the original
 UI port. Live transaction calls remain behind the review/authorization gate in
 `AGENTS.md`.
 
+The detailed source comparison is maintained in [PARITY.md](PARITY.md). That
+matrix is the current acceptance checklist; do not treat a saved option or a
+passing simulation as an implemented in-game integration.
+
 | Phase | Deliverables | Acceptance / exit gate |
 | --- | --- | --- |
 | 0 — Reference | Pin upstream source, FrameXML/API evidence and licenses | Immutable source links and checksums |

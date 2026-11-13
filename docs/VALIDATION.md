@@ -1,6 +1,7 @@
 # Validation and completion report
 
 Date: 2026-11-13. This report describes the current working tree, not a release.
+The exhaustive feature comparison is in [PARITY.md](PARITY.md).
 
 ## Current result
 

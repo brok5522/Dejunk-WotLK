@@ -9,7 +9,9 @@ Earlier screenshots verified port-built configuration screens and read-only prev
 
 See the [Persian project guide](docs/USAGE.fa.md) and the
 [current completion report](docs/VALIDATION.md). Older phase guides describe
-development scaffolding, not a parity-complete release. The port is not yet
+development scaffolding, not a parity-complete release. See the exhaustive
+[upstream parity audit](docs/PARITY.md) for a checked feature-by-feature list of
+what is implemented, simulated, missing or not applicable. The port is not yet
 ready for normal use.
 
 ## Documentation
