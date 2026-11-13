@@ -3,7 +3,7 @@
 ## SavedVariables: DejunkWotLKDB
 ## Notes: Development port for original 3.3.5a. UI parity and live actions are incomplete.
 ## Author: Dejunk-WotLK contributors
-## Version: 0.16.23-dev
+## Version: 0.16.32-dev
 
 src\namespace.lua
 libs\Waffle.lua
@@ -18,6 +18,7 @@ src\store\store.lua
 src\rules\evaluator.lua
 src\services\preview.lua
 src\services\junk-items.lua
+src\services\lootable-items.lua
 src\services\seller.lua
 src\services\repair.lua
 src\services\destroyer.lua

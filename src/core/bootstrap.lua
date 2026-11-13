@@ -305,7 +305,15 @@ function Addon.NewApplication(runtime)
   local function activate()
     if app.loaded and app.loggedIn and app.state ~= "READY" and app.client.supported then
       app.state = "READY"
+      runtime:SetWindowPointHandlers(function(key)
+        local global=app.store and app.store:GetState().global or {}
+        return global.points and global.points[key]
+      end,function(key,point)
+        if not app.store then return false,"STORE_UNAVAILABLE" end
+        return app.store:SetGlobalOption("points",{[key]=point})
+      end)
       app.cache:Start()
+      runtime:RegisterBagTooltips(function(bag,slot) return app:GetSlotDecisions(bag,slot) end)
       if not app.optionsCategoryRegistered then
         local registered=runtime:RegisterOptionsCategory(function(screen) app:OpenConfig(screen) end)
         app.optionsCategoryRegistered=registered==true
@@ -386,6 +394,16 @@ function Addon.NewApplication(runtime)
     return false,sell.reasonCode or destroy.reasonCode,sell.result=="UNKNOWN" and sell or destroy
   end
 
+  function app:GetSlotDecisions(bag,slot)
+    if self.state~="READY" or not self.store then return nil,"APP_NOT_READY" end
+    local global=self.store:GetState().global or {}
+    if global.itemTooltips==false then return nil,"TOOLTIPS_DISABLED" end
+    local item=self:ProbeSlot(bag,slot)
+    if not item then return nil,"SLOT_UNAVAILABLE" end
+    local settings={profile=self.store:GetActiveProfile(),global=global}
+    return Addon.Rules.Evaluate(item,"SELL",settings),Addon.Rules.Evaluate(item,"DESTROY",settings)
+  end
+
   function app:Preview(action)
     local profile = self.store and self.store:GetActiveProfile() or {}
     local settings = {
@@ -404,6 +422,11 @@ function Addon.NewApplication(runtime)
       protectUnboundEquipment = true
     }
     return Addon.JunkItems.Build(self.cache:GetSnapshot(), settings)
+  end
+
+  function app:GetLootableItems()
+    if self.state~="READY" then return nil,"APP_NOT_READY" end
+    return Addon.LootableItems.Build(self.cache:GetSnapshot())
   end
 
   function app:OpenConfig(initialScreen)
@@ -444,6 +467,8 @@ function Addon.NewApplication(runtime)
       setOption=function(key,value) return Addon.Config.SetOption(self.store,key,value) end,
       globalOptions=function() return Addon.Config.GetGlobalOptions(self.store) end,
       setGlobalOption=function(key,value) return Addon.Config.SetGlobalOption(self.store,key,value) end,
+      junkItems=function() return self:GetJunkItems() end,
+      lootableItems=function() return self:GetLootableItems() end,
       preview=function(action)
         local requested=type(action)=="string" and action:upper() or ""
         if requested~="SELL" and requested~="DESTROY" then runtime:Print("Preview unavailable: INVALID_ACTION"); return end
@@ -513,11 +538,21 @@ function Addon.NewApplication(runtime)
       end
     elseif command == "config" then
       self:OpenConfig()
+    elseif command == "toggle-config" then
+      if runtime.configCallbacks then runtime:ToggleConfig(runtime.configCallbacks)
+      else self:OpenConfig() end
+    elseif command == "open-profiles" then
+      self:OpenConfig("profiles")
     elseif command == "junk" then
       if self.state ~= "READY" then runtime:Print("Junk items unavailable: " .. self.state); return end
       local items,reason=self:GetJunkItems()
       if not items then runtime:Print("Junk items unavailable: "..tostring(reason)); return end
       runtime:ToggleJunkFrame(items)
+    elseif command == "loot" then
+      if self.state ~= "READY" then runtime:Print("Lootable items unavailable: "..self.state); return end
+      local items,reason=self:GetLootableItems()
+      if not items then runtime:Print("Lootable items unavailable: "..tostring(reason)); return end
+      if not runtime:ToggleLootableFrame(items) then runtime:Print("No lootable items.") end
     elseif command == "profiles" then
       local action,args=rest:match("^(%S*)%s*(.-)%s*$"); action=(action or ""):lower()
       if action=="create" then
@@ -586,9 +621,59 @@ function Addon.NewApplication(runtime)
     end
     runtime:UpdateJunkFrame(items)
   end
+  local atMerchant,junkFrameAutoShown=false,false
+  local function updateAutoJunkFrame(snapshot)
+    local global=app.store and app.store:GetState().global or {}
+    if not atMerchant or not global.autoJunkFrame or not snapshot or
+        snapshot.valid~=true or snapshot.generation~=snapshot.currentGeneration then return end
+    local profile=app.store and app.store:GetActiveProfile() or {}
+    local items=Addon.JunkItems.Build(snapshot,{profile=profile,global=global,protectUnboundEquipment=true})
+    if #items.items>0 then
+      if not runtime:IsJunkFrameVisible() then
+        runtime:ShowJunkFrame(items)
+        junkFrameAutoShown=true
+      end
+    elseif junkFrameAutoShown then
+      runtime:HideJunkFrame()
+      junkFrameAutoShown=false
+    end
+  end
   app.bus:On("BagsUpdated",function(snapshot) refreshVisibleJunkFrame(snapshot) end)
+  app.bus:On("BagsUpdated",function(snapshot) updateAutoJunkFrame(snapshot) end)
   app.bus:On("BagsInvalidated",function() runtime:UpdateJunkFrame(nil) end)
   app.bus:On("StateUpdated",function() refreshVisibleJunkFrame(app.cache:GetSnapshot()) end)
+  app.bus:On("StateUpdated",function() updateAutoJunkFrame(app.cache:GetSnapshot()) end)
+  app.bus:On("MERCHANT_SHOW",function()
+    atMerchant=true
+    updateAutoJunkFrame(app.cache:GetSnapshot())
+  end)
+  app.bus:On("MERCHANT_CLOSED",function()
+    atMerchant=false
+    local global=app.store and app.store:GetState().global or {}
+    if global.autoJunkFrame then runtime:HideJunkFrame() end
+    junkFrameAutoShown=false
+  end)
+  local function refreshLootableFrame(snapshot)
+    if app.state~="READY" then return end
+    local items
+    if snapshot and snapshot.valid and snapshot.generation==snapshot.currentGeneration then
+      items=Addon.LootableItems.Build(snapshot)
+    end
+    runtime:UpdateLootableFrame(items)
+    local global=app.store and app.store:GetState().global or {}
+    if global.autoLootableFrame then
+      if items and items.count>0 then
+        if not runtime:IsLootableFrameVisible() then runtime:ShowLootableFrame(items) end
+      else runtime:HideLootableFrame() end
+    end
+  end
+  app.bus:On("BagsUpdated",function(snapshot) refreshLootableFrame(snapshot) end)
+  app.bus:On("BagsInvalidated",function()
+    runtime:UpdateLootableFrame(nil)
+    local global=app.store and app.store:GetState().global or {}
+    if global.autoLootableFrame then runtime:HideLootableFrame() end
+  end)
+  app.bus:On("StateUpdated",function() refreshLootableFrame(app.cache:GetSnapshot()) end)
   local ok, started = pcall(runtime.Start, runtime,
     function(event, ...) app:HandleEvent(event, ...) end,
     function(elapsed) app.scheduler:Advance(elapsed) end)

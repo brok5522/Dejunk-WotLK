@@ -42,20 +42,39 @@ function Runtime.New(environment)
     refresh(false)
     return button
   end
+  local function createReadOnlyItemCard(parent,width,height,y)
+    local card=api.CreateFrame("Frame",nil,parent)
+    card:SetWidth(width); card:SetHeight(height); card:SetPoint("TOPLEFT",10,-y)
+    card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); card:SetBackdropColor(1,1,1,0.035)
+    local accent=card:CreateTexture(nil,"ARTWORK")
+    accent:SetTexture("Interface\\Buttons\\WHITE8x8"); accent:SetWidth(3); accent:SetPoint("TOPLEFT"); accent:SetPoint("BOTTOMLEFT")
+    local icon=card:CreateTexture(nil,"ARTWORK")
+    icon:SetWidth(32); icon:SetHeight(32); icon:SetPoint("LEFT",9,0)
+    local label=card:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+    label:SetPoint("TOPLEFT",icon,"TOPRIGHT",8,-4); label:SetWidth(width-64); label:SetJustifyH("LEFT")
+    local detail=card:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
+    detail:SetPoint("TOPLEFT",label,"BOTTOMLEFT",0,-2); detail:SetWidth(width-64); detail:SetJustifyH("LEFT")
+    card.icon,card.accent,card.label,card.detail=icon,accent,label,detail
+    return card
+  end
   local frame, update, scanTooltip, reportFrame, reportEdit, reportTitle, configFrame, configSummary, poorButton
   local optionsCategoryFrame,optionsCategoryButtons
-  local junkFrame,junkTitle,junkSummary,junkScroll,junkRows,junkRowsContent,junkVisible
+  local bagTooltipHooked=false
+  local junkFrame,junkTitle,junkSummary,junkScroll,junkRows,junkRowsContent,junkEmptyRow,junkVisible
+  local lootableFrame,lootableTitle,lootableSummary,lootableScroll,lootableRows,lootableRowsContent,lootableEmptyRow,lootableVisible
   local configWaffleRoot
   local configContentComponent,configOverviewComponent,mainContentFrame
   local optionsPageComponent,profilePageComponent,listPageComponent
   local configScreens,selectedConfigScreen={},nil
+  local mainWindowVisible=false
+  local getWindowPoint,saveWindowPoint
   local configNavButtons={}
   local optionsOptionCards,optionsCardDividers,optionsQualityRows,optionsResponsiveDescriptions
   local optionsGlobalControls,optionsGlobalChoices
   local profileFrame,profileSummary,profileList,profileButtons,profileScroll
   local profileWaffleRoot,listsWaffleRoot,importWaffleRoot,optionsWaffleRoot,reportWaffleRoot
   local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listSearchPlaceholder,listSearchClear,listPanels
-  local importFrame,importTitle,importEdit,importStatus,importCommitButton,importPreview,importScope,importKind
+  local importFrame,importTitle,importHelp,importEdit,importStatus,importCommitButton,importReviewButton,importSelectButton,importCancelButton,importPreview,importScope,importKind
   local reportReturnTarget
   local rulesFrame,rulesSummary,ruleIdInput,ruleValueInput,ruleScopeButton,ruleResultButton,ruleFieldButton,ruleOpButton,ruleGroupButton
   local ruleDraftPredicates,ruleDraftProfileId={},nil
@@ -132,7 +151,8 @@ function Runtime.New(environment)
     api.SLASH_DEJUNK1 = "/dejunk"
     api.SlashCmdList.DEJUNK = function(input)
       local command=type(input)=="string" and input:match("^%s*(%S*)") or ""
-      if command=="" or command:lower()=="options" then callback("config")
+      if command=="" or command:lower()=="options" then callback("toggle-config")
+      elseif command:lower()=="profiles" then callback("open-profiles")
       else callback(input) end
     end
   end
@@ -162,6 +182,24 @@ function Runtime.New(environment)
     return true
   end
   function runtime:GetOptionsCategory() return optionsCategoryFrame end
+  function runtime:SetWindowPointHandlers(getter,saver)
+    getWindowPoint=type(getter)=="function" and getter or nil
+    saveWindowPoint=type(saver)=="function" and saver or nil
+  end
+  local function setSavedPoint(target,key)
+    local point=type(getWindowPoint)=="function" and getWindowPoint(key) or nil
+    target:ClearAllPoints()
+    if type(point)=="table" then
+      target:SetPoint(point.point or "CENTER",api.UIParent,point.relativePoint or "CENTER",point.offsetX or 0,point.offsetY or 0)
+    else target:SetPoint("CENTER",api.UIParent,"CENTER",0,0) end
+  end
+  local function saveCurrentPoint(target,key)
+    if type(saveWindowPoint)~="function" or type(target.GetPoint)~="function" then return end
+    local point,relativeTo,relativePoint,x,y=target:GetPoint(1)
+    if not point or type(x)~="number" or type(y)~="number" then return end
+    saveWindowPoint(key,{point=point,relativeTo=relativeTo==api.UIParent and "UIParent" or nil,
+      relativePoint=relativePoint or point,offsetX=x,offsetY=y})
+  end
   function runtime:Start(onEvent, onUpdate)
     if type(api.CreateFrame) ~= "function" then return false end
     local ok, result = pcall(api.CreateFrame, "Frame")
@@ -293,8 +331,8 @@ function Runtime.New(environment)
               panel:SetFrameStrata("DIALOG"); panel:EnableMouse(true); panel:SetMovable(true)
               panel:RegisterForDrag("LeftButton")
               panel:SetScript("OnDragStart",function(self) self:StartMoving() end)
-              panel:SetScript("OnDragStop",function(self) self:StopMovingOrSizing() end)
-              panel:SetPoint("CENTER"); panel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1,insets={left=1,right=1,top=1,bottom=1}})
+              panel:SetScript("OnDragStop",function(self) self:StopMovingOrSizing(); saveCurrentPoint(self,"mainWindow") end)
+              setSavedPoint(panel,"mainWindow"); panel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1,insets={left=1,right=1,top=1,bottom=1}})
               panel:SetBackdropColor(18/255,18/255,18/255,0.95); panel:SetBackdropBorderColor(0,0,0,1)
               panel:Hide(); return panel
             end
@@ -306,7 +344,7 @@ function Runtime.New(environment)
           title:AddChild({width=28,height=28,frameFactory=function(parent)
             local close=styleCloseButton(api.CreateFrame("Button",nil,parent))
             close:SetWidth(24); close:SetHeight(24)
-            close:SetScript("OnClick",function() configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout() end)
+            close:SetScript("OnClick",function() configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout(); mainWindowVisible=false end)
             return close
           end})
           local content=configWaffleRoot:AddRow({grow=1,padding=8,gap=8})
@@ -341,8 +379,19 @@ function Runtime.New(environment)
           controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Toggle Poor quality",function() local current=runtime.configCallbacks or {}; if current.togglePoor then current.togglePoor() end; self:ShowConfig(current) end)))
           controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Preview SELL",function() local current=runtime.configCallbacks or {}; if current.preview then current.preview("sell") end end)))
           controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Preview DESTROY",function() local current=runtime.configCallbacks or {}; if current.preview then current.preview("destroy") end end)))
+          local itemWindows=overview:AddRow({height=34,gap=8,wrap=true})
+          itemWindows:AttachComponent(Addon.Waffle:Flex(button(nil,"Junk Items",function()
+            local current=runtime.configCallbacks or {}; local items,reason=current.junkItems and current.junkItems()
+            if items then self:ToggleJunkFrame(items) else self:Print("Junk items unavailable: "..tostring(reason)) end
+          end)))
+          itemWindows:AttachComponent(Addon.Waffle:Flex(button(nil,"Lootable Items",function()
+            local current=runtime.configCallbacks or {}; local items,reason=current.lootableItems and current.lootableItems()
+            if items then
+              if not self:ToggleLootableFrame(items) then self:Print("No lootable items.") end
+            else self:Print("Lootable items unavailable: "..tostring(reason)) end
+          end)))
         end
-        configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
+        configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout(); mainWindowVisible=true
         configFrame=configWaffleRoot:GetFrame()
         mainContentFrame=configContentComponent and configContentComponent:GetFrame() or nil
         if configOverviewComponent then configOverviewComponent:SetVisibility("GONE") end
@@ -360,13 +409,16 @@ function Runtime.New(environment)
     local ok=pcall(function()
       if not configFrame then
         configFrame=api.CreateFrame("Frame",nil,api.UIParent)
-        configFrame:SetWidth(500); configFrame:SetHeight(300); configFrame:SetPoint("CENTER")
-        configFrame:SetFrameStrata("DIALOG"); configFrame:EnableMouse(true)
+        configFrame:SetWidth(500); configFrame:SetHeight(300); setSavedPoint(configFrame,"mainWindow")
+        configFrame:SetFrameStrata("DIALOG"); configFrame:EnableMouse(true); configFrame:SetMovable(true)
+        configFrame:RegisterForDrag("LeftButton")
+        configFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
+        configFrame:SetScript("OnDragStop",function(self) if self.StopMovingOrSizing then self:StopMovingOrSizing() end; saveCurrentPoint(self,"mainWindow") end)
         configFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
         local title=configFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
         title:SetPoint("TOPLEFT",20,-18); title:SetText("Dejunk-WotLK | Configuration and preview")
         local close=styleCloseButton(api.CreateFrame("Button",nil,configFrame))
-        close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() configFrame:Hide() end)
+        close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() configFrame:Hide(); mainWindowVisible=false end)
         configSummary=configFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         configSummary:SetPoint("TOPLEFT",24,-58); configSummary:SetWidth(450); configSummary:SetJustifyH("LEFT")
         local function button(label,x,y,handler)
@@ -392,12 +444,20 @@ function Runtime.New(environment)
           configFrame:Hide()
           self:ShowOptions(callbacks)
         end)
+        button("Junk Items",22,88,function()
+          local items,reason=callbacks.junkItems and callbacks.junkItems()
+          if items then self:ToggleJunkFrame(items) else self:Print("Junk items unavailable: "..tostring(reason)) end
+        end)
+        button("Lootable Items",178,88,function()
+          local items,reason=callbacks.lootableItems and callbacks.lootableItems()
+          if items then self:ToggleLootableFrame(items) else self:Print("Lootable items unavailable: "..tostring(reason)) end
+        end)
       end
       configSummary:SetText(callbacks.summary and callbacks.summary() or "Settings unavailable.")
       if poorButton and poorButton.SetText and callbacks.poorEnabled then
         poorButton:SetText(callbacks.poorEnabled() and "Disable Poor rule" or "Enable Poor rule")
       end
-      configFrame:Show()
+      configFrame:Show(); mainWindowVisible=true
     end)
     if not ok then
       self:Print("Configuration panel unavailable; use /djw rules and /djw preview sell|destroy.")
@@ -415,6 +475,7 @@ function Runtime.New(environment)
   end
   local function selectConfigScreen(key)
     selectedConfigScreen=key
+    mainWindowVisible=true
     for screenKey,component in pairs(configScreens) do
       component:SetVisibility(screenKey==key and "VISIBLE" or "GONE")
     end
@@ -422,6 +483,20 @@ function Runtime.New(environment)
     if key=="options" then selectedNav=optionsFrame and optionsFrame.scope=="global" and "globalOptions" or "profileOptions" end
     for navKey,button in pairs(configNavButtons) do button:SetSelected(navKey==selectedNav) end
     if configWaffleRoot then configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout() end
+  end
+
+  function runtime:ToggleConfig(callbacks)
+    if mainWindowVisible then
+      if configWaffleRoot then configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout()
+      elseif configFrame then configFrame:Hide() end
+      if profileFrame and not profileWaffleRoot then profileFrame:Hide() end
+      if listFrame and not listsWaffleRoot then listFrame:Hide() end
+      if optionsFrame and not optionsWaffleRoot then optionsFrame:Hide() end
+      mainWindowVisible=false
+      return false
+    end
+    self:ShowConfig(callbacks or self.configCallbacks or {})
+    return true
   end
   local function getMainConfigContent()
     if not configContentComponent then return nil end
@@ -757,8 +832,8 @@ function Runtime.New(environment)
         export:SetWidth(90); export:SetHeight(24); export:SetPoint("BOTTOMLEFT",listFrame,"BOTTOMLEFT",22,18); export:SetText("Export")
         export:SetScript("OnClick",function()
           local scope=listScopeButton.scope or "global"; local kind=listKindButton.kind or "inclusions"
-          local text=callbacks.listItems and callbacks.listItems(scope,kind) or ""
-          self:ShowReport(text=="" and "List is empty." or text,"List export: "..scope.." "..kind,"lists")
+          importScope,importKind=scope,kind
+          self:ShowListImport(callbacks,"export")
         end)
         local import=styleThemedButton(api.CreateFrame("Button",nil,listFrame))
         import:SetWidth(90); import:SetHeight(24); import:SetPoint("LEFT",export,"RIGHT",8,0); import:SetText("Import")
@@ -868,7 +943,7 @@ function Runtime.New(environment)
     self:ShowLists(callbacks)
   end
 
-  function runtime:ShowListImport(callbacks)
+  function runtime:ShowListImport(callbacks,mode)
     callbacks=callbacks or {}
     local ok=pcall(function()
       if not importFrame then
@@ -881,9 +956,9 @@ function Runtime.New(environment)
         importTitle:SetPoint("TOPLEFT",20,-18)
         local close=styleCloseButton(api.CreateFrame("Button",nil,importFrame))
         close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() importFrame:Hide() end)
-        local help=importFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-        help:SetPoint("TOPLEFT",24,-48); help:SetWidth(500); help:SetJustifyH("LEFT")
-        help:SetText("Paste item IDs separated by spaces, commas, semicolons or new lines.")
+        importHelp=importFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+        importHelp:SetPoint("TOPLEFT",24,-48); importHelp:SetWidth(500); importHelp:SetJustifyH("LEFT")
+        importHelp:SetText("Paste item IDs separated by spaces, commas, semicolons or new lines.")
         local scroll=api.CreateFrame("ScrollFrame","DejunkWotLKListImportScroll",importFrame,"UIPanelScrollFrameTemplate")
         scroll:SetPoint("TOPLEFT",importFrame,"TOPLEFT",28,-82); scroll:SetPoint("BOTTOMRIGHT",importFrame,"BOTTOMRIGHT",-48,94)
         scroll:EnableMouse(true)
@@ -906,6 +981,7 @@ function Runtime.New(environment)
         importStatus:SetPoint("BOTTOMLEFT",24,48); importStatus:SetWidth(360); importStatus:SetJustifyH("LEFT")
         local review=styleThemedButton(api.CreateFrame("Button",nil,importFrame))
         review:SetWidth(100); review:SetHeight(24); review:SetPoint("BOTTOMLEFT",importFrame,"BOTTOMLEFT",22,16); review:SetText("Review")
+        importReviewButton=review
         review:SetScript("OnClick",function()
           local text=importEdit:GetText() or ""
           local preview,reason=callbacks.previewListImport and callbacks.previewListImport(importScope,importKind,text)
@@ -928,17 +1004,32 @@ function Runtime.New(environment)
             self:ShowLists(callbacks)
           else importStatus:SetText("Import failed: "..tostring(reason)); importCommitButton:Disable(); importPreview=nil end
         end)
+        importSelectButton=styleThemedButton(api.CreateFrame("Button",nil,importFrame))
+        importSelectButton:SetWidth(100); importSelectButton:SetHeight(24); importSelectButton:SetPoint("LEFT",review,"RIGHT",8,0); importSelectButton:SetText("Select all")
+        importSelectButton:SetScript("OnClick",function() importEdit:SetFocus(); importEdit:HighlightText(0,#(importEdit:GetText() or "")) end)
         local cancel=styleThemedButton(api.CreateFrame("Button",nil,importFrame))
         cancel:SetWidth(100); cancel:SetHeight(24); cancel:SetPoint("BOTTOMRIGHT",importFrame,"BOTTOMRIGHT",-20,16); cancel:SetText("Cancel")
+        importCancelButton=cancel
         cancel:SetScript("OnClick",function() importFrame:Hide(); if listFrame then listFrame:Show() end end)
         close:SetScript("OnClick",function() importFrame:Hide(); if listFrame then listFrame:Show() end end)
       end
       importPreview=nil; importCommitButton:Disable()
-      importEdit:SetText(""); importStatus:SetText("Review the IDs before importing.")
       local scope=importScope or "global"; local kind=importKind or "inclusions"
-      local titleText="Import into "..scope.." "..kind
+      local isExport=mode=="export"
+      local titleText=(isExport and "Export " or "Import into ")..scope.." "..kind
       -- The title region is the first FontString child created by this panel.
       importTitle:SetText(titleText)
+      if isExport then
+        local exported=callbacks.listItems and callbacks.listItems(scope,kind) or ""
+        importEdit:SetText((exported:gsub("[\r\n]+",",")))
+        importHelp:SetText("Select all, then copy the item IDs.")
+        importStatus:SetText("Select all, then copy the item IDs.")
+        importReviewButton:Hide(); importCommitButton:Hide(); importSelectButton:Show(); importCancelButton:SetText("Close")
+      else
+        importEdit:SetText(""); importStatus:SetText("Review the IDs before importing.")
+        importHelp:SetText("Paste item IDs separated by spaces, commas, semicolons or new lines.")
+        importReviewButton:Show(); importCommitButton:Show(); importSelectButton:Hide(); importCancelButton:SetText("Cancel")
+      end
       if listFrame then listFrame:Hide() end
       importFrame:Show(); importEdit:SetFocus()
     end)
@@ -1929,27 +2020,29 @@ function Runtime.New(environment)
     end
     junkSummary:SetText("Sell candidates: "..tostring(data.sellable or 0).."   Destroy candidates: "..tostring(data.destroyable or 0))
     if #data.items==0 then
-      local empty=junkRows[1]
-      if not empty then
-        empty=junkRowsContent:CreateFontString(nil,"ARTWORK","GameFontHighlight")
-        empty:SetPoint("TOPLEFT",12,-8); empty:SetWidth(500); empty:SetJustifyH("LEFT")
-        junkRows[1]=empty
+      if not junkEmptyRow then
+        junkEmptyRow=junkRowsContent:CreateFontString(nil,"ARTWORK","GameFontHighlight")
+        junkEmptyRow:SetPoint("TOPLEFT",12,-8); junkEmptyRow:SetWidth(500); junkEmptyRow:SetJustifyH("LEFT")
       end
-      empty:SetText("No junk items."); empty:Show(); junkRowsContent:SetHeight(32)
+      junkEmptyRow:SetText("No junk items."); junkEmptyRow:Show(); junkRowsContent:SetHeight(32)
       return true
     end
+    if junkEmptyRow then junkEmptyRow:Hide() end
     for index,item in ipairs(data.items) do
-      local text=junkRows[index]
-      if not text then
-        text=junkRowsContent:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
-        text:SetPoint("TOPLEFT",12,-(index-1)*48-8); text:SetWidth(510); text:SetJustifyH("LEFT")
-        junkRows[index]=text
+      local card=junkRows[index]
+      if not card then
+        card=createReadOnlyItemCard(junkRowsContent,510,44,(index-1)*48+4)
+        junkRows[index]=card
       end
       local sell=item.sell and item.sell.reasonCode or "UNKNOWN"
       local destroy=item.destroy and item.destroy.reasonCode or "UNKNOWN"
-      text:SetText((item.name or ("Item #"..tostring(item.itemId))).." (#"..tostring(item.itemId)..") x"..tostring(item.count or 1)..
-        "\nSell: "..tostring(sell).."   Destroy: "..tostring(destroy))
-      text:Show()
+      card.icon:SetTexture(item.texture or "Interface\\Icons\\INV_Misc_QuestionMark")
+      local colors={[0]={1,0.35,0.35},[1]={0.85,0.85,0.85},[2]={0.25,0.85,0.3},[3]={0.25,0.55,1},[4]={0.7,0.35,1}}
+      local color=colors[item.quality] or {0.7,0.7,0.7}
+      card.accent:SetVertexColor(color[1],color[2],color[3],1)
+      card.label:SetText((item.name or ("Item #"..tostring(item.itemId))).." (#"..tostring(item.itemId)..") x"..tostring(item.count or 1))
+      card.detail:SetText("Sell: "..tostring(sell).."   Destroy: "..tostring(destroy))
+      card:Show()
     end
     junkRowsContent:SetHeight(math.max(32,#data.items*48))
     return true
@@ -1959,10 +2052,10 @@ function Runtime.New(environment)
     if not junkFrame then
       junkFrame=api.CreateFrame("Frame","DejunkWotLKJunkFrame",api.UIParent)
       junkFrame:SetFrameStrata("DIALOG"); junkFrame:SetWidth(560); junkFrame:SetHeight(430)
-      junkFrame:SetPoint("CENTER",api.UIParent,"CENTER",0,0); junkFrame:EnableMouse(true); junkFrame:SetMovable(true)
+      setSavedPoint(junkFrame,"junkFrame"); junkFrame:EnableMouse(true); junkFrame:SetMovable(true)
       junkFrame:RegisterForDrag("LeftButton")
       junkFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
-      junkFrame:SetScript("OnDragStop",function(self) if self.StopMovingOrSizing then self:StopMovingOrSizing() end end)
+      junkFrame:SetScript("OnDragStop",function(self) if self.StopMovingOrSizing then self:StopMovingOrSizing() end; saveCurrentPoint(self,"junkFrame") end)
       junkFrame:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
       junkFrame:SetBackdropColor(0,0,0,0.94); junkFrame:SetBackdropBorderColor(0.35,0.35,0.35,1)
       junkFrame:SetScript("OnShow",function() junkVisible=true end)
@@ -1982,6 +2075,117 @@ function Runtime.New(environment)
     end
     self:UpdateJunkFrame(data)
     if junkVisible then junkFrame:Hide(); junkVisible=false else junkFrame:Show(); junkVisible=true end
+    return true
+  end
+
+  function runtime:ShowJunkFrame(data)
+    if junkVisible then return self:UpdateJunkFrame(data) end
+    return self:ToggleJunkFrame(data)
+  end
+
+  function runtime:HideJunkFrame()
+    if junkFrame then junkFrame:Hide() end
+    junkVisible=false
+  end
+
+  function runtime:IsJunkFrameVisible() return junkVisible==true end
+
+  function runtime:UpdateLootableFrame(data)
+    if not lootableFrame then return false end
+    for _,row in ipairs(lootableRows or {}) do row:Hide() end
+    if type(data)~="table" then
+      lootableSummary:SetText("Bag data unavailable. Refreshing…")
+      lootableRowsContent:SetHeight(1)
+      return false
+    end
+    lootableSummary:SetText("Lootable stacks: "..tostring(data.count or 0))
+    if #data.items==0 then
+      if not lootableEmptyRow then
+        lootableEmptyRow=lootableRowsContent:CreateFontString(nil,"ARTWORK","GameFontHighlight")
+        lootableEmptyRow:SetPoint("TOPLEFT",10,-8); lootableEmptyRow:SetWidth(300); lootableEmptyRow:SetJustifyH("LEFT")
+      end
+      lootableEmptyRow:SetText("No lootable items."); lootableEmptyRow:Show(); lootableRowsContent:SetHeight(32)
+      return true
+    end
+    if lootableEmptyRow then lootableEmptyRow:Hide() end
+    for index,item in ipairs(data.items) do
+      local card=lootableRows[index]
+      if not card then
+        card=createReadOnlyItemCard(lootableRowsContent,300,40,(index-1)*44+4)
+        lootableRows[index]=card
+      end
+      card.icon:SetTexture(item.texture or "Interface\\Icons\\INV_Misc_QuestionMark")
+      card.label:SetText((item.name or ("Item #"..tostring(item.itemId))).." (#"..tostring(item.itemId)..") x"..tostring(item.count or 1))
+      card.detail:SetText("Bag "..tostring(item.bag).." / Slot "..tostring(item.slot))
+      card:Show()
+    end
+    lootableRowsContent:SetHeight(math.max(32,#data.items*44))
+    return true
+  end
+
+  function runtime:ShowLootableFrame(data)
+    if not lootableFrame then
+      lootableFrame=api.CreateFrame("Frame","DejunkWotLKLootableFrame",api.UIParent)
+      lootableFrame:SetFrameStrata("DIALOG"); lootableFrame:SetWidth(350); lootableFrame:SetHeight(330)
+      setSavedPoint(lootableFrame,"lootableFrame"); lootableFrame:EnableMouse(true); lootableFrame:SetMovable(true)
+      lootableFrame:RegisterForDrag("LeftButton")
+      lootableFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
+      lootableFrame:SetScript("OnDragStop",function(self) if self.StopMovingOrSizing then self:StopMovingOrSizing() end; saveCurrentPoint(self,"lootableFrame") end)
+      lootableFrame:SetScript("OnShow",function() lootableVisible=true end)
+      lootableFrame:SetScript("OnHide",function() lootableVisible=false end)
+      lootableFrame:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+      lootableFrame:SetBackdropColor(0,0,0,0.94); lootableFrame:SetBackdropBorderColor(0.35,0.35,0.35,1)
+      local header=api.CreateFrame("Frame",nil,lootableFrame); header:SetHeight(34); header:SetPoint("TOPLEFT",0,0); header:SetPoint("TOPRIGHT",0,0)
+      header:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); header:SetBackdropColor(30/255,30/255,30/255,1)
+      lootableTitle=header:CreateFontString(nil,"ARTWORK","GameFontNormal")
+      lootableTitle:SetPoint("LEFT",12,0); lootableTitle:SetText("Lootable Items"); setTextColor(lootableTitle,"blue")
+      local close=api.CreateFrame("Button",nil,header); close:SetWidth(26); close:SetHeight(26); close:SetPoint("RIGHT",-5,0)
+      styleCloseButton(close); close:SetScript("OnClick",function() lootableFrame:Hide(); lootableVisible=false end)
+      lootableSummary=lootableFrame:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
+      lootableSummary:SetPoint("TOPLEFT",14,-43); lootableSummary:SetText("Scanning bags…")
+      lootableScroll=api.CreateFrame("ScrollFrame",nil,lootableFrame,"UIPanelScrollFrameTemplate")
+      lootableScroll:SetPoint("TOPLEFT",12,-66); lootableScroll:SetPoint("BOTTOMRIGHT",-30,12)
+      lootableRowsContent=api.CreateFrame("Frame",nil,lootableScroll); lootableRowsContent:SetWidth(300); lootableRowsContent:SetHeight(1)
+      lootableScroll:SetScrollChild(lootableRowsContent); lootableRows={}
+    end
+    self:UpdateLootableFrame(data)
+    lootableFrame:Show(); lootableVisible=true
+    return true
+  end
+
+  function runtime:HideLootableFrame()
+    if lootableFrame then lootableFrame:Hide() end
+    lootableVisible=false
+  end
+
+  function runtime:ToggleLootableFrame(data)
+    if lootableVisible then self:HideLootableFrame(); return true end
+    if type(data)=="table" and (data.count or 0)>0 then return self:ShowLootableFrame(data) end
+    return false
+  end
+
+  function runtime:IsLootableFrameVisible() return lootableVisible==true end
+
+  function runtime:RegisterBagTooltips(getDecisions)
+    if bagTooltipHooked then return true end
+    local tooltip=api.GameTooltip
+    if type(api.hooksecurefunc)~="function" or not tooltip or type(tooltip.AddLine)~="function" or
+        type(tooltip.AddDoubleLine)~="function" then return false,"TOOLTIP_HOOK_UNAVAILABLE" end
+    local ok,reason=pcall(api.hooksecurefunc,tooltip,"SetBagItem",function(frame,bag,slot)
+      if readingTooltip or type(getDecisions)~="function" then return end
+      local success,sell,destroy=pcall(getDecisions,bag,slot)
+      if not success or not sell or not destroy then return end
+      frame:AddLine(" ")
+      local sellJunk=sell.result=="JUNK"
+      local destroyJunk=destroy.result=="JUNK"
+      frame:AddDoubleLine(sellJunk and "Selling" or "Not selling",tostring(sell.reasonCode or "UNKNOWN"),
+        sellJunk and 1 or 0.45,sellJunk and 0.25 or 0.9,sellJunk and 0.25 or 0.45,1,1,1)
+      frame:AddDoubleLine(destroyJunk and "Destroying" or "Not destroying",tostring(destroy.reasonCode or "UNKNOWN"),
+        destroyJunk and 1 or 0.45,destroyJunk and 0.25 or 0.9,destroyJunk and 0.25 or 0.45,1,1,1)
+      frame:Show()
+    end)
+    if not ok then return false,tostring(reason) end
+    bagTooltipHooked=true
     return true
   end
   return runtime

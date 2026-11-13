@@ -16,6 +16,7 @@ local function object(kind,name,parent,template)
   function frame:SetHeight(value) self.height=value end
   function frame:SetAlpha(value) self.alpha=value end
   function frame:SetPoint(...) self.point={...} end
+  function frame:GetPoint(index) if index==nil or index==1 then return unpack(self.point or {}) end end
   function frame:SetAllPoints(relative) self.allPoints=relative end
   function frame:ClearAllPoints() self.point=nil end
   function frame:SetParent(parent) self.parent=parent end
@@ -98,6 +99,25 @@ local activeName="Test"
 local rules={}
 local messages={}
 local runtime=Addon.Runtime.New(setmetatable({print=function(message) messages[#messages+1]=message end},{__index=ui}))
+local bagTooltipHook,hookCount
+ui.GameTooltip={lines={},AddLine=function(self,text) self.lines[#self.lines+1]={text=text} end,
+  AddDoubleLine=function(self,left,right) self.lines[#self.lines+1]={left=left,right=right} end,
+  Show=function(self) self.shown=true end}
+ui.hooksecurefunc=function(target,name,hook)
+  assert(target==ui.GameTooltip and name=="SetBagItem")
+  bagTooltipHook=hook; hookCount=(hookCount or 0)+1
+end
+assert(runtime:RegisterBagTooltips(function()
+  return {result="JUNK",reasonCode="QUALITY"},{result="KEEP",reasonCode="EXCLUDED"}
+end),"legacy bag tooltip hook did not register")
+bagTooltipHook(ui.GameTooltip,0,1)
+assert(ui.GameTooltip.shown and ui.GameTooltip.lines[2].left=="Selling" and
+  ui.GameTooltip.lines[3].right=="EXCLUDED","bag tooltip omitted filter decisions")
+assert(runtime:RegisterBagTooltips(function() end) and hookCount==1,"bag tooltip hook registered more than once")
+local savedWindowPoint
+runtime:SetWindowPointHandlers(function(key)
+  if key=="junkFrame" then return {point="TOPLEFT",relativePoint="TOPLEFT",offsetX=25,offsetY=-30} end
+end,function(key,value) savedWindowPoint={key=key,value=value}; return true end)
 local openedCategoryTarget
 assert(runtime:RegisterOptionsCategory(function(screen) openedCategoryTarget=screen end),
   "legacy AddOns category was not registered")
@@ -142,24 +162,48 @@ end
 local function namedFrame(name)
   for _,frame in ipairs(uiFrames) do if frame.name==name then return frame end end
 end
-assert(runtime:ToggleJunkFrame({sellable=1,destroyable=2,items={{itemId=123,name="Example",count=2,
+assert(runtime:ToggleJunkFrame({sellable=1,destroyable=2,items={{itemId=123,name="Example",count=2,quality=0,texture="Interface\\Icons\\INV_Misc_Junk_01",
   sell={reasonCode="QUALITY"},destroy={reasonCode="QUALITY"}},
   {itemId=456,name="Another",count=1,sell={reasonCode="KEEP"},destroy={reasonCode="QUALITY"}}}}),
   "read-only Junk frame failed to open")
 local junkWindow=namedFrame("DejunkWotLKJunkFrame")
 assert(junkWindow and junkWindow.shown,"Junk frame did not become visible")
-local junkRow
+assert(junkWindow.point[1]=="TOPLEFT" and junkWindow.point[4]==25 and junkWindow.point[5]==-30,
+  "Junk frame did not restore its saved point")
+junkWindow.point={"BOTTOMRIGHT",ui.UIParent,"BOTTOMRIGHT",-50,60}
+junkWindow.scripts.OnDragStop(junkWindow)
+assert(savedWindowPoint and savedWindowPoint.key=="junkFrame" and savedWindowPoint.value.point=="BOTTOMRIGHT" and
+  savedWindowPoint.value.offsetX==-50 and savedWindowPoint.value.offsetY==60,"dragged Junk frame point did not persist")
+local junkDetail
 local staleJunkRow
 for _,frame in ipairs(uiFrames) do
-  if frame.kind=="FontString" and frame.text and frame.text:find("Sell: QUALITY",1,true) then junkRow=frame end
+  if frame.kind=="FontString" and frame.text and frame.text:find("Sell: QUALITY",1,true) then junkDetail=frame end
   if frame.kind=="FontString" and frame.text and frame.text:find("Another (#456)",1,true) then staleJunkRow=frame end
 end
-assert(junkRow and junkRow.text:find("Destroy: QUALITY",1,true),"Junk frame omitted per-action decisions")
+assert(junkDetail and junkDetail.text:find("Destroy: QUALITY",1,true),"Junk frame omitted per-action decisions")
 assert(staleJunkRow,"Junk frame omitted later candidate rows")
+local junkIcon,qualityAccent
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="Texture" and frame.texture=="Interface\\Icons\\INV_Misc_Junk_01" then junkIcon=frame end
+  if frame.kind=="Texture" and frame.vertexColor and frame.vertexColor[1]==1 and frame.vertexColor[2]==0.35 then qualityAccent=frame end
+end
+assert(junkIcon and qualityAccent,"Junk card omitted item icon or quality accent")
 runtime:UpdateJunkFrame({sellable=0,destroyable=0,items={}})
-assert(junkRow.text=="No junk items." and staleJunkRow.shown==false,"stale Junk frame rows were not cleared")
+assert(staleJunkRow.parent.shown==false,"stale Junk frame cards were not cleared")
+local junkEmpty=false
+for _,frame in ipairs(uiFrames) do if frame.kind=="FontString" and frame.text=="No junk items." and frame.shown then junkEmpty=true end end
+assert(junkEmpty,"empty Junk frame state was not shown")
 assert(runtime:ToggleJunkFrame({sellable=0,destroyable=0,items={}}) and junkWindow.shown==false,
   "Junk frame toggle did not hide the existing window")
+assert(not runtime:ToggleLootableFrame({count=0,items={}}),"empty lootable window should not open")
+assert(runtime:ToggleLootableFrame({count=1,items={{itemId=6948,name="Hearthstone",count=1,bag=0,slot=1}}}),
+  "read-only Lootable frame failed to open")
+local lootableWindow=namedFrame("DejunkWotLKLootableFrame")
+assert(lootableWindow and lootableWindow.shown and runtime:IsLootableFrameVisible(),"Lootable frame did not become visible")
+runtime:UpdateLootableFrame({count=0,items={}})
+assert(runtime:IsLootableFrameVisible(),"manual Lootable frame unexpectedly closed when its list emptied")
+assert(runtime:ToggleLootableFrame({count=0,items={}}) and not runtime:IsLootableFrameVisible(),
+  "Lootable frame toggle did not hide the existing window")
 local function editBox(width)
   for _,frame in ipairs(uiFrames) do if frame.kind=="EditBox" and frame.width==width then return frame end end
   error("missing edit box width "..tostring(width))
@@ -298,13 +342,12 @@ assert(searchBox:GetText()=="23" and searchBox.focused and listFrame.shown,
   "refreshing Lists while typing lost the search text, focus or selected page")
 searchBox:SetText("")
 control("Button","Export"):Click()
-local report=uiFrames[#uiFrames]
-while report and report.name~="DejunkWotLKReadOnlyReport" do report=report.parent end
-assert(report and report.shown and listFrame.shown==false)
-assert(namedFrame("DejunkWotLKReadOnlyReport"),"report window did not use the Waffle window factory")
-local exported=lastControl("EditBox","6948\n6949")
-assert(exported.focused and exported.highlighted)
-lastControl("Button","X"):Click()
+assert(namedFrame("DejunkWotLKListImport").shown and listFrame.shown==false)
+local exported=lastControl("EditBox","6948,6949")
+assert(exported.focused,"transport export did not select the chosen list")
+control("Button","Select all"):Click()
+assert(exported.highlighted,"transport export did not select the IDs for copying")
+control("Button","Close"):Click()
 assert(listFrame.shown==true)
 
 control("Button","Import"):Click()
@@ -349,10 +392,12 @@ runtime:ShowConfig({
 local configFrame
 configFrame=namedFrame("DejunkWotLK_MainWindow")
 assert(configFrame and configFrame.shown)
+assert(control("Button","Junk Items") and control("Button","Lootable Items"),
+  "main window omitted the upstream item-list entry buttons")
 for _,message in ipairs(messages) do assert(not message:find("Waffle configuration UI failed",1,true)) end
 control("Button","Preview SELL"):Click()
 assert(configFrame.shown==false)
-local reportClose=lastChild(report,"Button")
+local reportClose=lastChild(namedFrame("DejunkWotLKReadOnlyReport"),"Button")
 assert(reportClose.text=="X")
 reportClose:Click()
 assert(configFrame.shown==true)
@@ -679,7 +724,7 @@ assert(queries==50,"next metadata tick did not advance the bounded queue")
 listsWindow.scripts.OnUpdate(listsWindow,29.9)
 assert(listsWindow.scripts.OnUpdate==nil,"uncached item metadata polling did not time out")
 
-print("UI INTERACTION RESULT: options, list transport, metadata polling and report navigation passed")
+print("UI INTERACTION RESULT: options, item windows, list transport, metadata polling and report navigation passed")
 
 -- Original 3.3.5 CheckButton:GetChecked may return 1/nil instead of booleans.
 globalOptionState.safeSell=false
@@ -695,3 +740,9 @@ assert(checkedGlobal and checkedGlobal.optionVisual.fill.shown==true,
 assert(uncheckedGlobal and uncheckedGlobal.optionVisual.fill.shown==false,
   "legacy numeric GetChecked result drew an unchecked state as checked")
 ui.numericChecked=false
+local mainWindow=namedFrame("DejunkWotLK_MainWindow")
+assert(mainWindow and mainWindow.shown,"main settings window is not visible before toggle test")
+runtime:ToggleConfig(runtime.configCallbacks)
+assert(mainWindow.shown==false,"original command toggle did not hide the main window")
+runtime:ToggleConfig(runtime.configCallbacks)
+assert(mainWindow.shown==true,"original command toggle did not reopen the main window")

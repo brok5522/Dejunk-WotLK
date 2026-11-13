@@ -53,6 +53,10 @@ test("original Dejunk slash command opens configuration by default", function()
   equal(opened,"config")
   w.api.SlashCmdList.DEJUNK("options")
   equal(opened,"config")
+  w.app.runtime.ShowConfig=function(self,callbacks) self.configCallbacks=callbacks; opened="config" end
+  w.app.runtime.ShowProfiles=function(self,callbacks) equal(callbacks,self.configCallbacks); opened="profiles" end
+  w.api.SlashCmdList.DEJUNK("profiles")
+  equal(opened,"profiles")
   equal(w.mutations,0)
 end)
 test("required event failure disables startup", function()
@@ -507,12 +511,52 @@ test("junk item projection filters, sorts and separates sell and destroy decisio
   snapshot.currentGeneration=5
   local invalid,reason=addon.JunkItems.Build(snapshot,settings); equal(invalid,nil); equal(reason,"SNAPSHOT_INVALID")
 end)
+test("lootable projection includes only positively flagged occupied bag slots", function()
+  local addon=populated():Ready().addon
+  local snapshot={valid=true,generation=8,currentGeneration=8,items={
+    ["0:2"]={state="OCCUPIED",lootable=true,itemId=42,name="Box",count=2,bag=0,slot=2},
+    ["0:1"]={state="OCCUPIED",lootable=false,itemId=43,bag=0,slot=1},
+    ["0:3"]={state="UNKNOWN",lootable=true,itemId=44,bag=0,slot=3}
+  }}
+  local result=addon.LootableItems.Build(snapshot)
+  equal(result.count,1); equal(result.items[1].itemId,42)
+  result.items[1].count=100; equal(snapshot.items["0:2"].count,2)
+  snapshot.currentGeneration=9
+  local invalid,reason=addon.LootableItems.Build(snapshot); equal(invalid,nil); equal(reason,"SNAPSHOT_INVALID")
+end)
+test("auto lootable preference only controls its read-only frame", function()
+  local w=H.New(); local item=w:AddItem(0,1,{lootable=true}); w:Load()
+  local shown,hidden,latest
+  w.app.runtime.UpdateLootableFrame=function(_,data) latest=data end
+  w.app.runtime.ShowLootableFrame=function(_,data) shown=(shown or 0)+1; latest=data end
+  w.app.runtime.HideLootableFrame=function() hidden=(hidden or 0)+1 end
+  w.app.runtime.IsLootableFrameVisible=function() return shown~=nil and hidden==nil end
+  w:Ready()
+  assert(latest and latest.count==1); equal(shown,nil)
+  assert(w.app.store:SetGlobalOption("autoLootableFrame",true)); assert(shown)
+  item.lootable=false; w:Fire("BAG_UPDATE",0); w:Tick(0.1)
+  assert(hidden and latest and latest.count==0); equal(w.mutations,0)
+end)
+test("auto junk preference only shows the read-only frame during merchant sessions", function()
+  local w=H.New(); w:AddItem(0,1); w:Load()
+  local visible=false; local shown,hidden=0,0
+  w.app.runtime.UpdateJunkFrame=function() end
+  w.app.runtime.IsJunkFrameVisible=function() return visible end
+  w.app.runtime.ShowJunkFrame=function() visible=true; shown=shown+1 end
+  w.app.runtime.HideJunkFrame=function() visible=false; hidden=hidden+1 end
+  w:Ready(); assert(w.app.store:SetGlobalOption("autoJunkFrame",true))
+  w:Fire("MERCHANT_SHOW"); assert(visible); equal(shown,1)
+  w:Fire("MERCHANT_CLOSED"); assert(not visible); equal(hidden,1)
+  equal(w.mutations,0)
+end)
 test("public Dejunk API classifies read-only slots and publishes removable update listeners", function()
   local w=H.New(); w:AddItem(0,1)
   w.api.GetItemInfo=function(link) return "Example",link,0,10,1,"Misc","Junk",20,"","texture",5 end
   w:Load():Ready()
   local isJunk,reason=w.api.DejunkApi:IsJunk(0,1)
   assert(isJunk); equal(reason,"QUALITY")
+  local sell,destroy=w.app:GetSlotDecisions(0,1)
+  equal(sell.result,"JUNK"); equal(destroy.result,"JUNK")
   local invalid,invalidReason=w.api.DejunkApi:IsJunk(5,1)
   assert(not invalid); equal(invalidReason,"INVALID_SLOT")
   local seen={}

@@ -67,8 +67,9 @@ Development-only commands include `/djw rules` and `/djw preview sell|destroy`;
 the generalized ALL/ANY rule editor is out of scope for the upstream port.
 Existing diagnostics include `/djw status`, `/djw probe` (chat), `/djw report` (copy panel),
 `/djw slot <bag 0..4> <slot>` (explicit slot probe), `/djw help`.
-`/dejunk` is the original command alias; no-argument and `options` open the
-configuration window. `/dejunk sell` and `/dejunk destroy` remain disconnected
+`/dejunk` is the original command alias; no-argument and `options` toggle the
+configuration window, `profiles` opens Profiles, and `junk` / `loot` show the
+read-only item windows. `/dejunk sell` and `/dejunk destroy` remain disconnected
 from inventory operations in this development build.
 
 ## Attribution

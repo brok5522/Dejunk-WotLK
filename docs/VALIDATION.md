@@ -57,7 +57,32 @@ current UI has not been exercised in the original client at this revision.
    rows; bag and saved-state updates refresh them. No action buttons are
    connected. UI fixtures check opening/toggling, reasons, and stale-row
    removal; target-client rendering still needs a consolidated check.
-11. **Options state and thresholds:** migrated upstream global defaults into the
+11. **Read-only Lootable window and command routing:** `/dejunk loot` shows
+   positively flagged slots and `/dejunk profiles` opens Profiles. The saved
+   Auto Lootable Frame option controls display on bag updates; it never opens
+   items. Fixtures cover positive-flag filtering, invalid snapshot rejection,
+   window toggle and original command routing. `/dejunk` and `/dejunk options`
+   now toggle the settings window, with offline screen-state coverage.
+12. **Auto Junk display:** during a merchant session the saved option can show
+   the read-only candidate window; it closes at merchant close and when its
+   auto-shown list becomes empty. Mock event fixtures assert no item mutation.
+13. **Bag item tooltip reasons:** a single `GameTooltip:SetBagItem` post-hook
+   reads the slot again and displays separate SELL/DESTROY decisions and reason
+   codes when item tooltips are enabled. The hook skips the hidden binding scan
+   tooltip and is registered once. Mock tooltip coverage is offline only.
+14. **Transport export flow:** Export and Import now share the transport window;
+   export fills a comma-separated list and selects the text for manual copying,
+   while import keeps the review-before-commit path. UI fixtures cover both.
+15. **Item card presentation:** Junk and Lootable windows now reuse scrollable
+   cards with bag icon textures, quality accent on Junk items, quantity and
+   action/location detail. UI fixtures assert icon and quality accent rendering.
+16. **Window positions:** main, Junk and Lootable windows restore saved
+   anchors/offsets and persist them after dragging. UI fixtures verify Junk frame
+   drag persistence through the validated SavedVariables path.
+17. **Main-window item entries:** added upstream Junk and Lootable list entry
+   buttons to the overview. UI fixtures assert both are present; their read-only
+   commands and windows are covered separately.
+18. **Options state and thresholds:** migrated upstream global defaults into the
    WotLK store, accepted legacy minimap state, validated global option writes,
    and added profile minimum/maximum item levels and minimum/maximum stack
    vendor value controls with per-filter scope and quality selection. Store
@@ -108,48 +133,47 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results: Lua 5.1 syntax for 26 files passed; runtime suite **61 passed, 0
-failed**; store **21 passed**; service **8 passed**; destroyer **11 passed**;
-UI model **62 passed**; UI interaction flows passed, including Junk frame
-toggle, per-action reason display and stale-row removal. TOC/API boundary,
-documentation and package checks passed. Two generated 23-entry ZIPs were
-reproducible and passed content, layout, CRC and overwrite checks.
-`tools/check_phase0.py` passed its 31 required deliverables, 46 Markdown files,
-57 local links, 39 source digests and 153 API references. `git diff --check`
-passed. Offline checks do not validate WoW rendering or inputs.
+Results for revision `0.16.32-dev`:
+
+- `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
+  local links, 39 source digests and 153 legacy API references).
+- `check.py`: PASS (20 ordered runtime files; Lua 5.1 syntax for 27 files;
+  runtime 64/64, store 21/21, services 8/8, destroyer 11/11, UI model 62/62;
+  UI interaction fixtures passed; deterministic 24-entry ZIP verified).
+- `git diff --check`: PASS.
+- Original 3.3.5a client rendering/input check: NOT RUN in this environment.
 
 ## Still required to complete the upstream port
 
-1. Port the original Dejunk main window and associated list, profile/global
-   options, keybinding and transport screens without redesign.
-2. Port the original item presentation and integration points (tooltips, bag
-   icons, junk/lootable frames, merchant controls and minimap behavior) using
-   only APIs available in 3.3.5a.
-3. Finish upstream seller and repair behavior, then upstream one-item destroy
-   behavior. Current services are simulation-only; do not infer live safety or
-   parity from their passing tests.
-4. Run non-destructive UI and compatibility smoke checks in the original
-   build-12340 client; capture errors and screenshots for layout/input review.
-5. Complete transaction review and the separate authorization gate in
-   `AGENTS.md` before wiring or testing any live inventory mutation.
-6. Run the full regression/package checks again, review migration/recovery and
-   licenses, and prepare a release candidate only after parity evidence exists.
+1. Remaining non-transaction parity: exact upstream main/list/profile/options
+   presentation, keybinding screen and registration, merchant button, minimap
+   icon, bag icon overlays, upstream parser progress/messaging, and several
+   command and state-migration details.
+2. Port and review seller, repair and one-stack destroy behavior. Current
+   services are simulation-only. `AGENTS.md` requires review plus separate
+   owner authorization before connecting any inventory mutation to the live
+   client; no destructive test is needed for the next UI check.
+3. Run one consolidated, non-destructive UI and compatibility smoke check in
+   the original build-12340 client. Current automated checks cannot prove the
+   client's rendering, focus behavior or API behavior.
+4. Re-run regression/package checks after any further port work and collect
+   client evidence before claiming upstream parity.
 
 ### Client check status
 
 **Client check:** the owner confirmed the minimum item level value survived
 `/reload`. Screenshots then exposed threshold overlap, unsupported legacy EditBox
-methods and options rendered as a detached overlay. The options screen has now
+methods and options rendered as a detached overlay. The options screen has since
 been corrected and all content screens follow the Waffle selector model. Offline
 fixtures check screen exclusivity, sibling parenting, layout sizing, section
-order, scroll content size and card bounds. The 0.16.15 screenshot confirmed the
-checkbox checked state is visible; later profile card and list search/panel
-styling changes are only covered by offline mocks. Please install the next
-package and check Profiles (full action labels, themed prompts, create, rename,
-duplicate, reset/delete confirmations and activation) and Lists search by typing
-a multi-character query, clearing it, and checking pane sizing. No live sale,
-repair or inventory deletion test is required or requested. No live sale, repair
-or delete test was performed.
+order, scroll content size, card bounds, profile prompts and multi-character
+search behavior. The 0.16.15 screenshot confirmed the checkbox checked state is
+visible; later profile, list search, layout and read-only item-window changes
+are only covered by offline mocks. The next client check should be a single
+consolidated review of Profiles (create, rename, duplicate, reset/delete prompts
+and activation), Lists (multi-character search and pane sizing), both Options
+pages, and Junk/Lootable windows. No live sale, repair or inventory deletion
+test is required. No live mutation was performed.
 
 ## Historical evidence
 
