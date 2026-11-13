@@ -90,6 +90,10 @@ local function object(kind,name,parent,template)
   return frame
 end
 ui.CreateFrame=function(kind,name,parent,template) return object(kind,name,parent,template) end
+ui.Minimap=object("Frame","Minimap",ui)
+function ui.Minimap:GetCenter() return 100,100 end
+function ui.Minimap:GetEffectiveScale() return 1 end
+ui.GetCursorPosition=function() return 180,100 end
 ui.IsShiftKeyDown=function() return ui.shiftDown==true end
 ui.IsControlKeyDown=function() return ui.controlDown==true end
 ui.IsAltKeyDown=function() return ui.altDown==true end
@@ -162,6 +166,28 @@ end
 local function namedFrame(name)
   for _,frame in ipairs(uiFrames) do if frame.name==name then return frame end end
 end
+
+local minimapState={minimapIcon={hide=false,angle=220}}
+local savedMinimapOptions,openFromMinimap=0,0
+assert(runtime:UpdateMinimapIcon(minimapState,
+  function(_,value) for key,entry in pairs(value) do minimapState.minimapIcon[key]=entry end; savedMinimapOptions=savedMinimapOptions+1; return true end,
+  function() openFromMinimap=openFromMinimap+1 end,
+  function() return minimapState end))
+local minimapButton=namedFrame("DejunkWotLKMinimapButton")
+assert(minimapButton and minimapButton.shown and minimapButton.dragButtons[1]=="LeftButton",
+  "minimap icon did not appear with a movable button")
+minimapButton.scripts.OnClick(minimapButton,"LeftButton")
+assert(openFromMinimap==1,"minimap icon click did not open the addon")
+minimapButton.scripts.OnClick(minimapButton,"RightButton")
+assert(minimapState.minimapIcon.hide==true and minimapButton.shown==false,
+  "minimap icon right click did not persist its hidden state")
+minimapState.minimapIcon.hide=false
+assert(runtime:UpdateMinimapIcon(minimapState),"minimap icon could not be shown again")
+minimapButton.scripts.OnDragStart(minimapButton)
+minimapButton.scripts.OnUpdate(minimapButton,0.016)
+minimapButton.scripts.OnDragStop(minimapButton)
+assert(math.abs(minimapState.minimapIcon.angle)<0.01 and savedMinimapOptions>=2,
+  "minimap dragging did not save its normalized position")
 assert(runtime:ToggleJunkFrame({sellable=1,destroyable=2,items={{itemId=123,name="Example",count=2,quality=0,texture="Interface\\Icons\\INV_Misc_Junk_01",
   sell={reasonCode="QUALITY"},destroy={reasonCode="QUALITY"}},
   {itemId=456,name="Another",count=1,sell={reasonCode="KEEP"},destroy={reasonCode="QUALITY"}}}}),

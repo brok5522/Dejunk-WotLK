@@ -133,7 +133,7 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for revision `0.16.33-dev`:
+Results for revision `0.16.34-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 39 source digests and 153 legacy API references).
@@ -143,11 +143,21 @@ Results for revision `0.16.33-dev`:
 - `git diff --check`: PASS.
 - Original 3.3.5a client rendering/input check: NOT RUN in this environment.
 
+The profile name field now requests focus after its modal ancestors are shown,
+has explicit legacy EditBox styling, and accepts Enter/Escape. Option
+checkboxes, their text hit targets and themed action buttons now explicitly
+enable mouse input and register `LeftButtonUp`. UI fixtures assert visible-modal
+focus and legacy click registration. The minimap option is now connected to a
+native minimap button: left click opens settings, right click hides/shows it,
+dragging updates the saved angle, and the state is validated and migrated by
+the store. Offline UI and store fixtures cover those flows; live client input
+and positioning remain unverified.
+
 ## Still required to complete the upstream port
 
 1. Remaining non-transaction parity: exact upstream main/list/profile/options
-   presentation, keybinding screen and registration, merchant button, minimap
-   icon, bag icon overlays, upstream parser progress/messaging, and several
+   presentation, keybinding screen and registration, merchant button, bag icon
+   overlays, upstream parser progress/messaging, and several
    command and state-migration details.
 2. Port and review seller, repair and one-stack destroy behavior. Current
    services are simulation-only. `AGENTS.md` requires review plus separate

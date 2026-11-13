@@ -101,7 +101,7 @@ local function cleanOptions(value)
   return out
 end
 local function globalDefaults()
-  return { inclusions={}, exclusions={}, minimap={hide=false}, minimapIcon={hide=false},
+  return { inclusions={}, exclusions={}, minimap={hide=false}, minimapIcon={hide=false,angle=220},
     safeSell=false, safeDestroy=true, merchantButton=true, autoJunkFrame=false,
     autoLootableFrame=false, chatMessages={enabled=true,detail="REDUCED"},
     itemIcons=false, itemIconStyle="SMALL", itemTooltips=true,
@@ -144,7 +144,10 @@ local function cleanGlobal(value)
     end
   end
   local minimap=type(value.minimapIcon)=="table" and value.minimapIcon or value.minimap
-  if type(minimap)=="table" and type(minimap.hide)=="boolean" then out.minimapIcon.hide=minimap.hide; out.minimap.hide=minimap.hide end
+  if type(minimap)=="table" then
+    if type(minimap.hide)=="boolean" then out.minimapIcon.hide=minimap.hide; out.minimap.hide=minimap.hide end
+    if type(minimap.angle)=="number" and minimap.angle==minimap.angle and minimap.angle>=0 and minimap.angle<360 then out.minimapIcon.angle=minimap.angle end
+  end
   return out
 end
 local function fresh()
@@ -322,8 +325,17 @@ function Store:SetGlobalOption(key,value)
     if value.enabled==nil and value.detail==nil then return false,"INVALID_OPTION" end
     if value.enabled~=nil then current.enabled=value.enabled end
     if value.detail~=nil then current.detail=value.detail end
-  elseif key=="minimapIcon" and type(value)=="table" and type(value.hide)=="boolean" then
-    self.state.global.minimapIcon.hide=value.hide; self.state.global.minimap.hide=value.hide
+  elseif key=="minimapIcon" and type(value)=="table" then
+    local icon=self.state.global.minimapIcon
+    if value.hide~=nil then
+      if type(value.hide)~="boolean" then return false,"INVALID_OPTION" end
+    end
+    if value.angle~=nil then
+      if type(value.angle)~="number" or value.angle~=value.angle or value.angle<0 or value.angle>=360 then return false,"INVALID_OPTION" end
+    end
+    if value.hide==nil and value.angle==nil then return false,"INVALID_OPTION" end
+    if value.hide~=nil then icon.hide=value.hide; self.state.global.minimap.hide=value.hide end
+    if value.angle~=nil then icon.angle=value.angle end
   elseif key=="keybindings" and type(value)=="table" then
     local names={toggleMainWindow=true,toggleJunkFrame=true,toggleLootableFrame=true,startSelling=true,destroyNextItem=true,
       addOrRemoveProfileInclusions=true,addOrRemoveProfileExclusions=true,addOrRemoveGlobalInclusions=true,addOrRemoveGlobalExclusions=true}

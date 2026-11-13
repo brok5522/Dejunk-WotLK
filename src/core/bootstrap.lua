@@ -312,6 +312,10 @@ function Addon.NewApplication(runtime)
         if not app.store then return false,"STORE_UNAVAILABLE" end
         return app.store:SetGlobalOption("points",{[key]=point})
       end)
+      runtime:UpdateMinimapIcon(app.store:GetState().global,
+        function(key,value) return Addon.Config.SetGlobalOption(app.store,key,value) end,
+        function() app:OpenConfig() end,
+        function() return Addon.Config.GetGlobalOptions(app.store) end)
       app.cache:Start()
       runtime:RegisterBagTooltips(function(bag,slot) return app:GetSlotDecisions(bag,slot) end)
       if not app.optionsCategoryRegistered then

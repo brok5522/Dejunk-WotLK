@@ -62,6 +62,7 @@ function Runtime.New(environment)
   local frame, update, scanTooltip, reportFrame, reportEdit, reportTitle, configFrame, configSummary, poorButton
   local optionsCategoryFrame,optionsCategoryButtons
   local bagTooltipHooked=false
+  local minimapButton,minimapAngle,minimapSetGlobalOption,minimapOpenConfig,minimapGetGlobalOptions
   local junkFrame,junkTitle,junkSummary,junkScroll,junkRows,junkRowsContent,junkEmptyRow,junkVisible
   local lootableFrame,lootableTitle,lootableSummary,lootableScroll,lootableRows,lootableRowsContent,lootableEmptyRow,lootableVisible
   local configWaffleRoot
@@ -201,6 +202,86 @@ function Runtime.New(environment)
     if not point or type(x)~="number" or type(y)~="number" then return end
     saveWindowPoint(key,{point=point,relativeTo=relativeTo==api.UIParent and "UIParent" or nil,
       relativePoint=relativePoint or point,offsetX=x,offsetY=y})
+  end
+  local function normalizeAngle(value)
+    value=tonumber(value) or 220
+    value=value%360
+    if value<0 then value=value+360 end
+    return value
+  end
+  local function positionMinimapButton()
+    if not minimapButton or not api.Minimap then return end
+    local angle=math.rad(minimapAngle or 220)
+    local radius=80
+    minimapButton:ClearAllPoints()
+    minimapButton:SetPoint("CENTER",api.Minimap,"CENTER",math.cos(angle)*radius,math.sin(angle)*radius)
+  end
+  function runtime:UpdateMinimapIcon(globalOptions,setGlobalOption,openConfig,getGlobalOptions)
+    if type(api.CreateFrame)~="function" or not api.Minimap then return false,"MINIMAP_UNAVAILABLE" end
+    globalOptions=type(globalOptions)=="table" and globalOptions or {}
+    minimapSetGlobalOption=type(setGlobalOption)=="function" and setGlobalOption or minimapSetGlobalOption
+    minimapOpenConfig=type(openConfig)=="function" and openConfig or minimapOpenConfig
+    minimapGetGlobalOptions=type(getGlobalOptions)=="function" and getGlobalOptions or minimapGetGlobalOptions
+    local state=type(globalOptions.minimapIcon)=="table" and globalOptions.minimapIcon or {hide=false,angle=220}
+    minimapAngle=normalizeAngle(state.angle)
+    if not minimapButton then
+      local ok,button=pcall(api.CreateFrame,"Button","DejunkWotLKMinimapButton",api.Minimap)
+      if not ok or not button then return false,"MINIMAP_BUTTON_FAILED" end
+      minimapButton=button; button:SetWidth(32); button:SetHeight(32); button:EnableMouse(true)
+      button:SetFrameStrata("MEDIUM"); button:SetMovable(true)
+      if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp","RightButtonUp") end
+      if type(button.RegisterForDrag)=="function" then button:RegisterForDrag("LeftButton") end
+      local border=button:CreateTexture(nil,"OVERLAY")
+      border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder"); border:SetWidth(54); border:SetHeight(54); border:SetPoint("CENTER",0,0)
+      local icon=button:CreateTexture(nil,"BACKGROUND")
+      icon:SetTexture("Interface\\Icons\\INV_Misc_Gear_01"); icon:SetWidth(18); icon:SetHeight(18); icon:SetPoint("CENTER",0,0)
+      button.icon=icon
+      if type(button.SetHighlightTexture)=="function" then button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight") end
+      button:SetScript("OnEnter",function(self)
+        if api.GameTooltip then
+          api.GameTooltip:SetOwner(self,"ANCHOR_LEFT"); api.GameTooltip:SetText("Dejunk")
+          api.GameTooltip:AddLine("Click to open settings",1,1,1); api.GameTooltip:AddLine("Right-click to hide",0.65,0.65,0.65)
+          api.GameTooltip:AddLine("Drag to move",0.65,0.65,0.65); api.GameTooltip:Show()
+        end
+      end)
+      button:SetScript("OnLeave",function() if api.GameTooltip then api.GameTooltip:Hide() end end)
+      button:SetScript("OnClick",function(_,mouseButton)
+        if mouseButton=="RightButton" then
+          local current=type(minimapGetGlobalOptions)=="function" and minimapGetGlobalOptions() or {}
+          local currentIcon=type(current.minimapIcon)=="table" and current.minimapIcon or {}
+          local changed,reason=minimapSetGlobalOption and minimapSetGlobalOption("minimapIcon",{hide=not currentIcon.hide,angle=minimapAngle})
+          if changed then runtime:UpdateMinimapIcon(minimapGetGlobalOptions and minimapGetGlobalOptions(),minimapSetGlobalOption,minimapOpenConfig,minimapGetGlobalOptions)
+          else runtime:Print("Minimap icon update failed: "..tostring(reason or "UNAVAILABLE")) end
+        elseif type(minimapOpenConfig)=="function" then
+          minimapOpenConfig()
+        end
+      end)
+      button:SetScript("OnDragStart",function()
+        button:SetScript("OnUpdate",function()
+          if type(api.GetCursorPosition)~="function" or type(api.Minimap.GetCenter)~="function" then return end
+          local cx,cy=api.Minimap:GetCenter(); local scale=api.Minimap.GetEffectiveScale and api.Minimap:GetEffectiveScale() or 1
+          if type(cx)~="number" or type(cy)~="number" or type(scale)~="number" or scale<=0 then return end
+          local px,py=api.GetCursorPosition(); if type(px)~="number" or type(py)~="number" then return end
+          px,py=px/scale-cx,py/scale-cy
+          if math.atan2 then minimapAngle=normalizeAngle(math.deg(math.atan2(py,px)))
+          elseif px~=0 then
+            local angle=math.deg(math.atan(py/px)); if px<0 then angle=angle+180 elseif py<0 then angle=angle+360 end
+            minimapAngle=normalizeAngle(angle)
+          else minimapAngle=py>=0 and 90 or 270 end
+          positionMinimapButton()
+        end)
+      end)
+      button:SetScript("OnDragStop",function()
+        button:SetScript("OnUpdate",nil)
+        if type(minimapSetGlobalOption)=="function" then
+          local saved,reason=minimapSetGlobalOption("minimapIcon",{angle=minimapAngle})
+          if not saved then runtime:Print("Minimap position was not saved: "..tostring(reason or "UNAVAILABLE")) end
+        end
+      end)
+    end
+    positionMinimapButton()
+    if state.hide==true then minimapButton:Hide() else minimapButton:Show() end
+    return true
   end
   function runtime:Start(onEvent, onUpdate)
     if type(api.CreateFrame) ~= "function" then return false end
@@ -1919,6 +2000,7 @@ function Runtime.New(environment)
         setOptionCheckText(optionsQualityButtons[quality+1],({"Poor","Com","Unc","Rare","Epic"})[quality+1])
       end
       local global=callbacks.globalOptions and callbacks.globalOptions() or {}
+      self:UpdateMinimapIcon(global,callbacks.setGlobalOption,function() self:ToggleConfig(callbacks) end,callbacks.globalOptions)
       for _,entry in ipairs(optionsFields) do
         local source=entry.global and global or opts; local value=source[entry.key]
         local enabled=type(value)=="table" and value.enabled or value==true
