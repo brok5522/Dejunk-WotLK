@@ -245,7 +245,11 @@ if type(Addon.Config) ~= "table" or type(Addon.Config.Summary) ~= "function" or
   end
   function Addon.Config.GetOptions(store)
     if not store then return nil,"STORE_UNAVAILABLE" end
-    return store:GetActiveProfile().options or {}
+    local profile=store:GetActiveProfile()
+    local options=profile.options or {}
+    options.autoSell=profile.autoSell==true
+    options.autoRepair=profile.autoRepair==true
+    return options
   end
   function Addon.Config.FilterItemIds(raw,query,resolveName)
     raw=type(raw)=="string" and raw or ""; query=type(query)=="string" and query:lower() or ""

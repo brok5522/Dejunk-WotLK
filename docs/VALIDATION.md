@@ -133,7 +133,7 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for revision `0.16.34-dev`:
+Results for revision `0.16.35-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 39 source digests and 153 legacy API references).
@@ -152,6 +152,16 @@ native minimap button: left click opens settings, right click hides/shows it,
 dragging updates the saved angle, and the state is validated and migrated by
 the store. Offline UI and store fixtures cover those flows; live client input
 and positioning remain unverified.
+
+Follow-up client screenshots showed that the checked state still did not
+visually follow Auto Sell/Auto Repair. The config read model returned only the
+nested options table even though those two flags are stored at profile root;
+`GetOptions` now includes both saved flags, including in bootstrap fallback.
+Interactive controls are explicitly raised above their card surfaces, and
+modal inputs/buttons above the modal blocker. New UI integration fixtures use
+the real store/config callbacks to toggle both flags and apply an item level,
+then assert persisted values and rendered checked state. The actual client
+click path remains to be confirmed.
 
 ## Still required to complete the upstream port
 

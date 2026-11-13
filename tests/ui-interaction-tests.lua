@@ -57,6 +57,12 @@ local function object(kind,name,parent,template)
   function frame:GetChecked() if ui.numericChecked then return self.checked and 1 or nil end; return self.checked end
   function frame:GetText() return self.text end
   function frame:GetWidth() return self.width end
+  function frame:GetParent() return self.parent end
+  function frame:GetFrameLevel()
+    if self.frameLevel~=nil then return self.frameLevel end
+    if self.parent and type(self.parent.GetFrameLevel)=="function" then return self.parent:GetFrameLevel()+1 end
+    return 1
+  end
   function frame:Enable() if self.kind=="EditBox" then error("legacy EditBox has no Enable method") end; self.enabled=true end
   function frame:Disable() if self.kind=="EditBox" then error("legacy EditBox has no Disable method") end; self.enabled=false end
   function frame:SetEnabled(value) if self.kind=="EditBox" then error("legacy EditBox has no SetEnabled method") end; self.enabled=value end
@@ -483,6 +489,9 @@ assert(profilePopup.editBox.focused and profilePopup.editBox.focusedWhileVisible
   "profile name input did not receive focus after the modal became visible")
 assert(profilePopup.editBox.backdrop and profilePopup.editBox.fontObject=="GameFontHighlight",
   "profile name input has no visible legacy edit field styling")
+assert(profilePopup.acceptButton:GetFrameLevel()>profilePopup:GetFrameLevel() and
+  profilePopup.cancelButton:GetFrameLevel()>profilePopup:GetFrameLevel(),
+  "profile modal buttons do not sit above the full-screen mouse blocker")
 profilePopup.editBox:SetText("Fresh")
 profilePopup.acceptButton:Click()
 assert(profileOperations.create and profileOperations.create.name=="Fresh","New Profile dialog did not create the entered name")
@@ -566,6 +575,8 @@ for _,card in ipairs(cards) do
 end
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.qualityRow then
+    assert(frame:GetFrameLevel()>frame.parent:GetFrameLevel(),
+      "Profile Options checkbox can be obscured by its option-card background")
     assert(frame.mouse==true and frame.registeredClicks and frame.registeredClicks[1]=="LeftButtonUp",
       "legacy quality checkbox is not explicitly mouse-clickable")
     assert(frame.labelHit.mouse==true and frame.labelHit.registeredClicks and frame.labelHit.registeredClicks[1]=="LeftButtonUp",
@@ -782,3 +793,36 @@ runtime:ToggleConfig(runtime.configCallbacks)
 assert(mainWindow.shown==false,"original command toggle did not hide the main window")
 runtime:ToggleConfig(runtime.configCallbacks)
 assert(mainWindow.shown==true,"original command toggle did not reopen the main window")
+
+-- Exercise the real store/config/UI path: checkboxes and Apply must render the
+-- values persisted by the active profile, not a mock-only parallel state.
+local persistedUiStore=Addon.Store.Initialize(nil,"UI\31Tester")
+local persistedCallbacks={
+  options=function() return Addon.Config.GetOptions(persistedUiStore) end,
+  setOption=function(key,value) return Addon.Config.SetOption(persistedUiStore,key,value) end,
+  globalOptions=function() return Addon.Config.GetGlobalOptions(persistedUiStore) end,
+  setGlobalOption=function(key,value) return Addon.Config.SetGlobalOption(persistedUiStore,key,value) end,
+  activeProfileName=function() return persistedUiStore:GetActiveProfile().name end
+}
+runtime:ShowOptions(persistedCallbacks,"profile")
+local persistedAutoSell=lastControl("CheckButton","Auto Sell")
+assert(persistedAutoSell:GetChecked()==false,"new profile Auto Sell should start unchecked")
+persistedAutoSell:Click()
+assert(persistedUiStore:GetActiveProfile().autoSell==true and lastControl("CheckButton","Auto Sell"):GetChecked()==true,
+  "Auto Sell visual state did not follow the persisted profile value")
+local persistedRepair=lastControl("CheckButton","Auto Repair")
+persistedRepair:Click()
+assert(persistedUiStore:GetActiveProfile().autoRepair==true and lastControl("CheckButton","Auto Repair"):GetChecked()==true,
+  "Auto Repair visual state did not follow the persisted profile value")
+local persistedLevelToggle=lastControl("CheckButton","Include below item level")
+persistedLevelToggle:Click()
+local persistedLevelEdit,persistedLevelApply
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="EditBox" and frame.thresholdKey=="includeBelowItemLevel" then persistedLevelEdit=frame end
+  if frame.kind=="Button" and frame.thresholdKey=="includeBelowItemLevel" then persistedLevelApply=frame end
+end
+assert(persistedLevelEdit and persistedLevelApply,"item-level input or Apply button is missing")
+persistedLevelEdit:SetText("47")
+persistedLevelApply:Click()
+assert(persistedUiStore:GetActiveProfile().options.includeBelowItemLevel.value==47,
+  "Profile Options Apply did not persist the entered item level")

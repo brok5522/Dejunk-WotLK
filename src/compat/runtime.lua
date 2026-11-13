@@ -10,9 +10,17 @@ function Runtime.New(environment)
   local function setTextColor(region,color)
     if region and region.SetTextColor and theme[color] then region:SetTextColor(theme[color][1],theme[color][2],theme[color][3],1) end
   end
+  local function raiseForMouseInput(frame,offset)
+    if not frame or type(frame.GetParent)~="function" or type(frame.SetFrameLevel)~="function" then return end
+    local parent=frame:GetParent()
+    if not parent or type(parent.GetFrameLevel)~="function" then return end
+    local level=parent:GetFrameLevel()
+    if type(level)=="number" then frame:SetFrameLevel(level+(offset or 10)) end
+  end
   local function styleThemedButton(button,label)
     button:EnableMouse(true)
     if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp") end
+    raiseForMouseInput(button,10)
     button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
     local text=button:CreateFontString(nil,"ARTWORK","GameFontNormal")
     text:SetPoint("LEFT",7,0); text:SetPoint("RIGHT",-7,0); text:SetJustifyH("CENTER")
@@ -30,6 +38,9 @@ function Runtime.New(environment)
     return button
   end
   local function styleCloseButton(button)
+    button:EnableMouse(true)
+    if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp") end
+    raiseForMouseInput(button,10)
     button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"})
     local text=button:CreateFontString(nil,"ARTWORK","GameFontNormal")
     text:SetPoint("CENTER"); text:SetText("X")
@@ -636,6 +647,7 @@ function Runtime.New(environment)
         local profilePopup=api.CreateFrame("Frame","DejunkWotLKProfilePopup",popupBlocker)
         profilePopup:SetWidth(390); profilePopup:SetHeight(158); profilePopup:SetPoint("CENTER",popupBlocker,"CENTER",0,0)
         profilePopup:SetFrameStrata("FULLSCREEN_DIALOG"); profilePopup:EnableMouse(true)
+        raiseForMouseInput(profilePopup,1)
         profilePopup:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
         profilePopup:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],0.98)
         profilePopup:SetBackdropBorderColor(1,1,1,0.3); profilePopup:Hide()
@@ -645,6 +657,7 @@ function Runtime.New(environment)
         local popupEdit=api.CreateFrame("EditBox",nil,profilePopup,"InputBoxTemplate")
         popupEdit:SetWidth(220); popupEdit:SetHeight(26); popupEdit:SetPoint("TOP",profilePopup,"TOP",0,-50)
         popupEdit:SetAutoFocus(false); popupEdit:SetMaxLetters(32)
+        raiseForMouseInput(popupEdit,10)
         popupEdit:SetFontObject("GameFontHighlight")
         popupEdit:SetTextInsets(8,8,0,0)
         popupEdit:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
@@ -1402,6 +1415,7 @@ function Runtime.New(environment)
           local size=hitWidth and 12 or 18
           local check=api.CreateFrame("CheckButton","DejunkWotLKOptionCheck"..optionCheckSerial,optionsContentFrame)
           check:SetWidth(size); check:SetHeight(size); check:SetPoint("TOPLEFT",x,y)
+          raiseForMouseInput(check,10)
           check:EnableMouse(true)
           if type(check.RegisterForClicks)=="function" then check:RegisterForClicks("LeftButtonUp") end
           check.optionEnabled=true
@@ -1416,6 +1430,7 @@ function Runtime.New(environment)
           local labelHit=api.CreateFrame("Button",nil,check)
           labelHit:SetWidth(math.max(16,(hitWidth or 220)-size-2)); labelHit:SetHeight(20)
           labelHit:SetPoint("LEFT",check,"RIGHT",2,0)
+          raiseForMouseInput(labelHit,2)
           labelHit:EnableMouse(true)
           if type(labelHit.RegisterForClicks)=="function" then labelHit:RegisterForClicks("LeftButtonUp") end
           local label=labelHit:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
@@ -1457,6 +1472,7 @@ function Runtime.New(environment)
         local function addOptionCard(y,height,isGlobal)
           local card=api.CreateFrame("Frame",nil,optionsContentFrame)
           card.optionCard=true
+          raiseForMouseInput(card,1)
           card:SetPoint("TOPLEFT",optionsContentFrame,"TOPLEFT",10,y)
           card:SetWidth(math.max(380,optionsContentFrame:GetWidth()-20)); card:SetHeight(height)
           card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",tile=true,tileSize=8})
@@ -1656,6 +1672,7 @@ function Runtime.New(environment)
           for part,width in ipairs(editWidths) do
             local edit=api.CreateFrame("EditBox",nil,optionsContentFrame,"InputBoxTemplate")
             edit:SetWidth(width); edit:SetHeight(22); edit:SetAutoFocus(false); edit:SetNumeric(true); edit:SetMaxLetters(part==1 and isPrice and 6 or (isPrice and 2 or 10))
+            raiseForMouseInput(edit,10)
             edit:SetPoint("TOPLEFT",x,valueY)
             edit.thresholdKey=row.key; edit.thresholdPart=part
             edit:SetScript("OnEnterPressed",function(self) self:ClearFocus() end)
@@ -1669,6 +1686,7 @@ function Runtime.New(environment)
           end
           local edit=edits[#edits]
           local apply=styleThemedButton(api.CreateFrame("Button",nil,optionsContentFrame))
+          apply.thresholdKey=row.key
           apply:SetWidth(68); apply:SetHeight(22); apply:SetText("Apply")
           if isPrice then apply:SetPoint("TOPLEFT",x+4,valueY) else apply:SetPoint("LEFT",edit,"RIGHT",8,0) end
           apply:SetScript("OnClick",function()
