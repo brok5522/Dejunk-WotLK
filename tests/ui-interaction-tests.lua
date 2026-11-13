@@ -73,6 +73,10 @@ local function object(kind,name,parent,template)
     child.layer=layer; self.children[#self.children+1]=child; return child
   end
   function frame:SetTexture(value) self.texture=value end
+  function frame:SetNormalTexture(value) self.normalTexture=value end
+  function frame:SetPushedTexture(value) self.pushedTexture=value end
+  function frame:SetHighlightTexture(value) self.highlightTexture=value end
+  function frame:GetFontString() return self.fontString end
   function frame:SetVertexColor(...) self.vertexColor={...} end
   function frame:Click(button)
     assert(self.enabled~=false,"clicked disabled control")
@@ -251,6 +255,15 @@ assert(firstOptionsPage.shown and namedFrame("DejunkWotLKProfiles").shown==false
 control("Button","Lists"):Click()
 assert(mainWindow.shown and listFrame.shown and firstOptionsPage.shown==false,
   "Lists navigation did not restore Lists and hide the Options Waffle page")
+local searchBox
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="EditBox" and frame.parent==listFrame and frame.maxLetters==64 then searchBox=frame; break end
+end
+assert(searchBox,"Lists search box was not created")
+searchBox:SetFocus(); searchBox:SetText("2"); searchBox:SetText("23")
+assert(searchBox:GetText()=="23" and searchBox.focused and listFrame.shown,
+  "refreshing Lists while typing lost the search text, focus or selected page")
+searchBox:SetText("")
 control("Button","Export"):Click()
 local report=uiFrames[#uiFrames]
 while report and report.name~="DejunkWotLKReadOnlyReport" do report=report.parent end
@@ -333,7 +346,8 @@ assert(profilesPage.backdrop==nil,"Profiles page retained its own dialog backdro
 assert(profilesPage.shown,"Profiles page was not visible when selected")
 assert(profilesPage.pageTitle.text=="Dejunk | Profiles (Default)","Profiles panel title did not show the active profile")
 assert(lastControl("Button","New Profile").template==nil,"New Profile still uses a red Blizzard template")
-assert(lastControl("Button","Ren").template==nil and lastControl("Button","Dup").template==nil,
+assert(lastControl("Button","Rename").template==nil and lastControl("Button","Copy").template==nil and
+  lastControl("Button","Reset").template==nil and lastControl("Button","Delete").template==nil,
   "profile card actions still use red Blizzard templates")
 local protectedRename,protectedDelete
 for _,frame in ipairs(uiFrames) do
@@ -350,7 +364,7 @@ assert(selectedProfile=="profile-1","profile card did not activate the profile r
 ui.StaticPopupDialogs={}
 ui.StaticPopup_Show=function(key,...)
   local args={...}
-  local dialog={data=args[3],editBox=object("EditBox",nil,nil)}
+  local dialog={data=args[3],editBox=object("EditBox",nil,nil),button1=object("Button",nil,nil),button2=object("Button",nil,nil)}
   ui.lastStaticPopup=dialog
   local definition=ui.StaticPopupDialogs[key]
   assert(definition,"profile action did not register its dialog")
@@ -366,6 +380,9 @@ local function profileAction(action,id)
 end
 local createProfileButton=lastControl("Button","New Profile")
 createProfileButton:Click()
+assert(ui.lastStaticPopup.button1.normalTexture==nil and ui.lastStaticPopup.button1.backdrop and
+  ui.lastStaticPopup.button2.normalTexture==nil and ui.lastStaticPopup.button2.backdrop,
+  "profile text prompt kept the red Blizzard popup buttons")
 ui.lastStaticPopup.editBox:SetText("Fresh")
 ui.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_NAME.OnAccept(ui.lastStaticPopup)
 assert(profileOperations.create and profileOperations.create.name=="Fresh","New Profile dialog did not create the entered name")
@@ -380,6 +397,8 @@ ui.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_NAME.OnAccept(ui.lastStaticPopup)
 assert(profileOperations.rename and profileOperations.rename.id=="profile-1" and profileOperations.rename.name=="Renamed",
   "profile card rename did not target the selected profile")
 profileAction("reset","profile-1"):Click()
+assert(ui.lastStaticPopup.button1.normalTexture==nil and ui.lastStaticPopup.button1.backdrop,
+  "profile confirmation kept the red Blizzard popup button")
 ui.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_CONFIRM.OnAccept(ui.lastStaticPopup)
 assert(profileOperations.reset=="profile-1","profile reset did not target the selected profile")
 profileAction("delete","profile-1"):Click()

@@ -444,6 +444,23 @@ function Runtime.New(environment)
         profileScroll=api.CreateFrame("ScrollFrame","DejunkWotLKProfileScrollFrame",profileFrame,"UIPanelScrollFrameTemplate")
         profileScroll:SetPoint("TOPLEFT",22,-72); profileScroll:SetPoint("BOTTOMRIGHT",-18,75)
         profileList=api.CreateFrame("Frame",nil,profileScroll); profileList:SetWidth(500); profileList:SetHeight(175); profileScroll:SetScrollChild(profileList); profileButtons={}
+        local function stylePopupButtons(dialog)
+          local function stylePopupButton(button)
+            if not button then return end
+            if button.SetBackdrop then
+              button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+              button:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],0.95)
+              button:SetBackdropBorderColor(0,0,0,1)
+            end
+            if button.SetNormalTexture then button:SetNormalTexture(nil) end
+            if button.SetPushedTexture then button:SetPushedTexture(nil) end
+            if button.SetHighlightTexture then button:SetHighlightTexture(nil) end
+            local label=button.GetFontString and button:GetFontString() or (button.GetTextRegion and button:GetTextRegion())
+            setTextColor(label,"gold")
+          end
+          stylePopupButton(dialog.button1)
+          stylePopupButton(dialog.button2)
+        end
         local function showNamePrompt(action,profile)
           if type(api.StaticPopup_Show)~="function" then
             self:Print("Profile name dialog unavailable; use /djw profile "..action.." <profileID> <name>.")
@@ -457,7 +474,9 @@ function Runtime.New(environment)
               if dialog.editBox then
                 dialog.editBox:SetText(profile and profile.name or "")
                 dialog.editBox:SetFocus()
+                if dialog.editBox.HighlightText then dialog.editBox:HighlightText() end
               end
+              stylePopupButtons(dialog)
             end,
             OnAccept=function(dialog)
               local current=runtime.configCallbacks or callbacks
@@ -485,6 +504,7 @@ function Runtime.New(environment)
           api.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_CONFIRM={
             text="Are you sure you want to %s profile %s?",
             button1=api.YES or "Yes",button2=api.NO or "No",timeout=0,whileDead=1,hideOnEscape=1,
+            OnShow=function(dialog) stylePopupButtons(dialog) end,
             OnAccept=function(dialog)
               local data=dialog.data or {}
               local acceptedAction=data.action
@@ -547,7 +567,7 @@ function Runtime.New(environment)
           self:Print(switched and ("Active profile: "..profileEntry.name) or ("Profile switch failed: "..tostring(reason)))
           self:ShowProfiles(callbacks)
         end)
-        local actions={{"Del","delete",34},{"Reset","reset",42},{"Dup","duplicate",34},{"Ren","rename",34}}
+        local actions={{"Rename","rename",58},{"Copy","duplicate",48},{"Reset","reset",48},{"Delete","delete",48}}
         local right=-5
         for _,entry in ipairs(actions) do
           local action,label,width=entry[2],entry[1],entry[3]
@@ -581,7 +601,7 @@ function Runtime.New(environment)
     callbacks=callbacks or {}
     runtime.configCallbacks=callbacks
     if not configWaffleRoot then self:ShowConfig(callbacks) end
-    if configWaffleRoot and configContentComponent and configOverviewComponent then
+    if configWaffleRoot and configContentComponent and configOverviewComponent and selectedConfigScreen~="lists" then
       selectConfigScreen(nil)
       setConfigPageVisible(listFrame,false)
       setConfigPageVisible(profileFrame,false)
@@ -820,7 +840,7 @@ function Runtime.New(environment)
       setConfigPageVisible(profileFrame,false)
       setConfigPageVisible(optionsFrame,false)
       if listPageComponent and configWaffleRoot then
-        selectConfigScreen("lists")
+        if selectedConfigScreen~="lists" then selectConfigScreen("lists") end
       else setConfigPageVisible(listFrame,true) end
     end)
     if not ok then self:Print("Lists window unavailable; use /djw lists show|add|remove <global|profile> <inclusions|exclusions> <itemID>.") end
@@ -890,7 +910,9 @@ function Runtime.New(environment)
           local committed,reason=callbacks.commitListImport and callbacks.commitListImport(importPreview)
           if committed then
             importStatus:SetText("Import complete."); importCommitButton:Disable(); importPreview=nil
-            importEdit:SetText(""); importFrame:Hide(); self:ShowLists(callbacks)
+            importEdit:SetText(""); importFrame:Hide()
+            if selectedConfigScreen=="lists" then selectedConfigScreen=nil end
+            self:ShowLists(callbacks)
           else importStatus:SetText("Import failed: "..tostring(reason)); importCommitButton:Disable(); importPreview=nil end
         end)
         local cancel=styleThemedButton(api.CreateFrame("Button",nil,importFrame))

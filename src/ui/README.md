@@ -47,8 +47,9 @@ temporary development controls and are not UI parity. Profile cards show the
 active profile accent, inclusion/exclusion counts and per-profile rename,
 duplicate, reset and delete controls. The default profile cannot be renamed or
 deleted; reset and deletion ask for confirmation. Creation and renaming use the
-native text prompt. Mocked UI checks cover these actions; their appearance and
-popup behavior still need observation in the 3.3.5 client.
+native text prompt. Search refreshes keep the current page selected and retain
+keyboard focus. Mocked UI checks cover these actions; their appearance and popup
+behavior still need observation in the 3.3.5 client.
 Uncached item metadata is requested in batches of at most 25 IDs per UI refresh;
 the Lists frame polls only while open and stops after 30 seconds if data never
 arrives. This avoids relying on a newer item-info completion event.
