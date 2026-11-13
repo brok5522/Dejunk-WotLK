@@ -444,12 +444,16 @@ function Runtime.New(environment)
         profileScroll=api.CreateFrame("ScrollFrame","DejunkWotLKProfileScrollFrame",profileFrame,"UIPanelScrollFrameTemplate")
         profileScroll:SetPoint("TOPLEFT",22,-72); profileScroll:SetPoint("BOTTOMRIGHT",-18,75)
         profileList=api.CreateFrame("Frame",nil,profileScroll); profileList:SetWidth(500); profileList:SetHeight(175); profileScroll:SetScrollChild(profileList); profileButtons={}
-        local profilePopup=api.CreateFrame("Frame","DejunkWotLKProfilePopup",api.UIParent)
-        profilePopup:SetWidth(360); profilePopup:SetHeight(142); profilePopup:SetPoint("CENTER",api.UIParent,"CENTER",0,0)
-        profilePopup:SetFrameStrata("DIALOG"); profilePopup:EnableMouse(true)
+        local popupBlocker=api.CreateFrame("Frame","DejunkWotLKProfilePopupBlocker",api.UIParent)
+        popupBlocker:SetAllPoints(api.UIParent); popupBlocker:SetFrameStrata("FULLSCREEN_DIALOG"); popupBlocker:SetFrameLevel(1000)
+        popupBlocker:EnableMouse(true); popupBlocker:SetScript("OnMouseDown",function() end); popupBlocker:Hide()
+        local profilePopup=api.CreateFrame("Frame","DejunkWotLKProfilePopup",popupBlocker)
+        profilePopup:SetWidth(390); profilePopup:SetHeight(158); profilePopup:SetPoint("CENTER",popupBlocker,"CENTER",0,0)
+        profilePopup:SetFrameStrata("FULLSCREEN_DIALOG"); profilePopup:EnableMouse(true)
         profilePopup:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
         profilePopup:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],0.98)
         profilePopup:SetBackdropBorderColor(1,1,1,0.3); profilePopup:Hide()
+        local function hideProfilePopup() profilePopup:Hide(); popupBlocker:Hide() end
         local popupMessage=profilePopup:CreateFontString(nil,"OVERLAY","GameFontNormal")
         popupMessage:SetPoint("TOPLEFT",14,-14); popupMessage:SetWidth(332); popupMessage:SetJustifyH("CENTER"); setTextColor(popupMessage,"white")
         local popupEdit=api.CreateFrame("EditBox",nil,profilePopup,"InputBoxTemplate")
@@ -472,7 +476,7 @@ function Runtime.New(environment)
           local verb=popupAction=="create" and "Create" or popupAction=="duplicate" and "Duplicate" or "Rename"
           self:Print(id and (verb=="Create" and "Profile created." or verb=="Duplicate" and "Profile duplicated." or "Profile renamed.") or
             (verb.." failed: "..tostring(reason or "UNAVAILABLE")))
-          profilePopup:Hide(); self:ShowProfiles(current)
+          hideProfilePopup(); self:ShowProfiles(current)
         end
         local function executeProfileConfirm()
           local current=runtime.configCallbacks or callbacks
@@ -481,24 +485,24 @@ function Runtime.New(environment)
           else changed,reason=current.deleteProfile and current.deleteProfile(popupProfile.id) end
           self:Print(changed and (popupAction=="reset" and "Profile reset." or "Profile deleted.") or
             ((popupAction=="reset" and "Reset" or "Delete").." failed: "..tostring(reason or "DEFAULT_PROFILE_PROTECTED")))
-          profilePopup:Hide(); self:ShowProfiles(current)
+          hideProfilePopup(); self:ShowProfiles(current)
         end
         popupAccept:SetScript("OnClick",function() if popupMode=="name" then executeProfileName() else executeProfileConfirm() end end)
-        popupCancel:SetScript("OnClick",function() profilePopup:Hide() end)
+        popupCancel:SetScript("OnClick",hideProfilePopup)
         profileFrame.profilePopup=profilePopup
-        profilePopup.editBox=popupEdit; profilePopup.acceptButton=popupAccept; profilePopup.cancelButton=popupCancel
+        profilePopup.blocker=popupBlocker; profilePopup.editBox=popupEdit; profilePopup.acceptButton=popupAccept; profilePopup.cancelButton=popupCancel
         local function showNamePrompt(action,profile)
           popupMode="name"; popupAction=action; popupProfile=profile
           popupMessage:SetText(action=="create" and "Enter a name for the new profile:" or (action=="duplicate" and "Copy profile: " or "Rename profile: ")..(profile and profile.name or ""))
           popupEdit:SetText(profile and profile.name or ""); popupEdit:Show(); popupEdit:SetFocus()
           if popupEdit.HighlightText then popupEdit:HighlightText() end
-          popupAccept:SetText("Accept"); popupCancel:SetText("Cancel"); profilePopup:Show()
+          popupAccept:SetText("Accept"); popupCancel:SetText("Cancel"); popupBlocker:Show(); profilePopup:Show()
         end
         profileFrame.showNamePrompt=showNamePrompt
         local function confirmAction(action,profile)
           popupMode="confirm"; popupAction=action; popupProfile=profile
           popupMessage:SetText("Are you sure you want to "..action.." profile "..profile.name.."?")
-          popupEdit:Hide(); popupAccept:SetText("Yes"); popupCancel:SetText("No"); profilePopup:Show()
+          popupEdit:Hide(); popupAccept:SetText("Yes"); popupCancel:SetText("No"); popupBlocker:Show(); profilePopup:Show()
         end
         profileFrame.confirmProfileAction=confirmAction
         local create=styleThemedButton(api.CreateFrame("Button",nil,profileFrame),"New Profile")

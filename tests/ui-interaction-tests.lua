@@ -19,6 +19,7 @@ local function object(kind,name,parent,template)
   function frame:ClearAllPoints() self.point=nil end
   function frame:SetParent(parent) self.parent=parent end
   function frame:SetFrameStrata(value) self.strata=value end
+  function frame:SetFrameLevel(value) self.frameLevel=value end
   function frame:SetMovable(value) self.movable=value end
   function frame:RegisterForDrag(...) self.dragButtons={...} end
   function frame:StartMoving() self.moving=true end
@@ -373,6 +374,8 @@ createProfileButton:Click()
 local profilePopup=profilesPage.profilePopup
 assert(profilePopup and profilePopup.shown and profilePopup.backdrop and profilePopup.editBox.shown,
   "profile name dialog was not rendered as an addon-styled prompt")
+assert(profilePopup.blocker.shown and profilePopup.strata=="FULLSCREEN_DIALOG" and profilePopup.blocker.frameLevel==1000,
+  "profile prompt did not render above the main window as a modal")
 profilePopup.editBox:SetText("Fresh")
 profilePopup.acceptButton:Click()
 assert(profileOperations.create and profileOperations.create.name=="Fresh","New Profile dialog did not create the entered name")
@@ -394,6 +397,8 @@ assert(profileOperations.reset=="profile-1","profile reset did not target the se
 profileAction("delete","profile-1"):Click()
 profilePopup.acceptButton:Click()
 assert(profileOperations.delete=="profile-1","profile delete did not target the selected profile")
+assert(lastControl("Button","Duplicate").width>=70 and lastControl("Button","Rename").width>=60,
+  "profile action buttons are too narrow for their full labels")
 control("Button","Lists"):Click()
 assert(profilesPage.shown==false and namedFrame("DejunkWotLKLists").shown,"Lists navigation left the Profiles page visible")
 runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function() return "default" end,activeProfileName=function() return "Default" end})
