@@ -73,6 +73,12 @@ current UI has not been exercised in the original client at this revision.
    Native controls approximate the pinned
    Waffle OptionCard/SettingsBox and SelectableRow visuals; other upstream screens and
    integrations remain unfinished.
+   The latest client screenshot exposed a WoW-specific positioning issue:
+   native frames do not provide the mock-only `.point` field used by the width
+   adjustment. The code now stores each quality row's vertical offset and each
+   long description's horizontal offset explicitly; fixtures verify both are
+   preserved during responsive layout. A fresh client screenshot is needed to
+   confirm the corrected Profile Options rows appear inside their cards.
 
 ## Checks run for this report
 

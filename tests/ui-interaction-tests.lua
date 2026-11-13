@@ -358,6 +358,8 @@ for _,card in ipairs(cards) do
 end
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.qualityRow then
+    assert(frame.qualityRowY~=nil and frame.point[3]==frame.qualityRowY,
+      "responsive quality row lost its saved vertical position")
     assert(frame.point[2]+frame.width+2+frame.labelHit.width<=optionsPage.contentFrame.width,
       "quality option and clickable label extend beyond the scroll content width")
   end
@@ -503,7 +505,9 @@ for _,frame in ipairs(uiFrames) do
     assert(frame.point[4]+frame.width<=optionsPage.contentFrame.width,"global option card extends beyond the scroll content width")
   end
   if frame.kind=="FontString" and frame.optionDescription and frame.shown and frame.point and frame.point[2] then
-    assert(frame.point[2]+frame.width<=optionsPage.contentFrame.width,"option description extends beyond the scroll content width")
+    assert(frame.optionDescriptionX==frame.point[2],"option description did not retain its WotLK-safe horizontal coordinate")
+    assert(frame.optionDescriptionX+frame.width<=optionsPage.contentFrame.width,
+      "option description extends beyond the scroll content width")
   end
 end
 assert(#globalCards>=8,"Global Options did not create the upstream Safety, Interface and Bags option cards")

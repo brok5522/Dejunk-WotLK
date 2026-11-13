@@ -1076,7 +1076,10 @@ function Runtime.New(environment)
           local label=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
           label:SetPoint("TOPLEFT",x,y); if width then label:SetWidth(width) end
           label:SetJustifyH("LEFT"); label:SetText(text)
-          if width and width>=400 then label.optionDescription=true; optionsResponsiveDescriptions[#optionsResponsiveDescriptions+1]=label end
+          if width and width>=400 then
+            label.optionDescription=true; label.optionDescriptionX=x
+            optionsResponsiveDescriptions[#optionsResponsiveDescriptions+1]=label
+          end
           optionsProfileDecorations[#optionsProfileDecorations+1]=label
           return label
         end
@@ -1084,7 +1087,10 @@ function Runtime.New(environment)
           local label=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
           label:SetPoint("TOPLEFT",x,y); if width then label:SetWidth(width) end
           label:SetJustifyH("LEFT"); label:SetText(text)
-          if width and width>=400 then label.optionDescription=true; optionsResponsiveDescriptions[#optionsResponsiveDescriptions+1]=label end
+          if width and width>=400 then
+            label.optionDescription=true; label.optionDescriptionX=x
+            optionsResponsiveDescriptions[#optionsResponsiveDescriptions+1]=label
+          end
           optionsGlobalDecorations[#optionsGlobalDecorations+1]=label
           return label
         end
@@ -1118,6 +1124,7 @@ function Runtime.New(environment)
         for quality=0,4 do
           local b=createOptionCheck(qualityCaptions[quality+1],110+quality*qualityStep,-296,88)
           b.optionGroup="includeByQuality"; b.optionQuality=labels[quality+1]:lower(); b.qualityRow=true
+          b.qualityRowY=-296
           optionsQualityRows[#optionsQualityRows+1]=b
           setOptionCheckHandler(b,function()
             local currentCallbacks=optionsCallbacks or callbacks
@@ -1188,7 +1195,7 @@ function Runtime.New(environment)
           local name=({"Poor","Com","Unc","Rare","Epic"})[quality]
           local button=createOptionCheck(name,110+(quality-1)*92,-1960,88)
           button.optionGroup="excludeUnboundEquipment"; button.optionQuality=({"poor","common","uncommon","rare","epic"})[quality]
-          button.qualityRow=true
+          button.qualityRow=true; button.qualityRowY=-1960
           optionsQualityRows[#optionsQualityRows+1]=button
           setOptionCheckHandler(button,function()
             local currentCallbacks=optionsCallbacks or callbacks
@@ -1274,7 +1281,7 @@ function Runtime.New(environment)
             local qualityName=({"Poor","Common","Uncommon","Rare","Epic"})[quality]
             local button=createOptionCheck(({"Poor","Com","Unc","Rare","Epic"})[quality],110+(quality-1)*92,qualityY,88)
             button.optionGroup=row.key; button.optionQuality=qualityKeys[q]
-            button.qualityRow=true
+            button.qualityRow=true; button.qualityRowY=qualityY
             optionsQualityRows[#optionsQualityRows+1]=button
             setOptionCheckHandler(button,function()
               local currentCallbacks=optionsCallbacks or callbacks
@@ -1371,7 +1378,7 @@ function Runtime.New(environment)
           for index,name in ipairs(qualityKeys) do
             local button=createOptionCheck(({"Poor","Com","Unc","Rare","Epic"})[index],110+(index-1)*92,top-290,88)
             button.optionGroup=key; button.optionQuality=name
-            button.qualityRow=true
+            button.qualityRow=true; button.qualityRowY=top-290
             optionsQualityRows[#optionsQualityRows+1]=button
             setOptionCheckHandler(button,function()
               local currentCallbacks=optionsCallbacks or callbacks
@@ -1607,16 +1614,15 @@ function Runtime.New(environment)
           for _,card in ipairs(optionsOptionCards or {}) do card:SetWidth(contentWidth-20) end
           for _,divider in ipairs(optionsCardDividers or {}) do divider:SetWidth(contentWidth-56) end
           for _,description in ipairs(optionsResponsiveDescriptions or {}) do
-            local x=description.point and description.point[2] or 0
+            local x=description.optionDescriptionX or 0
             description:SetWidth(math.max(100,contentWidth-x-20))
           end
           local qualityStep=math.min(92,(contentWidth-104)/5)
           for _,control in ipairs(optionsQualityRows or {}) do
             local order=({poor=0,common=1,uncommon=2,rare=3,epic=4})[control.optionQuality]
             if order then
-              local y=control.point and control.point[3] or 0
               control:ClearAllPoints()
-              control:SetPoint("TOPLEFT",110+order*qualityStep,y)
+              control:SetPoint("TOPLEFT",110+order*qualityStep,control.qualityRowY or 0)
               control.labelHit:SetWidth(math.max(16,qualityStep-32))
             end
           end
