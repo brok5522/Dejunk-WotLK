@@ -73,7 +73,7 @@ current UI has not been exercised in the original client at this revision.
    Native controls approximate the pinned
    Waffle OptionCard/SettingsBox and SelectableRow visuals; other upstream screens and
    integrations remain unfinished.
-   A further client screenshot showed red Blizzard button art remained on Lists, profile actions and threshold Apply controls. All addon-created `UIPanelButtonTemplate` and close-button instances now use plain square controls with dark surfaces and blue/grey text/borders. UI interaction fixtures assert the screenshot-visible Lists and Apply buttons no longer use Blizzard red templates. This client appearance change has not yet been observed in game.
+   A further client screenshot showed red Blizzard button art remained on Lists, profile actions and threshold Apply controls. All addon-created `UIPanelButtonTemplate` instances now use plain square controls with the upstream dark-grey background, gold label and black border; close controls use a grey X that highlights red on hover. The active-profile rename control is widened to prevent label truncation. UI interaction fixtures assert the screenshot-visible Lists and Apply buttons no longer use Blizzard red templates. This client appearance change has not yet been observed in game.
    The latest client screenshot exposed a WoW-specific positioning issue:
    native frames do not provide the mock-only `.point` field used by the width
    adjustment. The code now stores each quality row's vertical offset and each

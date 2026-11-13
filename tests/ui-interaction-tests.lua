@@ -205,6 +205,8 @@ assert(namedFrame("DejunkWotLKLists"),"Lists page frame was not created")
 assert(lastControl("Button","Scope: global").template==nil,"list scope still uses a red Blizzard template")
 assert(lastControl("Button","Export").template==nil,"list export still uses a red Blizzard template")
 assert(lastControl("Button","X").template==nil,"configuration close still uses a red Blizzard template")
+assert(lastControl("Button","X").labelRegion.textColor and lastControl("Button","X").labelRegion.textColor[1]>0.3,
+  "Waffle grey close icon styling was not applied")
 assert(lastControl("Button","Scope: global").template==nil,"list scope still uses a red Blizzard template")
 assert(lastControl("Button","Export").template==nil,"list export still uses a red Blizzard template")
 local listFrame=namedFrame("DejunkWotLKLists")

@@ -22,7 +22,7 @@ thresholds, and localized armor/weapon type filters. These are rebuilt with
 legacy 3.3.5 widgets inside the project's Waffle main window; the upstream
 quality rows and cards resize to the actual content width so the fifth quality
 and its clickable caption stay inside the scroll panel at narrow resolutions.
-Option cards use the upstream dark square treatment and checkbox captions use separate clickable text regions because legacy CheckButton has no `SetText` method. Clickable controls use a flat blue/grey theme instead of red UIPanel button art; checkboxes are compact, square and blue. Global Options now follows the
+Option cards use the upstream dark square treatment and checkbox captions use separate clickable text regions because legacy CheckButton has no `SetText` method. Clickable controls use a the upstream dark-grey/gold button palette instead of red UIPanel button art, with a grey close icon that highlights red on hover; checkboxes are compact, square and blue. Global Options now follows the
 upstream Safety, Interface and Bags group order, with cards for the stored
 options and choices for chat detail and icon size. These settings update saved
 state, but merchant, minimap, bag icon/tooltip, chat and frame integrations are
