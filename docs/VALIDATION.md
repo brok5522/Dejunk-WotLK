@@ -51,10 +51,15 @@ current UI has not been exercised in the original client at this revision.
    choices and gold/silver/copper price inputs. Exclusion cards and unbound
    quality controls fit within their card bounds. The heading retains the
    active profile name. Automated UI fixtures cover card bounds, settings
-   interactions and coin conversion. Native 3.3.5 controls still approximate
-   the pinned Waffle OptionCard/SettingsBox visuals; this layout has not been
-   inspected in the client. Other upstream screens and integrations remain
-   unfinished.
+   interactions and coin conversion. A client screenshot of the first package
+   exposed two more defects: Lists remained visible behind Options, and legacy
+   CheckButtons lost their text on refresh. Page switching now hides sibling
+   screens before rendering, and checkbox labels use separate FontStrings
+   instead of the unavailable CheckButton:SetText API. The UI harness rejects
+   that API call and checks that Lists is hidden. This corrected package still
+   needs one client visual check. Native 3.3.5 controls approximate the pinned
+   Waffle OptionCard/SettingsBox visuals; other upstream screens and
+   integrations remain unfinished.
 
 ## Checks run for this report
 

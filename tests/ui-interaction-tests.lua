@@ -44,6 +44,7 @@ local function object(kind,name,parent,template)
   function frame:SetScript(event,callback) self.scripts[event]=callback end
   function frame:RegisterForClicks(...) self.registeredClicks={...} end
   function frame:SetText(value)
+    if self.kind=="CheckButton" then error("legacy CheckButton has no SetText method") end
     self.text=value
     if self.kind=="EditBox" and self.scripts.OnTextChanged then self.scripts.OnTextChanged(self) end
   end
@@ -324,6 +325,8 @@ for i=1,#cards-1 do
   assert(-cards[i].point[5]+cards[i].height<=-cards[i+1].point[5],"profile option cards overlap vertically")
 end
 assert(profilesPage.shown==false,"Profiles page remained visible while Options was selected")
+local listsPage=namedFrame("DejunkWotLKLists")
+assert(not listsPage or listsPage.shown==false,"Lists remained visible behind Profile Options")
 assert(control("CheckButton","Auto Sell").shown,"profile options were hidden on the Profile Options page")
 assert(control("Button","Safe Sell: OFF").shown==false,"global options leaked into Profile Options")
 local enableMinimum
@@ -332,6 +335,7 @@ for _,frame in ipairs(uiFrames) do
 end
 assert(enableMinimum,"threshold option card toggle was not created")
 enableMinimum:Click()
+assert(optionsPage.shown,"Profile Options refresh hid the page after the first setting click")
 local thresholdEdit
 for _,frame in ipairs(uiFrames) do if frame.kind=="EditBox" and frame.parent==optionsPage.contentFrame and frame.thresholdKey=="includeBelowItemLevel" then thresholdEdit=frame; break end end
 assert(thresholdEdit,"profile threshold editor was not created")
@@ -355,10 +359,11 @@ assert(optionState.includeBelowItemLevel.scope=="SELL","threshold action scope d
 local minimumPoor
 for _,frame in ipairs(uiFrames) do if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionGroup=="includeBelowItemLevel" and frame.optionQuality=="poor" then minimumPoor=frame end end
 assert(minimumPoor,"threshold quality control was not created")
-assert(minimumPoor.width==24,"threshold quality chip is not using the legacy checkbox control")
+assert(minimumPoor.width==78,"threshold quality chip is not sized as a clickable labeled choice")
+assert(minimumPoor.labelRegion and minimumPoor.labelRegion.text=="Poor","legacy checkbox label is not rendered through its own FontString")
 local minScopeWidth
 for _,frame in ipairs(uiFrames) do if frame==minimumScope then minScopeWidth=frame.width end end
-assert(minScopeWidth==24,"threshold scope choice is not using the upstream check-chip control")
+assert(minScopeWidth==94,"threshold scope choice is not sized as a clickable labeled choice")
 local minQualityRow={}
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionGroup=="includeBelowItemLevel" and frame.optionQuality then minQualityRow[#minQualityRow+1]=frame end

@@ -18,7 +18,9 @@ price limits. Controls cover quality, four item-level and stack-price
 thresholds, and localized armor/weapon type filters. These are rebuilt with
 legacy 3.3.5 widgets inside the project's Waffle main window; the upstream
 OptionCard/SettingsBox visual components are not yet ported pixel-for-pixel,
-and target-client visual review is still pending. Global Options remains
+and checkbox captions are rendered as child FontStrings because the legacy
+CheckButton template has no `SetText` method. Target-client visual review is
+still pending. Global Options remains
 partial. Global state preserves upstream defaults for chat messages, bag
 display, merchant, minimap and frame settings, but the corresponding game
 integrations remain unimplemented.

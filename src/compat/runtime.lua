@@ -298,7 +298,10 @@ function Runtime.New(environment)
       configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
       mainContentFrame=configContentComponent:GetFrame()
     end
-    local ok=pcall(function()
+    if listFrame then listFrame:Hide() end
+    if profileFrame then profileFrame:Hide() end
+    if optionsFrame then optionsFrame:Hide() end
+    local ok,optionsError=pcall(function()
       if not profileFrame then
         if mainContentFrame then profileFrame=api.CreateFrame("Frame","DejunkWotLKProfiles",mainContentFrame)
         else
@@ -875,6 +878,12 @@ function Runtime.New(environment)
     rulesSummary:SetText(table.concat(lines,"\n"))
   end
 
+  local function setOptionCheckText(check,labelText)
+    check.optionLabel=labelText
+    check.text=labelText
+    if check.labelRegion then check.labelRegion:SetText(labelText) end
+  end
+
   function runtime:ShowOptions(callbacks,scope)
     callbacks=callbacks or {}
     runtime.configCallbacks=callbacks; optionsCallbacks=callbacks
@@ -917,19 +926,21 @@ function Runtime.New(environment)
         optionsFrame.scrollFrame=optionsScrollFrame; optionsFrame.contentFrame=optionsContentFrame
         optionsProfileDecorations={}; optionsGlobalDecorations={}
         local optionCheckSerial=0
-        local function createOptionCheck(labelText,x,y)
+        local function createOptionCheck(labelText,x,y,hitWidth)
           optionCheckSerial=optionCheckSerial+1
           local check=api.CreateFrame("CheckButton","DejunkWotLKOptionCheck"..optionCheckSerial,optionsContentFrame,"UICheckButtonTemplate")
-          check:SetWidth(24); check:SetHeight(24); check:SetPoint("TOPLEFT",x,y)
-          check.optionLabel=labelText
-          check:SetText(labelText)
+          check:SetWidth(hitWidth or 260); check:SetHeight(18); check:SetPoint("TOPLEFT",x,y)
+          local label=check:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+          label:SetPoint("LEFT",check,"RIGHT",4,0)
+          check.labelRegion=label
+          setOptionCheckText(check,labelText)
           return check
         end
         local function addScopeChoices(key,x,y,step,defaultValue)
           local choices={{value="SELL",label="Selling"},{value="DESTROY",label="Destroying"},{value="BOTH",label="Both"}}
           local rows={}
           for index,choice in ipairs(choices) do
-            local control=createOptionCheck(choice.label,x+(index-1)*step,y)
+            local control=createOptionCheck(choice.label,x+(index-1)*step,y,step-4)
             control.scopeKey=key; control.scopeValue=choice.value
             control:SetScript("OnClick",function()
               local currentCallbacks=optionsCallbacks or callbacks
@@ -1020,7 +1031,7 @@ function Runtime.New(environment)
         local labels={"Poor","Common","Uncommon","Rare","Epic"}
         optionsQualityButtons={}
         for quality=0,4 do
-          local b=createOptionCheck(labels[quality+1],110+quality*82,-296)
+          local b=createOptionCheck(labels[quality+1],110+quality*82,-296,78)
           b:SetScript("OnClick",function()
             local currentCallbacks=optionsCallbacks or callbacks
             local opts=currentCallbacks.options and currentCallbacks.options() or {}
@@ -1088,7 +1099,7 @@ function Runtime.New(environment)
         for quality=1,5 do
           local q=quality
           local name=({"Poor","Common","Uncommon","Rare","Epic"})[quality]
-          local button=createOptionCheck(name,110+(quality-1)*82,-1960)
+          local button=createOptionCheck(name,110+(quality-1)*82,-1960,78)
           button.optionGroup="excludeUnboundEquipment"; button.optionQuality=({"poor","common","uncommon","rare","epic"})[quality]
           button:SetScript("OnClick",function()
             local currentCallbacks=optionsCallbacks or callbacks
@@ -1172,7 +1183,7 @@ function Runtime.New(environment)
           for quality=1,5 do
             local q=quality
             local qualityName=({"Poor","Common","Uncommon","Rare","Epic"})[quality]
-            local button=createOptionCheck(qualityName,110+(quality-1)*82,qualityY)
+            local button=createOptionCheck(qualityName,110+(quality-1)*82,qualityY,78)
             button.optionGroup=row.key; button.optionQuality=qualityKeys[q]
             button:SetScript("OnClick",function()
               local currentCallbacks=optionsCallbacks or callbacks
@@ -1243,7 +1254,7 @@ function Runtime.New(environment)
             for index,itemType in ipairs(types) do
               local position=index-1
               local column=position%columns; local row=math.floor(position/columns)
-              local button=createOptionCheck(itemType.name,24+column*step,y-row*24)
+              local button=createOptionCheck(itemType.name,24+column*step,y-row*24,step-4)
               button:SetScript("OnClick",function()
                 local currentCallbacks=optionsCallbacks or callbacks
                 local current=currentCallbacks.options and currentCallbacks.options() or {}
@@ -1267,7 +1278,7 @@ function Runtime.New(environment)
           field.qualityButtons={}
           local qualityKeys={"poor","common","uncommon","rare","epic"}
           for index,name in ipairs(qualityKeys) do
-            local button=createOptionCheck(name,110+(index-1)*82,top-290)
+            local button=createOptionCheck(name,110+(index-1)*82,top-290,78)
             button.optionGroup=key; button.optionQuality=name
             button:SetScript("OnClick",function()
               local currentCallbacks=optionsCallbacks or callbacks
@@ -1331,8 +1342,7 @@ function Runtime.New(environment)
           entry.key=="includeBelowPrice" and "Include below price" or
           entry.key=="excludeAboveItemLevel" and "Exclude above item level" or "Exclude above price"
         entry.label:SetChecked(type(option)=="table" and option.enabled==true)
-        entry.label:SetText(thresholdLabel)
-        entry.label.text=thresholdLabel
+        setOptionCheckText(entry.label,thresholdLabel)
         if type(option)=="table" and option.enabled then entry.apply:Enable()
         else entry.apply:Disable() end
         for _,input in ipairs(entry.edits) do
@@ -1357,8 +1367,7 @@ function Runtime.New(environment)
           local name=({"poor","common","uncommon","rare","epic"})[quality]
           local enabled=type(option)~="table" or type(option.qualities)~="table" or option.qualities[name]~=false
           button:SetChecked(enabled)
-          button:SetText(({"Poor","Com","Unc","Rare","Epic"})[quality])
-          button.text=({"Poor","Com","Unc","Rare","Epic"})[quality]
+          setOptionCheckText(button,({"Poor","Com","Unc","Rare","Epic"})[quality])
           if scope=="profile" then button:Show() else button:Hide() end
           if type(option)=="table" and option.enabled then button:Enable() else button:Disable() end
         end
@@ -1381,8 +1390,7 @@ function Runtime.New(environment)
         local name=({"poor","common","uncommon","rare","epic"})[quality]
         local enabled=type(unbound)~="table" or type(unbound.qualities)~="table" or unbound.qualities[name]~=false
         button:SetChecked(enabled)
-        button:SetText(({"Poor","Com","Unc","Rare","Epic"})[quality])
-        button.text=({"Poor","Com","Unc","Rare","Epic"})[quality]
+        setOptionCheckText(button,({"Poor","Com","Unc","Rare","Epic"})[quality])
         if scope=="profile" then button:Show() else button:Hide() end
         if type(unbound)=="table" and unbound.enabled then button:Enable() else button:Disable() end
       end
@@ -1390,8 +1398,7 @@ function Runtime.New(environment)
         local option=opts[entry.key] or {enabled=false,scope="BOTH",qualities={},armor={},weapons={}}
         local label=entry.key=="includeByEquipmentType" and "Include by equipment type" or "Exclude by equipment type"
           entry.toggle:SetChecked(option.enabled==true)
-          entry.toggle:SetText(label)
-          entry.toggle.text=label
+          setOptionCheckText(entry.toggle,label)
         if scope=="profile" then entry.toggle:Show() else entry.toggle:Hide() end
         for _,control in ipairs(entry.scopeChoices) do
           control:SetChecked(control.scopeValue==(option.scope or "BOTH"))
@@ -1403,16 +1410,14 @@ function Runtime.New(environment)
           local selected=control.property=="armor" and option.armor or option.weapons
           local enabled=type(selected)=="table" and selected[control.item.id]==true
           control.button:SetChecked(enabled)
-          control.button:SetText(control.item.name)
-          control.button.text=control.item.name
+          setOptionCheckText(control.button,control.item.name)
           if scope=="profile" then control.button:Show() else control.button:Hide() end
           if option.enabled then control.button:Enable() else control.button:Disable() end
         end
         for _,control in ipairs(entry.qualityButtons) do
           local enabled=type(option.qualities)~="table" or option.qualities[control.name]~=false
           control.button:SetChecked(enabled)
-          control.button:SetText(control.name)
-          control.button.text=control.name
+          setOptionCheckText(control.button,control.name)
           if scope=="profile" then control.button:Show() else control.button:Hide() end
           if option.enabled then control.button:Enable() else control.button:Disable() end
         end
@@ -1423,8 +1428,7 @@ function Runtime.New(environment)
         local enabled=qualities[labels[quality+1]:lower()]
         if enabled==nil then enabled=opts.quality and opts.quality[quality] end
         optionsQualityButtons[quality+1]:SetChecked(enabled==true)
-        optionsQualityButtons[quality+1]:SetText(labels[quality+1])
-        optionsQualityButtons[quality+1].text=labels[quality+1]
+        setOptionCheckText(optionsQualityButtons[quality+1],labels[quality+1])
       end
       local global=callbacks.globalOptions and callbacks.globalOptions() or {}
       for _,entry in ipairs(optionsFields) do
@@ -1433,8 +1437,7 @@ function Runtime.New(environment)
         if entry.global then entry.button:SetText(entry.label..": "..(enabled and "ON" or "OFF"))
         else
           entry.button:SetChecked(enabled==true)
-          entry.button:SetText(entry.label)
-          entry.button.text=entry.label
+          setOptionCheckText(entry.button,entry.label)
         end
       end
       local activeProfile=callbacks.activeProfileName and callbacks.activeProfileName() or nil
@@ -1444,7 +1447,7 @@ function Runtime.New(environment)
       if profileFrame then profileFrame:Hide() end
       optionsFrame:Show()
     end)
-    if not ok then self:Print("Options window unavailable; use /djw rules list and /djw rules quality|minlevel|maxlevel|maxprice.") end
+    if not ok then self:Print("Options window error: "..tostring(optionsError).."; use /djw rules list and /djw rules quality|minlevel|maxlevel|maxprice.") end
   end
 
   -- A diagnostic copy panel, not the configuration UI planned for Phase 6.
