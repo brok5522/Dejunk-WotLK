@@ -346,7 +346,7 @@ assert(profilesPage.backdrop==nil,"Profiles page retained its own dialog backdro
 assert(profilesPage.shown,"Profiles page was not visible when selected")
 assert(profilesPage.pageTitle.text=="Dejunk | Profiles (Default)","Profiles panel title did not show the active profile")
 assert(lastControl("Button","New Profile").template==nil,"New Profile still uses a red Blizzard template")
-assert(lastControl("Button","Rename").template==nil and lastControl("Button","Copy").template==nil and
+assert(lastControl("Button","Rename").template==nil and lastControl("Button","Duplicate").template==nil and
   lastControl("Button","Reset").template==nil and lastControl("Button","Delete").template==nil,
   "profile card actions still use red Blizzard templates")
 local protectedRename,protectedDelete
@@ -361,16 +361,6 @@ for _,frame in ipairs(uiFrames) do if frame.kind=="Button" and frame.parent and 
 assert(testProfileCard,"profile selection card was not created")
 testProfileCard:Click()
 assert(selectedProfile=="profile-1","profile card did not activate the profile represented by that card")
-ui.StaticPopupDialogs={}
-ui.StaticPopup_Show=function(key,...)
-  local args={...}
-  local dialog={data=args[3],editBox=object("EditBox",nil,nil),button1=object("Button",nil,nil),button2=object("Button",nil,nil)}
-  ui.lastStaticPopup=dialog
-  local definition=ui.StaticPopupDialogs[key]
-  assert(definition,"profile action did not register its dialog")
-  if definition.OnShow then definition.OnShow(dialog) end
-  return dialog
-end
 local function profileAction(action,id)
   for index=#uiFrames,1,-1 do
     local frame=uiFrames[index]
@@ -380,29 +370,29 @@ local function profileAction(action,id)
 end
 local createProfileButton=lastControl("Button","New Profile")
 createProfileButton:Click()
-assert(ui.lastStaticPopup.button1.normalTexture==nil and ui.lastStaticPopup.button1.backdrop and
-  ui.lastStaticPopup.button2.normalTexture==nil and ui.lastStaticPopup.button2.backdrop,
-  "profile text prompt kept the red Blizzard popup buttons")
-ui.lastStaticPopup.editBox:SetText("Fresh")
-ui.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_NAME.OnAccept(ui.lastStaticPopup)
+local profilePopup=profilesPage.profilePopup
+assert(profilePopup and profilePopup.shown and profilePopup.backdrop and profilePopup.editBox.shown,
+  "profile name dialog was not rendered as an addon-styled prompt")
+profilePopup.editBox:SetText("Fresh")
+profilePopup.acceptButton:Click()
 assert(profileOperations.create and profileOperations.create.name=="Fresh","New Profile dialog did not create the entered name")
 profileAction("duplicate","profile-1"):Click()
-ui.lastStaticPopup.editBox:SetText("Test Copy")
-ui.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_NAME.OnAccept(ui.lastStaticPopup)
+profilePopup.editBox:SetText("Test Copy")
+profilePopup.acceptButton:Click()
 assert(profileOperations.duplicate and profileOperations.duplicate.id=="profile-1" and profileOperations.duplicate.name=="Test Copy",
   "profile card duplicate did not copy the selected profile")
 profileAction("rename","profile-1"):Click()
-ui.lastStaticPopup.editBox:SetText("Renamed")
-ui.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_NAME.OnAccept(ui.lastStaticPopup)
+profilePopup.editBox:SetText("Renamed")
+profilePopup.acceptButton:Click()
 assert(profileOperations.rename and profileOperations.rename.id=="profile-1" and profileOperations.rename.name=="Renamed",
   "profile card rename did not target the selected profile")
 profileAction("reset","profile-1"):Click()
-assert(ui.lastStaticPopup.button1.normalTexture==nil and ui.lastStaticPopup.button1.backdrop,
-  "profile confirmation kept the red Blizzard popup button")
-ui.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_CONFIRM.OnAccept(ui.lastStaticPopup)
+assert(profilePopup.shown and not profilePopup.editBox.shown and profilePopup.acceptButton.text=="Yes",
+  "profile confirmation did not switch the themed popup into confirmation mode")
+profilePopup.acceptButton:Click()
 assert(profileOperations.reset=="profile-1","profile reset did not target the selected profile")
 profileAction("delete","profile-1"):Click()
-ui.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_CONFIRM.OnAccept(ui.lastStaticPopup)
+profilePopup.acceptButton:Click()
 assert(profileOperations.delete=="profile-1","profile delete did not target the selected profile")
 control("Button","Lists"):Click()
 assert(profilesPage.shown==false and namedFrame("DejunkWotLKLists").shown,"Lists navigation left the Profiles page visible")

@@ -444,80 +444,61 @@ function Runtime.New(environment)
         profileScroll=api.CreateFrame("ScrollFrame","DejunkWotLKProfileScrollFrame",profileFrame,"UIPanelScrollFrameTemplate")
         profileScroll:SetPoint("TOPLEFT",22,-72); profileScroll:SetPoint("BOTTOMRIGHT",-18,75)
         profileList=api.CreateFrame("Frame",nil,profileScroll); profileList:SetWidth(500); profileList:SetHeight(175); profileScroll:SetScrollChild(profileList); profileButtons={}
-        local function stylePopupButtons(dialog)
-          local function stylePopupButton(button)
-            if not button then return end
-            if button.SetBackdrop then
-              button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
-              button:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],0.95)
-              button:SetBackdropBorderColor(0,0,0,1)
-            end
-            if button.SetNormalTexture then button:SetNormalTexture(nil) end
-            if button.SetPushedTexture then button:SetPushedTexture(nil) end
-            if button.SetHighlightTexture then button:SetHighlightTexture(nil) end
-            local label=button.GetFontString and button:GetFontString() or (button.GetTextRegion and button:GetTextRegion())
-            setTextColor(label,"gold")
-          end
-          stylePopupButton(dialog.button1)
-          stylePopupButton(dialog.button2)
+        local profilePopup=api.CreateFrame("Frame","DejunkWotLKProfilePopup",api.UIParent)
+        profilePopup:SetWidth(360); profilePopup:SetHeight(142); profilePopup:SetPoint("CENTER",api.UIParent,"CENTER",0,0)
+        profilePopup:SetFrameStrata("DIALOG"); profilePopup:EnableMouse(true)
+        profilePopup:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+        profilePopup:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],0.98)
+        profilePopup:SetBackdropBorderColor(1,1,1,0.3); profilePopup:Hide()
+        local popupMessage=profilePopup:CreateFontString(nil,"OVERLAY","GameFontNormal")
+        popupMessage:SetPoint("TOPLEFT",14,-14); popupMessage:SetWidth(332); popupMessage:SetJustifyH("CENTER"); setTextColor(popupMessage,"white")
+        local popupEdit=api.CreateFrame("EditBox",nil,profilePopup,"InputBoxTemplate")
+        popupEdit:SetWidth(220); popupEdit:SetHeight(26); popupEdit:SetPoint("TOP",profilePopup,"TOP",0,-50)
+        popupEdit:SetAutoFocus(false); popupEdit:SetMaxLetters(32)
+        local popupAccept=styleThemedButton(api.CreateFrame("Button",nil,profilePopup),"Accept")
+        popupAccept:SetWidth(112); popupAccept:SetHeight(26); popupAccept:SetPoint("BOTTOMLEFT",16,14)
+        local popupCancel=styleThemedButton(api.CreateFrame("Button",nil,profilePopup),"Cancel")
+        popupCancel:SetWidth(112); popupCancel:SetHeight(26); popupCancel:SetPoint("BOTTOMRIGHT",-16,14)
+        local popupMode,popupAction,popupProfile
+        local function executeProfileName()
+          local current=runtime.configCallbacks or callbacks
+          local name=popupEdit:GetText() or ""
+          local id,reason
+          if popupAction=="create" then id,reason=current.createProfile and current.createProfile(name)
+          elseif popupAction=="duplicate" then
+            id,reason=current.duplicateProfileFrom and current.duplicateProfileFrom(popupProfile.id,name)
+            if not id and current.duplicateProfile then id,reason=current.duplicateProfile(name) end
+          else id,reason=current.renameProfile and current.renameProfile(popupProfile.id,name) end
+          local verb=popupAction=="create" and "Create" or popupAction=="duplicate" and "Duplicate" or "Rename"
+          self:Print(id and (verb=="Create" and "Profile created." or verb=="Duplicate" and "Profile duplicated." or "Profile renamed.") or
+            (verb.." failed: "..tostring(reason or "UNAVAILABLE")))
+          profilePopup:Hide(); self:ShowProfiles(current)
         end
+        local function executeProfileConfirm()
+          local current=runtime.configCallbacks or callbacks
+          local changed,reason
+          if popupAction=="reset" then changed,reason=current.resetProfile and current.resetProfile(popupProfile.id)
+          else changed,reason=current.deleteProfile and current.deleteProfile(popupProfile.id) end
+          self:Print(changed and (popupAction=="reset" and "Profile reset." or "Profile deleted.") or
+            ((popupAction=="reset" and "Reset" or "Delete").." failed: "..tostring(reason or "DEFAULT_PROFILE_PROTECTED")))
+          profilePopup:Hide(); self:ShowProfiles(current)
+        end
+        popupAccept:SetScript("OnClick",function() if popupMode=="name" then executeProfileName() else executeProfileConfirm() end end)
+        popupCancel:SetScript("OnClick",function() profilePopup:Hide() end)
+        profileFrame.profilePopup=profilePopup
+        profilePopup.editBox=popupEdit; profilePopup.acceptButton=popupAccept; profilePopup.cancelButton=popupCancel
         local function showNamePrompt(action,profile)
-          if type(api.StaticPopup_Show)~="function" then
-            self:Print("Profile name dialog unavailable; use /djw profile "..action.." <profileID> <name>.")
-            return
-          end
-          api.StaticPopupDialogs=api.StaticPopupDialogs or {}
-          api.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_NAME={
-            text="Enter a name for %s:",button1=api.ACCEPT or "Accept",button2=api.CANCEL or "Cancel",
-            hasEditBox=1,maxLetters=32,timeout=0,whileDead=1,hideOnEscape=1,
-            OnShow=function(dialog)
-              if dialog.editBox then
-                dialog.editBox:SetText(profile and profile.name or "")
-                dialog.editBox:SetFocus()
-                if dialog.editBox.HighlightText then dialog.editBox:HighlightText() end
-              end
-              stylePopupButtons(dialog)
-            end,
-            OnAccept=function(dialog)
-              local current=runtime.configCallbacks or callbacks
-              local name=dialog.editBox and dialog.editBox:GetText() or ""
-              local id,reason
-              if action=="create" then id,reason=current.createProfile and current.createProfile(name)
-              elseif action=="duplicate" then
-                id,reason=current.duplicateProfileFrom and current.duplicateProfileFrom(profile.id,name)
-                if not id and current.duplicateProfile then id,reason=current.duplicateProfile(name) end
-              else id,reason=current.renameProfile and current.renameProfile(profile.id,name) end
-              self:Print(id and (action=="create" and "Profile created." or action=="duplicate" and "Profile duplicated." or "Profile renamed.") or
-                ((action=="create" and "Create" or action=="duplicate" and "Duplicate" or "Rename").." failed: "..tostring(reason or "UNAVAILABLE")))
-              self:ShowProfiles(current)
-            end
-          }
-          api.StaticPopup_Show("DEJUNKWOTLK_PROFILE_NAME",profile and profile.name or "new profile",nil,{action=action,profile=profile})
+          popupMode="name"; popupAction=action; popupProfile=profile
+          popupMessage:SetText(action=="create" and "Enter a name for the new profile:" or (action=="duplicate" and "Copy profile: " or "Rename profile: ")..(profile and profile.name or ""))
+          popupEdit:SetText(profile and profile.name or ""); popupEdit:Show(); popupEdit:SetFocus()
+          if popupEdit.HighlightText then popupEdit:HighlightText() end
+          popupAccept:SetText("Accept"); popupCancel:SetText("Cancel"); profilePopup:Show()
         end
         profileFrame.showNamePrompt=showNamePrompt
         local function confirmAction(action,profile)
-          if type(api.StaticPopup_Show)~="function" then
-            self:Print("Confirmation dialog unavailable; use /djw profile "..action.." <profileID>.")
-            return
-          end
-          api.StaticPopupDialogs=api.StaticPopupDialogs or {}
-          api.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_CONFIRM={
-            text="Are you sure you want to %s profile %s?",
-            button1=api.YES or "Yes",button2=api.NO or "No",timeout=0,whileDead=1,hideOnEscape=1,
-            OnShow=function(dialog) stylePopupButtons(dialog) end,
-            OnAccept=function(dialog)
-              local data=dialog.data or {}
-              local acceptedAction=data.action
-              local current=runtime.configCallbacks or callbacks
-              local changed,reason
-              if acceptedAction=="reset" then changed,reason=current.resetProfile and current.resetProfile(data.profile.id)
-              else changed,reason=current.deleteProfile and current.deleteProfile(data.profile.id) end
-              self:Print(changed and (acceptedAction=="reset" and "Profile reset." or "Profile deleted.") or
-                ((acceptedAction=="reset" and "Reset" or "Delete").." failed: "..tostring(reason or "DEFAULT_PROFILE_PROTECTED")))
-              self:ShowProfiles(current)
-            end
-          }
-          api.StaticPopup_Show("DEJUNKWOTLK_PROFILE_CONFIRM",action,profile.name,{action=action,profile=profile})
+          popupMode="confirm"; popupAction=action; popupProfile=profile
+          popupMessage:SetText("Are you sure you want to "..action.." profile "..profile.name.."?")
+          popupEdit:Hide(); popupAccept:SetText("Yes"); popupCancel:SetText("No"); profilePopup:Show()
         end
         profileFrame.confirmProfileAction=confirmAction
         local create=styleThemedButton(api.CreateFrame("Button",nil,profileFrame),"New Profile")
@@ -567,7 +548,7 @@ function Runtime.New(environment)
           self:Print(switched and ("Active profile: "..profileEntry.name) or ("Profile switch failed: "..tostring(reason)))
           self:ShowProfiles(callbacks)
         end)
-        local actions={{"Rename","rename",58},{"Copy","duplicate",48},{"Reset","reset",48},{"Delete","delete",48}}
+        local actions={{"Rename","rename",66},{"Duplicate","duplicate",74},{"Reset","reset",58},{"Delete","delete",62}}
         local right=-5
         for _,entry in ipairs(actions) do
           local action,label,width=entry[2],entry[1],entry[3]
