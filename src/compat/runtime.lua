@@ -916,6 +916,10 @@ function Runtime.New(environment)
       if enabled then check.labelHit:Enable() else check.labelHit:Disable() end
     end
   end
+  local function setEditBoxEnabled(edit,enabled)
+    if edit.SetEnabled then edit:SetEnabled(enabled)
+    elseif enabled then edit:Enable() else edit:Disable() end
+  end
   function runtime:ShowOptions(callbacks,scope)
     callbacks=callbacks or {}
     runtime.configCallbacks=callbacks; optionsCallbacks=callbacks
@@ -1394,9 +1398,7 @@ function Runtime.New(environment)
         setOptionCheckText(entry.label,thresholdLabel)
         if type(option)=="table" and option.enabled then entry.apply:Enable()
         else entry.apply:Disable() end
-        for _,input in ipairs(entry.edits) do
-          if type(option)=="table" and option.enabled then input:Enable() else input:Disable() end
-        end
+        for _,input in ipairs(entry.edits) do setEditBoxEnabled(input,type(option)=="table" and option.enabled==true) end
         local storedValue=type(option)=="table" and tonumber(option.value) or 0
         if entry.isPrice then
           local gold=math.floor(storedValue/10000)

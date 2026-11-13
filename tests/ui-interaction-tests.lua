@@ -53,8 +53,9 @@ local function object(kind,name,parent,template)
   function frame:GetChecked() return self.checked end
   function frame:GetText() return self.text end
   function frame:GetWidth() return self.width end
-  function frame:Enable() self.enabled=true end
-  function frame:Disable() self.enabled=false end
+  function frame:Enable() if self.kind=="EditBox" then error("legacy EditBox has no Enable method") end; self.enabled=true end
+  function frame:Disable() if self.kind=="EditBox" then error("legacy EditBox has no Disable method") end; self.enabled=false end
+  function frame:SetEnabled(value) if self.kind~="EditBox" then error("SetEnabled is only modeled for legacy EditBox") end; self.enabled=value end
   function frame:Show() self.shown=true end
   function frame:Hide() self.shown=false end
   function frame:ClearFocus() self.focused=false end
