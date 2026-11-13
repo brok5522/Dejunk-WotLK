@@ -73,6 +73,7 @@ local function object(kind,name,parent,template)
     child.layer=layer; self.children[#self.children+1]=child; return child
   end
   function frame:SetTexture(value) self.texture=value end
+  function frame:SetVertexColor(...) self.vertexColor={...} end
   function frame:Click(button)
     assert(self.enabled~=false,"clicked disabled control")
     assert(self.scripts.OnClick,"control has no click handler")
@@ -342,6 +343,8 @@ for _,frame in ipairs(uiFrames) do
 end
 assert(table.concat(sectionOrder,",")=="General,Include,Exclude","Profile settings are not grouped in upstream section order")
 assert(optionsPage.pageTitle.text=="Dejunk | Profile Options (Test)","profile options heading did not identify the active profile")
+assert(optionsPage.pageTitle.textColor and optionsPage.pageTitle.textColor[1]>0.3,
+  "upstream blue title color was not applied")
 assert(optionsPage.pageDescription.text=="These options only apply to characters using the active profile.","upstream profile-options panel description is missing")
 local cards={}
 for _,frame in ipairs(uiFrames) do
@@ -360,8 +363,8 @@ for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.qualityRow then
     assert(frame.qualityRowY~=nil and frame.point[3]==frame.qualityRowY,
       "responsive quality row lost its saved vertical position")
-    assert(frame.point[2]+frame.width+2+frame.labelHit.width<=optionsPage.contentFrame.width,
-      "quality option and clickable label extend beyond the scroll content width")
+    assert(frame.point[2]+frame.width+2+frame.labelHit.width<=optionsPage.contentFrame.width-10,
+      "quality option and clickable label extend beyond the option card width")
   end
 end
 assert(profilesPage.shown==false,"Profiles page remained visible while Options was selected")
@@ -401,12 +404,16 @@ assert(optionState.includeBelowItemLevel.scope=="SELL","threshold action scope d
 local minimumPoor
 for _,frame in ipairs(uiFrames) do if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionGroup=="includeBelowItemLevel" and frame.optionQuality=="poor" then minimumPoor=frame end end
 assert(minimumPoor,"threshold quality control was not created")
-assert(minimumPoor.width==24 and minimumPoor.labelHit.width>=20 and minimumPoor.labelHit.width<=60,
-  "threshold quality choice is not a compact checkbox with a responsive clickable text label")
+assert(minimumPoor.width==12 and minimumPoor.labelHit.width>=20 and minimumPoor.labelHit.width<=78,
+  "threshold quality chip does not match the compact Waffle checkbox dimensions")
 assert(minimumPoor.labelRegion and minimumPoor.labelRegion.text=="Poor","legacy checkbox label is not rendered through its own FontString")
+assert(minimumPoor.optionVisual and minimumPoor.optionVisual.box.borderColor[1]>0.3 and minimumPoor.optionVisual.fill.vertexColor[1]>0.3,
+  "Waffle blue checkbox treatment was not rendered")
+assert(minimumPoor.optionVisual.box.backdrop and minimumPoor.optionVisual.box.backdrop.edgeSize==1,
+  "Waffle square checkbox border was not rendered")
 local minScopeWidth
 for _,frame in ipairs(uiFrames) do if frame==minimumScope then minScopeWidth=frame.width end end
-assert(minScopeWidth==24 and minimumScope.labelHit.width==66,"threshold scope choice is not a compact checkbox with a clickable text label")
+assert(minScopeWidth==12 and minimumScope.labelHit.width==80,"threshold scope chip does not match the compact Waffle checkbox dimensions")
 local minQualityRow={}
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionGroup=="includeBelowItemLevel" and frame.optionQuality then minQualityRow[#minQualityRow+1]=frame end

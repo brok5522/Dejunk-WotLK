@@ -52,7 +52,8 @@ function Config.ListProfiles(store)
   local active=store:GetActiveProfileId()
   local profiles={}
   for id,value in pairs(state.profiles or {}) do
-    profiles[#profiles+1]={id=id,name=value.name or id,active=id==active}
+    profiles[#profiles+1]={id=id,name=value.name or id,active=id==active,autoSell=value.autoSell==true,
+      numInclusions=count(value.inclusions),numExclusions=count(value.exclusions)}
   end
   table.sort(profiles,function(a,b) return a.id<b.id end)
   return profiles
@@ -66,6 +67,26 @@ end
 function Config.DuplicateProfile(store,name)
   if not store then return nil,"STORE_UNAVAILABLE" end
   return store:CreateProfile(name,store:GetActiveProfileId())
+end
+
+function Config.DuplicateProfileFrom(store,id,name)
+  if not store then return nil,"STORE_UNAVAILABLE" end
+  return store:CreateProfile(name,id)
+end
+
+function Config.RenameProfile(store,id,name)
+  if not store then return false,"STORE_UNAVAILABLE" end
+  return store:RenameProfile(id,name)
+end
+
+function Config.ResetProfile(store,id)
+  if not store then return false,"STORE_UNAVAILABLE" end
+  return store:ResetProfile(id)
+end
+
+function Config.DeleteProfile(store,id)
+  if not store then return false,"STORE_UNAVAILABLE" end
+  return store:DeleteProfile(id)
 end
 
 function Config.RenameActiveProfile(store,name)

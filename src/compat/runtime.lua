@@ -6,11 +6,16 @@ Addon.Runtime = Runtime
 function Runtime.New(environment)
   local api = environment or _G
   local runtime = { registration = {} }
+  local theme={blue={79/255,175/255,227/255},grey={157/255,157/255,157/255},white={1,1,1},dark={30/255,30/255,30/255},gold={1,209/255,0},black={0,0,0}}
+  local function setTextColor(region,color)
+    if region and region.SetTextColor and theme[color] then region:SetTextColor(theme[color][1],theme[color][2],theme[color][3],1) end
+  end
   local frame, update, scanTooltip, reportFrame, reportEdit, reportTitle, configFrame, configSummary, poorButton
   local configWaffleRoot
   local configContentComponent,configOverviewComponent,mainContentFrame
   local optionsPageComponent,profilePageComponent,listPageComponent
   local configScreens,selectedConfigScreen={},nil
+  local configNavButtons={}
   local optionsOptionCards,optionsCardDividers,optionsQualityRows,optionsResponsiveDescriptions
   local optionsGlobalControls,optionsGlobalChoices
   local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
@@ -164,15 +169,59 @@ function Runtime.New(environment)
         if not configWaffleRoot then
           local function button(parent,label,onClick)
             return {width=168,height=32,frameFactory=function(owner)
-              local control=api.CreateFrame("Button",nil,owner,"UIPanelButtonTemplate")
-              control:SetText(label); control:SetScript("OnClick",onClick)
+              local control=api.CreateFrame("Button",nil,owner)
+              control:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+              local region=control:CreateFontString(nil,"ARTWORK","GameFontNormal")
+              region:SetPoint("LEFT",8,0); region:SetPoint("RIGHT",-8,0); region:SetJustifyH("CENTER")
+              region:SetText(label); setTextColor(region,"white")
+              control.text=label; control.label=region
+              local function refresh(hovered)
+                local gold=theme.gold
+                control:SetBackdropColor(hovered and gold[1] or 30/255,hovered and gold[2] or 30/255,hovered and gold[3] or 30/255,hovered and 0.25 or 0.75)
+                control:SetBackdropBorderColor(hovered and gold[1] or 0,hovered and gold[2] or 0,hovered and gold[3] or 0,1)
+                setTextColor(region,hovered and "white" or "gold")
+              end
+              control:SetScript("OnEnter",function() refresh(true) end)
+              control:SetScript("OnLeave",function() refresh(false) end)
+              control:SetScript("OnClick",onClick); refresh(false)
               return control
             end}
           end
-          local function text(parent,label,height)
+          local function navButton(key,label,onClick)
+            return {width=168,height=32,frameFactory=function(owner)
+              local control=api.CreateFrame("Button",nil,owner)
+              control:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"})
+              control:SetBackdropBorderColor(0,0,0,0)
+              local region=control:CreateFontString(nil,"ARTWORK","GameFontNormal")
+              region:SetPoint("LEFT",8,0); region:SetPoint("RIGHT",-8,0); region:SetJustifyH("LEFT")
+              region:SetText(label)
+              control.label=region; control.text=label
+              local selected=false
+              local function refresh(hovered)
+                if selected then
+                  control:SetBackdropColor(theme.blue[1],theme.blue[2],theme.blue[3],0.1)
+                  setTextColor(region,"blue")
+                elseif hovered then
+                  control:SetBackdropColor(1,1,1,0.1)
+                  setTextColor(region,"white")
+                else
+                  control:SetBackdropColor(0,0,0,0)
+                  setTextColor(region,"grey")
+                end
+              end
+              control.SetSelected=function(self,value) selected=value==true; self.selected=selected; refresh(false) end
+              control:SetScript("OnEnter",function() refresh(true) end)
+              control:SetScript("OnLeave",function() refresh(false) end)
+              control:SetScript("OnClick",onClick)
+              configNavButtons[key]=control
+              refresh(false)
+              return control
+            end}
+          end
+          local function text(parent,label,height,color)
             return {height=height or 24,frameFactory=function(owner)
               local region=owner:CreateFontString(nil,"ARTWORK","GameFontNormal")
-              region:SetJustifyH("LEFT"); region:SetText(label)
+              region:SetJustifyH("LEFT"); region:SetText(label); if color then setTextColor(region,color) end
               return region
             end}
           end
@@ -186,41 +235,43 @@ function Runtime.New(environment)
               panel:SetScript("OnDragStart",function(self) self:StartMoving() end)
               panel:SetScript("OnDragStop",function(self) self:StopMovingOrSizing() end)
               panel:SetPoint("CENTER"); panel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1,insets={left=1,right=1,top=1,bottom=1}})
-              panel:SetBackdropColor(0.08,0.08,0.08,0.96); panel:SetBackdropBorderColor(0.45,0.45,0.45,1)
+              panel:SetBackdropColor(18/255,18/255,18/255,0.95); panel:SetBackdropBorderColor(0,0,0,1)
               panel:Hide(); return panel
             end
           })
-          local title=configWaffleRoot:AddRow({height=38,padding=10,justify="SPACE_BETWEEN",frameFactory=function(parent)
-            local bar=api.CreateFrame("Frame",nil,parent); bar:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); bar:SetBackdropColor(0.16,0.16,0.16,1); return bar
+          local title=configWaffleRoot:AddRow({height=32,padding=8,justify="SPACE_BETWEEN",frameFactory=function(parent)
+            local bar=api.CreateFrame("Frame",nil,parent); bar:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); bar:SetBackdropColor(30/255,30/255,30/255,1); return bar
           end})
-          title:AddChild(text(nil,"Dejunk | Configuration",30))
+          title:AddChild(text(nil,"Dejunk",30,"blue"))
           title:AddChild({width=28,height=28,frameFactory=function(parent)
             local close=api.CreateFrame("Button",nil,parent,"UIPanelCloseButton")
             close:SetScript("OnClick",function() configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout() end)
             return close
           end})
-          local content=configWaffleRoot:AddRow({grow=1,padding=12,gap=12})
-          local nav=content:AddColumn({width=185,gap=6})
-          local main=content:AddColumn({grow=1,padding=10,gap=8,frameFactory=function(parent)
-            local panel=api.CreateFrame("Frame",nil,parent); panel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1,insets={left=1,right=1,top=1,bottom=1}}); panel:SetBackdropColor(0,0,0,0.45); panel:SetBackdropBorderColor(0.32,0.32,0.32,1); return panel
+          local content=configWaffleRoot:AddRow({grow=1,padding=8,gap=8})
+          local nav=content:AddColumn({width="25%",padding=4,gap=4,frameFactory=function(parent)
+            return api.CreateFrame("Frame",nil,parent)
+          end})
+          local main=content:AddColumn({grow=1,padding=8,gap=8,frameFactory=function(parent)
+            return api.CreateFrame("Frame",nil,parent)
           end})
           configContentComponent=main
           local overview=main:AddColumn({grow=1,gap=8})
           configOverviewComponent=overview
           configScreens.overview=overview
-          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Lists",function()
+          nav:AttachComponent(Addon.Waffle:Flex(navButton("lists","Lists",function()
             self:ShowLists(runtime.configCallbacks)
           end)))
-          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Profiles",function()
+          nav:AttachComponent(Addon.Waffle:Flex(navButton("profiles","Profiles",function()
             self:ShowProfiles(runtime.configCallbacks)
           end)))
-          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Global Options",function()
+          nav:AttachComponent(Addon.Waffle:Flex(navButton("globalOptions","Global Options",function()
             self:ShowOptions(runtime.configCallbacks,"global")
           end)))
-          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Profile Options",function()
+          nav:AttachComponent(Addon.Waffle:Flex(navButton("profileOptions","Profile Options",function()
             self:ShowOptions(runtime.configCallbacks,"profile")
           end)))
-          overview:AttachComponent(Addon.Waffle:Flex(text(nil,"Dejunk | main window",28)))
+          overview:AttachComponent(Addon.Waffle:Flex(text(nil,"Dejunk",28,"blue")))
           overview:AttachComponent(Addon.Waffle:Flex(text(nil,"Settings and inventory previews are read-only. No item action will be taken.",46)))
           overview:AttachComponent(Addon.Waffle:Flex({height=26,frameFactory=function(parent)
             configSummary=parent:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall"); configSummary:SetJustifyH("LEFT"); configSummary:SetWordWrap(true); return configSummary
@@ -306,6 +357,9 @@ function Runtime.New(environment)
     for screenKey,component in pairs(configScreens) do
       component:SetVisibility(screenKey==key and "VISIBLE" or "GONE")
     end
+    local selectedNav=key
+    if key=="options" then selectedNav=optionsFrame and optionsFrame.scope=="global" and "globalOptions" or "profileOptions" end
+    for navKey,button in pairs(configNavButtons) do button:SetSelected(navKey==selectedNav) end
     if configWaffleRoot then configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout() end
   end
   local function getMainConfigContent()
@@ -346,17 +400,16 @@ function Runtime.New(environment)
         profileFrame:EnableMouse(true)
         if not mainContentFrame then profileFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}}) end
         local title=profileFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
-        title:SetPoint("TOPLEFT",18,-18); title:SetText("Dejunk-WotLK | Profiles")
+        title:SetPoint("TOPLEFT",18,-18); title:SetText("Dejunk | Profiles"); setTextColor(title,"blue")
         if not mainContentFrame then
           local close=api.CreateFrame("Button",nil,profileFrame,"UIPanelCloseButton")
           close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() profileFrame:Hide() end)
         end
         profileSummary=profileFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-        profileSummary:SetPoint("TOPLEFT",22,-50); profileSummary:SetWidth(360); profileSummary:SetJustifyH("LEFT")
-        -- The 3.3.5 scroll template builds scrollbar globals from its frame name.
+        profileSummary:SetPoint("TOPLEFT",22,-50); profileSummary:SetWidth(360); profileSummary:SetJustifyH("LEFT"); setTextColor(profileSummary,"grey")
         profileScroll=api.CreateFrame("ScrollFrame","DejunkWotLKProfileScrollFrame",profileFrame,"UIPanelScrollFrameTemplate")
-        profileScroll:SetPoint("TOPLEFT",22,-72); profileScroll:SetPoint("BOTTOMRIGHT",-40,95)
-        profileList=api.CreateFrame("Frame",nil,profileScroll); profileList:SetWidth(335); profileList:SetHeight(175); profileScroll:SetScrollChild(profileList); profileButtons={}
+        profileScroll:SetPoint("TOPLEFT",22,-72); profileScroll:SetPoint("BOTTOMRIGHT",-18,75)
+        profileList=api.CreateFrame("Frame",nil,profileScroll); profileList:SetWidth(500); profileList:SetHeight(175); profileScroll:SetScrollChild(profileList); profileButtons={}
         profileNameBox=api.CreateFrame("EditBox",nil,profileFrame,"InputBoxTemplate")
         profileNameBox:SetWidth(190); profileNameBox:SetHeight(24); profileNameBox:SetPoint("BOTTOMLEFT",profileFrame,"BOTTOMLEFT",24,52)
         profileNameBox:SetAutoFocus(false); profileNameBox:SetMaxLetters(32); profileNameBox:SetScript("OnEscapePressed",function() profileNameBox:ClearFocus() end)
@@ -416,13 +469,34 @@ function Runtime.New(environment)
         back:SetScript("OnClick",function() profileFrame:Hide(); self:ShowConfig(callbacks) end)
       end
       local profiles=callbacks.profiles and callbacks.profiles() or {}
+      table.sort(profiles,function(a,b)
+        if a.id=="default" then return true end
+        if b.id=="default" then return false end
+        return string.lower(a.name or a.id)<string.lower(b.name or b.id)
+      end)
       local row=0
       for _,child in ipairs(profileButtons) do child:Hide() end
       profileButtons={}
       for index,profile in ipairs(profiles) do
-        local button=api.CreateFrame("Button",nil,profileList,"UIPanelButtonTemplate")
-        button:SetWidth(315); button:SetHeight(24); button:SetPoint("TOPLEFT",profileList,"TOPLEFT",0,-row*28)
-        button:SetText((profile.active and "[ACTIVE] " or "")..profile.name.."  ("..profile.id..")")
+        local button=api.CreateFrame("Button",nil,profileList)
+        button:SetWidth(470); button:SetHeight(48); button:SetPoint("TOPLEFT",profileList,"TOPLEFT",0,-row*52)
+        button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); button:SetBackdropBorderColor(0,0,0,0)
+        button:SetBackdropColor(1,1,1,0.03)
+        local accent=button:CreateTexture(nil,"ARTWORK"); accent:SetTexture("Interface\\Buttons\\WHITE8x8")
+        accent:SetWidth(3); accent:SetPoint("TOPLEFT"); accent:SetPoint("BOTTOMLEFT")
+        accent:SetVertexColor(theme.blue[1],theme.blue[2],theme.blue[3],profile.active and 1 or 0)
+        local name=button:CreateFontString(nil,"ARTWORK","GameFontNormal")
+        name:SetPoint("TOPLEFT",12,-7); name:SetPoint("RIGHT",-8,0); name:SetJustifyH("LEFT")
+        name:SetText(profile.name); setTextColor(name,profile.active and "blue" or "white")
+        local summary=button:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
+        summary:SetPoint("BOTTOMLEFT",name,"BOTTOMLEFT",0,-15); summary:SetPoint("RIGHT",-8,0); summary:SetJustifyH("LEFT")
+        local bits={}
+        if profile.autoSell then bits[#bits+1]="Auto Sell" end
+        bits[#bits+1]="Inclusions: "..tostring(profile.numInclusions or 0)
+        bits[#bits+1]="Exclusions: "..tostring(profile.numExclusions or 0)
+        summary:SetText(table.concat(bits,"  ·  ")); setTextColor(summary,"grey")
+        button:SetScript("OnEnter",function(self) self:SetBackdropColor(1,1,1,0.06) end)
+        button:SetScript("OnLeave",function(self) self:SetBackdropColor(1,1,1,0.03) end)
         button:SetScript("OnClick",function()
           local switched,reason=callbacks.switchProfile and callbacks.switchProfile(profile.id)
           self:Print(switched and ("Active profile: "..profile.name) or ("Profile switch failed: "..tostring(reason)))
@@ -431,9 +505,9 @@ function Runtime.New(environment)
         profileButtons[#profileButtons+1]=button
         row=row+1
       end
-      profileList:SetHeight(math.max(175,row*28))
+      profileList:SetHeight(math.max(175,row*52))
       profileSummary:SetText("Select a profile to activate it:")
-      if callbacks.activeProfileName then profileNameBox:SetText(callbacks.activeProfileName()) end
+      if profileNameBox:GetText()=="" and callbacks.activeProfileName then profileNameBox:SetText(callbacks.activeProfileName()) end
       setConfigPageVisible(listFrame,false)
       setConfigPageVisible(optionsFrame,false)
       if profilePageComponent and configWaffleRoot then
@@ -918,23 +992,48 @@ function Runtime.New(environment)
     rulesSummary:SetText(table.concat(lines,"\n"))
   end
 
+  local function refreshOptionCheckVisual(check)
+    local visual=check.optionVisual
+    if not visual then return end
+    local enabled=check.optionEnabled~=false
+    local checked=check:GetChecked()==true
+    visual.box:SetBackdropColor(checked and theme.blue[1] or theme.dark[1],checked and theme.blue[2] or theme.dark[2],checked and theme.blue[3] or theme.dark[3],enabled and (checked and 0.5 or 0.25) or 0.5)
+    visual.box:SetBackdropBorderColor(theme.blue[1],theme.blue[2],theme.blue[3],enabled and (checked and 1 or 0.75) or 0.35)
+    visual.fill:SetVertexColor(theme.blue[1],theme.blue[2],theme.blue[3],enabled and 1 or 0.75)
+    if checked then visual.fill:Show() else visual.fill:Hide() end
+    visual.box:SetAlpha(enabled and 1 or 0.5)
+    if check.labelRegion then setTextColor(check.labelRegion,checked and "white" or "grey") end
+  end
   local function setOptionCheckText(check,labelText)
     check.optionLabel=labelText
     check.text=labelText
     if check.labelRegion then check.labelRegion:SetText(labelText) end
+    refreshOptionCheckVisual(check)
+  end
+  local function setOptionCheckChecked(check,value)
+    check:SetChecked(value)
+    refreshOptionCheckVisual(check)
   end
   local function setOptionCheckHandler(check,handler)
-    check:SetScript("OnClick",handler)
+    check:SetScript("OnClick",function(self,button)
+      handler(self,button)
+      refreshOptionCheckVisual(self)
+    end)
     check.optionClickHandler=handler
     if check.labelHit then
-      check.labelHit:SetScript("OnClick",function() handler(check,"LeftButton") end)
+      check.labelHit:SetScript("OnClick",function()
+        handler(check,"LeftButton")
+        refreshOptionCheckVisual(check)
+      end)
     end
   end
   local function setOptionCheckEnabled(check,enabled)
+    check.optionEnabled=enabled==true
     if enabled then check:Enable() else check:Disable() end
     if check.labelHit then
       if enabled then check.labelHit:Enable() else check.labelHit:Disable() end
     end
+    refreshOptionCheckVisual(check)
   end
   function runtime:ShowOptions(callbacks,scope)
     callbacks=callbacks or {}
@@ -969,15 +1068,15 @@ function Runtime.New(environment)
         if not mainContentFrame then optionsFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
         else
           optionsFrame:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",tile=true,tileSize=8})
-          optionsFrame:SetBackdropColor(0.01,0.01,0.01,1)
+          optionsFrame:SetBackdropColor(0,0,0,1)
         end
         local title=optionsFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
-        title:SetPoint("TOPLEFT",20,-18); optionsFrame.pageTitle=title
+        title:SetPoint("TOPLEFT",20,-18); optionsFrame.pageTitle=title; setTextColor(title,"blue")
         local description=optionsFrame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
         description:SetPoint("TOPLEFT",20,-40)
         local mainWidth=mainContentFrame and mainContentFrame.GetWidth and mainContentFrame:GetWidth() or 0
         description:SetWidth(mainWidth>80 and mainWidth-50 or (mainContentFrame and 520 or 500))
-        description:SetText("These options only apply to characters using the active profile.")
+        description:SetText("These options only apply to characters using the active profile."); setTextColor(description,"grey")
         optionsFrame.pageDescription=description
         if not mainContentFrame then
           local close=api.CreateFrame("Button",nil,optionsFrame,"UIPanelCloseButton")
@@ -997,10 +1096,20 @@ function Runtime.New(environment)
         local optionCheckSerial=0
         local function createOptionCheck(labelText,x,y,hitWidth)
           optionCheckSerial=optionCheckSerial+1
-          local check=api.CreateFrame("CheckButton","DejunkWotLKOptionCheck"..optionCheckSerial,optionsContentFrame,"UICheckButtonTemplate")
-          check:SetWidth(24); check:SetHeight(24); check:SetPoint("TOPLEFT",x,y)
+          local size=hitWidth and 12 or 18
+          local check=api.CreateFrame("CheckButton","DejunkWotLKOptionCheck"..optionCheckSerial,optionsContentFrame)
+          check:SetWidth(size); check:SetHeight(size); check:SetPoint("TOPLEFT",x,y)
+          check.optionEnabled=true
+          local box=api.CreateFrame("Frame",nil,check)
+          box:SetWidth(12); box:SetHeight(12); box:SetPoint("CENTER",check,"CENTER",0,0)
+          box:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+          box:EnableMouse(false)
+          local fill=box:CreateTexture(nil,"ARTWORK")
+          fill:SetTexture("Interface\\Buttons\\WHITE8x8")
+          fill:SetPoint("TOPLEFT",3,-3); fill:SetPoint("BOTTOMRIGHT",-3,3)
+          check.optionVisual={box=box,fill=fill}
           local labelHit=api.CreateFrame("Button",nil,check)
-          labelHit:SetWidth(math.max(16,(hitWidth or 220)-28)); labelHit:SetHeight(20)
+          labelHit:SetWidth(math.max(16,(hitWidth or 220)-size-2)); labelHit:SetHeight(20)
           labelHit:SetPoint("LEFT",check,"RIGHT",2,0)
           local label=labelHit:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
           label:SetPoint("LEFT",labelHit,"LEFT",0,0)
@@ -1033,7 +1142,7 @@ function Runtime.New(environment)
         end
         local function addSection(titleText,y,isGlobal)
           local heading=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontNormalLarge")
-          heading:SetPoint("TOPLEFT",18,y); heading:SetText(titleText)
+          heading:SetPoint("TOPLEFT",18,y); heading:SetText(titleText); setTextColor(heading,"blue")
           local group=isGlobal and optionsGlobalDecorations or optionsProfileDecorations
           group[#group+1]=heading
           return heading
@@ -1075,7 +1184,7 @@ function Runtime.New(environment)
         local function addProfileText(text,x,y,width)
           local label=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
           label:SetPoint("TOPLEFT",x,y); if width then label:SetWidth(width) end
-          label:SetJustifyH("LEFT"); label:SetText(text)
+          label:SetJustifyH("LEFT"); label:SetText(text); setTextColor(label,"grey")
           if width and width>=400 then
             label.optionDescription=true; label.optionDescriptionX=x
             optionsResponsiveDescriptions[#optionsResponsiveDescriptions+1]=label
@@ -1086,7 +1195,7 @@ function Runtime.New(environment)
         local function addGlobalText(text,x,y,width)
           local label=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
           label:SetPoint("TOPLEFT",x,y); if width then label:SetWidth(width) end
-          label:SetJustifyH("LEFT"); label:SetText(text)
+          label:SetJustifyH("LEFT"); label:SetText(text); setTextColor(label,"grey")
           if width and width>=400 then
             label.optionDescription=true; label.optionDescriptionX=x
             optionsResponsiveDescriptions[#optionsResponsiveDescriptions+1]=label
@@ -1472,9 +1581,11 @@ function Runtime.New(environment)
       local activeProfile=callbacks.activeProfileName and callbacks.activeProfileName() or nil
       optionsFrame.pageTitle:SetText(scope=="global" and "Dejunk | Global Options" or
         ("Dejunk | Profile Options"..(activeProfile and (" ("..activeProfile..")") or "")))
+      setTextColor(optionsFrame.pageTitle,"blue")
       optionsFrame.pageDescription:SetText(scope=="profile" and
         "These options only apply to characters using the active profile." or
         "These options apply to every character, regardless of active profile.")
+      setTextColor(optionsFrame.pageDescription,"grey")
       optionsFrame.pageDescription:Show()
       if scope=="global" then optionsFrame.qualityTitle:Hide() else optionsFrame.qualityTitle:Show() end
       for _,entry in ipairs(optionsProfileDecorations or {}) do if scope=="profile" then entry:Show() else entry:Hide() end end
@@ -1494,7 +1605,7 @@ function Runtime.New(environment)
         local thresholdLabel=entry.key=="includeBelowItemLevel" and "Include below item level" or
           entry.key=="includeBelowPrice" and "Include below price" or
           entry.key=="excludeAboveItemLevel" and "Exclude above item level" or "Exclude above price"
-        entry.label:SetChecked(type(option)=="table" and option.enabled==true)
+        setOptionCheckChecked(entry.label,type(option)=="table" and option.enabled==true)
         setOptionCheckText(entry.label,thresholdLabel)
         if type(option)=="table" and option.enabled then entry.apply:Enable()
         else entry.apply:Disable() end
@@ -1511,14 +1622,14 @@ function Runtime.New(environment)
         end
         local optionScope=type(option)=="table" and option.scope or ((entry.key=="excludeAbovePrice" or entry.key=="includeBelowPrice") and "DESTROY" or "BOTH")
         for _,control in ipairs(entry.scopeChoices) do
-          control:SetChecked(control.scopeValue==optionScope)
+          setOptionCheckChecked(control,control.scopeValue==optionScope)
           if scope=="profile" then control:Show() else control:Hide() end
           setOptionCheckEnabled(control,type(option)=="table" and option.enabled==true)
         end
         for quality,button in ipairs(entry.qualityButtons) do
           local name=({"poor","common","uncommon","rare","epic"})[quality]
           local enabled=type(option)~="table" or type(option.qualities)~="table" or option.qualities[name]~=false
-          button:SetChecked(enabled)
+          setOptionCheckChecked(button,enabled)
           setOptionCheckText(button,({"Poor","Com","Unc","Rare","Epic"})[quality])
           if scope=="profile" then button:Show() else button:Hide() end
           setOptionCheckEnabled(button,type(option)=="table" and option.enabled==true)
@@ -1528,18 +1639,18 @@ function Runtime.New(environment)
         local option=opts[entry.key]
         local selectedScope=type(option)=="table" and option.scope or "BOTH"
         for _,control in ipairs(entry.choices) do
-          control:SetChecked(control.scopeValue==selectedScope)
+          setOptionCheckChecked(control,control.scopeValue==selectedScope)
           if scope=="profile" then control:Show() else control:Hide() end
           setOptionCheckEnabled(control,type(option)=="table" and option.enabled==true)
         end
       end
-      optionsFrame.qualityTitle:SetChecked(qualityRule.enabled~=false)
+      setOptionCheckChecked(optionsFrame.qualityTitle,qualityRule.enabled~=false)
       local unbound=opts.excludeUnboundEquipment
       if scope=="profile" then optionsUnboundQualityFields.title:Show() else optionsUnboundQualityFields.title:Hide() end
       for quality,button in ipairs(optionsUnboundQualityFields) do
         local name=({"poor","common","uncommon","rare","epic"})[quality]
         local enabled=type(unbound)~="table" or type(unbound.qualities)~="table" or unbound.qualities[name]~=false
-        button:SetChecked(enabled)
+        setOptionCheckChecked(button,enabled)
         setOptionCheckText(button,({"Poor","Com","Unc","Rare","Epic"})[quality])
         if scope=="profile" then button:Show() else button:Hide() end
         setOptionCheckEnabled(button,type(unbound)=="table" and unbound.enabled==true)
@@ -1547,11 +1658,11 @@ function Runtime.New(environment)
       for _,entry in ipairs(optionsEquipmentTypeFields or {}) do
         local option=opts[entry.key] or {enabled=false,scope="BOTH",qualities={},armor={},weapons={}}
         local label=entry.key=="includeByEquipmentType" and "Include by equipment type" or "Exclude by equipment type"
-          entry.toggle:SetChecked(option.enabled==true)
+          setOptionCheckChecked(entry.toggle,option.enabled==true)
           setOptionCheckText(entry.toggle,label)
         if scope=="profile" then entry.toggle:Show() else entry.toggle:Hide() end
         for _,control in ipairs(entry.scopeChoices) do
-          control:SetChecked(control.scopeValue==(option.scope or "BOTH"))
+          setOptionCheckChecked(control,control.scopeValue==(option.scope or "BOTH"))
           if scope=="profile" then control:Show() else control:Hide() end
           setOptionCheckEnabled(control,option.enabled==true)
         end
@@ -1559,14 +1670,14 @@ function Runtime.New(environment)
         for _,control in ipairs(entry.typeButtons) do
           local selected=control.property=="armor" and option.armor or option.weapons
           local enabled=type(selected)=="table" and selected[control.item.id]==true
-          control.button:SetChecked(enabled)
+          setOptionCheckChecked(control.button,enabled)
           setOptionCheckText(control.button,control.item.name)
           if scope=="profile" then control.button:Show() else control.button:Hide() end
           setOptionCheckEnabled(control.button,option.enabled==true)
         end
         for _,control in ipairs(entry.qualityButtons) do
           local enabled=type(option.qualities)~="table" or option.qualities[control.name]~=false
-          control.button:SetChecked(enabled)
+          setOptionCheckChecked(control.button,enabled)
           setOptionCheckText(control.button,({poor="Poor",common="Com",uncommon="Unc",rare="Rare",epic="Epic"})[control.name] or control.name)
           if scope=="profile" then control.button:Show() else control.button:Hide() end
           setOptionCheckEnabled(control.button,option.enabled==true)
@@ -1577,7 +1688,7 @@ function Runtime.New(environment)
         local qualities=opts.includeByQuality and opts.includeByQuality.qualities or opts.quality or {}
         local enabled=qualities[labels[quality+1]:lower()]
         if enabled==nil then enabled=opts.quality and opts.quality[quality] end
-        optionsQualityButtons[quality+1]:SetChecked(enabled==true)
+        setOptionCheckChecked(optionsQualityButtons[quality+1],enabled==true)
         setOptionCheckText(optionsQualityButtons[quality+1],({"Poor","Com","Unc","Rare","Epic"})[quality+1])
       end
       local global=callbacks.globalOptions and callbacks.globalOptions() or {}
@@ -1586,22 +1697,23 @@ function Runtime.New(environment)
         local enabled=type(value)=="table" and value.enabled or value==true
         if entry.global then entry.button:SetText(entry.label..": "..(enabled and "ON" or "OFF"))
         else
-          entry.button:SetChecked(enabled==true)
+          setOptionCheckChecked(entry.button,enabled==true)
           setOptionCheckText(entry.button,entry.label)
         end
       end
       for _,entry in ipairs(optionsGlobalControls or {}) do
-        entry.button:SetChecked(entry.read(global)==true)
+        setOptionCheckChecked(entry.button,entry.read(global)==true)
         setOptionCheckText(entry.button,entry.label)
       end
       for _,entry in ipairs(optionsGlobalChoices or {}) do
         local state=global[entry.key]
         local selected=entry.field and type(state)=="table" and state[entry.field] or state
-        for _,choice in ipairs(entry.controls) do choice.button:SetChecked(choice.value==selected) end
+        for _,choice in ipairs(entry.controls) do setOptionCheckChecked(choice.button,choice.value==selected) end
       end
       local activeProfile=callbacks.activeProfileName and callbacks.activeProfileName() or nil
       optionsFrame.pageTitle:SetText(scope=="global" and "Dejunk | Global Options" or
         ("Dejunk | Profile Options"..(activeProfile and (" ("..activeProfile..")") or "")))
+      setTextColor(optionsFrame.pageTitle,"blue")
       setConfigPageVisible(listFrame,false)
       setConfigPageVisible(profileFrame,false)
       if optionsPageComponent and configWaffleRoot then
@@ -1617,13 +1729,13 @@ function Runtime.New(environment)
             local x=description.optionDescriptionX or 0
             description:SetWidth(math.max(100,contentWidth-x-20))
           end
-          local qualityStep=math.min(92,(contentWidth-104)/5)
+          local qualityStep=math.min(92,(contentWidth-120)/5)
           for _,control in ipairs(optionsQualityRows or {}) do
             local order=({poor=0,common=1,uncommon=2,rare=3,epic=4})[control.optionQuality]
             if order then
               control:ClearAllPoints()
               control:SetPoint("TOPLEFT",110+order*qualityStep,control.qualityRowY or 0)
-              control.labelHit:SetWidth(math.max(16,qualityStep-32))
+              control.labelHit:SetWidth(math.max(16,qualityStep-14))
             end
           end
         end
