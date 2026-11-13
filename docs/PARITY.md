@@ -41,7 +41,7 @@ behavior. No row marked partial or missing should be read as complete parity.
 | Seller and safe sell | `src/services/seller.lua` | `src/services/seller.lua` (simulation only) | **Simulation only.** Attempt validation, stale-slot/session checks, observation and 12-item Safe Sell fixture exist. No live `UseContainerItem`, merchant open/close session, sale outcome UI/messages, auto-sell or seller controller. This is blocked from live wiring until code review and separate owner authorization under `AGENTS.md`. |
 | Repair | Merchant handler in upstream service/event modules; `CanMerchantRepair`, `GetRepairAllCost`, `GetMoney`, `RepairAllItems` | `src/services/repair.lua` (simulation only) | **Simulation only.** Funds/cost/session checks are tested, but no merchant subscription/UI, automatic repair or live repair call. Same separate review/authorization gate applies. |
 | Destroy, confirmer and Safe Destroy | `src/services/destroyer.lua`, `src/services/confirmer.lua` | `src/services/destroyer.lua` (simulation only) | **Simulation only.** One-stack intent, confirmation token, expiry and stale-state mock checks exist. No junk-frame button or live `PickupContainerItem`/`DeleteCursorItem` path. The live action must revalidate exact slot/link/count/cursor immediately before deletion; separate owner review/authorization is required. |
-| Junk frame | `src/ui/screens/junk-frame.lua` | No equivalent | **Missing.** No list of junk items, blocked-sale reasons, sell/destroy controls, progress, status messages or window persistence. |
+| Junk frame | `src/ui/screens/junk-frame.lua` | `runtime:ToggleJunkFrame`, `runtime:UpdateJunkFrame` | **Read-only display partial.** `/dejunk junk` opens a scrollable list with separate sell/destroy candidate counts and reasons; bag invalidation clears stale rows and updates reuse row widgets. No upstream item cards, blocked-sale explanations, transactional controls/progress/status, settings shortcut or saved window position. Live actions remain disconnected. |
 | Lootable frame | `src/ui/screens/lootable-frame.lua` | No equivalent | **Missing.** No lootable collection or manual/automatic open behavior. Loot actions will require separate item-action review. |
 | Merchant button and merchant behavior | `src/ui/screens/merchant-button.lua` plus upstream service listeners | No equivalent | **Missing.** Saved option exists but there is no merchant-frame button, drag/position persistence, merchant-state refresh, or action integration. |
 | Minimap icon | `src/ui/minimap-icon.lua` | Saved option only in store/options | **Missing.** No minimap button, drag angle, tooltip, click routing or persistence. Retail addon-compartment behavior is N/A. |
@@ -100,7 +100,7 @@ warband and artifact-relic settings do not belong in the 3.3.5a port.
 |---|---|---|
 | `/dejunk` or `/dejunk options` | Toggle the main window | Opens configuration; toggle semantics are incomplete. |
 | `/dejunk profiles` | Open main window on Profiles | Lists profiles by chat in development; no upstream screen routing from this command. |
-| `/dejunk junk` | Toggle junk-items frame | Not implemented. |
+| `/dejunk junk` | Toggle junk-items frame | Toggles the read-only candidate display; no sales or destruction controls. |
 | `/dejunk loot` | Toggle lootable-items frame | Not implemented. |
 | `/dejunk sell` | Start manual seller | Intentionally disconnected; prints help/disabled behavior. |
 | `/dejunk destroy` | Request one destroy action | Intentionally disconnected. |

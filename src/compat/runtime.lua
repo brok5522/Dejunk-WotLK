@@ -44,6 +44,7 @@ function Runtime.New(environment)
   end
   local frame, update, scanTooltip, reportFrame, reportEdit, reportTitle, configFrame, configSummary, poorButton
   local optionsCategoryFrame,optionsCategoryButtons
+  local junkFrame,junkTitle,junkSummary,junkScroll,junkRows,junkRowsContent,junkVisible
   local configWaffleRoot
   local configContentComponent,configOverviewComponent,mainContentFrame
   local optionsPageComponent,profilePageComponent,listPageComponent
@@ -1916,6 +1917,72 @@ function Runtime.New(environment)
       self:Print("Report panel unavailable; printing the report to chat.")
       for line in text:gmatch("[^\n]+") do self:Print(line) end
     end
+  end
+
+  function runtime:UpdateJunkFrame(data)
+    if not junkFrame then return false end
+    for _,row in ipairs(junkRows or {}) do row:Hide() end
+    if type(data)~="table" then
+      junkSummary:SetText("Bag data unavailable. Refreshing…")
+      junkRowsContent:SetHeight(1)
+      return false
+    end
+    junkSummary:SetText("Sell candidates: "..tostring(data.sellable or 0).."   Destroy candidates: "..tostring(data.destroyable or 0))
+    if #data.items==0 then
+      local empty=junkRows[1]
+      if not empty then
+        empty=junkRowsContent:CreateFontString(nil,"ARTWORK","GameFontHighlight")
+        empty:SetPoint("TOPLEFT",12,-8); empty:SetWidth(500); empty:SetJustifyH("LEFT")
+        junkRows[1]=empty
+      end
+      empty:SetText("No junk items."); empty:Show(); junkRowsContent:SetHeight(32)
+      return true
+    end
+    for index,item in ipairs(data.items) do
+      local text=junkRows[index]
+      if not text then
+        text=junkRowsContent:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
+        text:SetPoint("TOPLEFT",12,-(index-1)*48-8); text:SetWidth(510); text:SetJustifyH("LEFT")
+        junkRows[index]=text
+      end
+      local sell=item.sell and item.sell.reasonCode or "UNKNOWN"
+      local destroy=item.destroy and item.destroy.reasonCode or "UNKNOWN"
+      text:SetText((item.name or ("Item #"..tostring(item.itemId))).." (#"..tostring(item.itemId)..") x"..tostring(item.count or 1)..
+        "\nSell: "..tostring(sell).."   Destroy: "..tostring(destroy))
+      text:Show()
+    end
+    junkRowsContent:SetHeight(math.max(32,#data.items*48))
+    return true
+  end
+
+  function runtime:ToggleJunkFrame(data)
+    if not junkFrame then
+      junkFrame=api.CreateFrame("Frame","DejunkWotLKJunkFrame",api.UIParent)
+      junkFrame:SetFrameStrata("DIALOG"); junkFrame:SetWidth(560); junkFrame:SetHeight(430)
+      junkFrame:SetPoint("CENTER",api.UIParent,"CENTER",0,0); junkFrame:EnableMouse(true); junkFrame:SetMovable(true)
+      junkFrame:RegisterForDrag("LeftButton")
+      junkFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
+      junkFrame:SetScript("OnDragStop",function(self) if self.StopMovingOrSizing then self:StopMovingOrSizing() end end)
+      junkFrame:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+      junkFrame:SetBackdropColor(0,0,0,0.94); junkFrame:SetBackdropBorderColor(0.35,0.35,0.35,1)
+      junkFrame:SetScript("OnShow",function() junkVisible=true end)
+      junkFrame:SetScript("OnHide",function() junkVisible=false end)
+      local header=api.CreateFrame("Frame",nil,junkFrame); header:SetHeight(34); header:SetPoint("TOPLEFT",0,0); header:SetPoint("TOPRIGHT",0,0)
+      header:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); header:SetBackdropColor(30/255,30/255,30/255,1)
+      junkTitle=header:CreateFontString(nil,"ARTWORK","GameFontNormal")
+      junkTitle:SetPoint("LEFT",12,0); junkTitle:SetText("Junk Items"); setTextColor(junkTitle,"blue")
+      local close=api.CreateFrame("Button",nil,header); close:SetWidth(26); close:SetHeight(26); close:SetPoint("RIGHT",-5,0)
+      styleCloseButton(close); close:SetScript("OnClick",function() junkFrame:Hide(); junkVisible=false end)
+      junkSummary=junkFrame:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
+      junkSummary:SetPoint("TOPLEFT",14,-43); junkSummary:SetText("Scanning bags…")
+      junkScroll=api.CreateFrame("ScrollFrame",nil,junkFrame,"UIPanelScrollFrameTemplate")
+      junkScroll:SetPoint("TOPLEFT",12,-66); junkScroll:SetPoint("BOTTOMRIGHT",-30,12)
+      junkRowsContent=api.CreateFrame("Frame",nil,junkScroll); junkRowsContent:SetWidth(510); junkRowsContent:SetHeight(1)
+      junkScroll:SetScrollChild(junkRowsContent); junkRows={}
+    end
+    self:UpdateJunkFrame(data)
+    if junkVisible then junkFrame:Hide(); junkVisible=false else junkFrame:Show(); junkVisible=true end
+    return true
   end
   return runtime
 end

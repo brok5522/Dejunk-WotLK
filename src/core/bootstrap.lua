@@ -513,6 +513,11 @@ function Addon.NewApplication(runtime)
       end
     elseif command == "config" then
       self:OpenConfig()
+    elseif command == "junk" then
+      if self.state ~= "READY" then runtime:Print("Junk items unavailable: " .. self.state); return end
+      local items,reason=self:GetJunkItems()
+      if not items then runtime:Print("Junk items unavailable: "..tostring(reason)); return end
+      runtime:ToggleJunkFrame(items)
     elseif command == "profiles" then
       local action,args=rest:match("^(%S*)%s*(.-)%s*$"); action=(action or ""):lower()
       if action=="create" then
@@ -527,7 +532,7 @@ function Addon.NewApplication(runtime)
       else runtime:Print("Use /djw profiles list | create <name> | switch <id>") end
     elseif command == "help" then
       runtime:Print("Dejunk: /dejunk or /dejunk options opens the main settings window; /dejunk profiles lists profiles.")
-      runtime:Print("SELL, DESTROY, repair, junk-frame and loot-frame actions are not connected in this development build.")
+      runtime:Print("/dejunk junk shows a read-only list. Selling, destroying, repair and loot-frame actions remain disconnected.")
       runtime:Print("Development diagnostics: /djw status | /djw preview sell|destroy | /djw slot <bag> <slot> | /djw report.")
     elseif command == "report" then
       runtime:ShowReport(self.diagnostics:Report(self))
@@ -572,6 +577,18 @@ function Addon.NewApplication(runtime)
   end
   app.adapter = runtime:NewAdapter()
   app.cache = Addon.NewBagCache(app.adapter, app.scheduler, app.bus)
+  local function refreshVisibleJunkFrame(snapshot)
+    if app.state~="READY" then return end
+    local items
+    if snapshot and snapshot.valid and snapshot.generation==snapshot.currentGeneration then
+      local profile=app.store and app.store:GetActiveProfile() or {}
+      items=Addon.JunkItems.Build(snapshot,{profile=profile,global=app.store and app.store:GetState().global or {},protectUnboundEquipment=true})
+    end
+    runtime:UpdateJunkFrame(items)
+  end
+  app.bus:On("BagsUpdated",function(snapshot) refreshVisibleJunkFrame(snapshot) end)
+  app.bus:On("BagsInvalidated",function() runtime:UpdateJunkFrame(nil) end)
+  app.bus:On("StateUpdated",function() refreshVisibleJunkFrame(app.cache:GetSnapshot()) end)
   local ok, started = pcall(runtime.Start, runtime,
     function(event, ...) app:HandleEvent(event, ...) end,
     function(elapsed) app.scheduler:Advance(elapsed) end)

@@ -142,6 +142,24 @@ end
 local function namedFrame(name)
   for _,frame in ipairs(uiFrames) do if frame.name==name then return frame end end
 end
+assert(runtime:ToggleJunkFrame({sellable=1,destroyable=2,items={{itemId=123,name="Example",count=2,
+  sell={reasonCode="QUALITY"},destroy={reasonCode="QUALITY"}},
+  {itemId=456,name="Another",count=1,sell={reasonCode="KEEP"},destroy={reasonCode="QUALITY"}}}}),
+  "read-only Junk frame failed to open")
+local junkWindow=namedFrame("DejunkWotLKJunkFrame")
+assert(junkWindow and junkWindow.shown,"Junk frame did not become visible")
+local junkRow
+local staleJunkRow
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="FontString" and frame.text and frame.text:find("Sell: QUALITY",1,true) then junkRow=frame end
+  if frame.kind=="FontString" and frame.text and frame.text:find("Another (#456)",1,true) then staleJunkRow=frame end
+end
+assert(junkRow and junkRow.text:find("Destroy: QUALITY",1,true),"Junk frame omitted per-action decisions")
+assert(staleJunkRow,"Junk frame omitted later candidate rows")
+runtime:UpdateJunkFrame({sellable=0,destroyable=0,items={}})
+assert(junkRow.text=="No junk items." and staleJunkRow.shown==false,"stale Junk frame rows were not cleared")
+assert(runtime:ToggleJunkFrame({sellable=0,destroyable=0,items={}}) and junkWindow.shown==false,
+  "Junk frame toggle did not hide the existing window")
 local function editBox(width)
   for _,frame in ipairs(uiFrames) do if frame.kind=="EditBox" and frame.width==width then return frame end end
   error("missing edit box width "..tostring(width))
