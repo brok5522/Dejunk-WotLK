@@ -47,7 +47,12 @@ current UI has not been exercised in the original client at this revision.
    `StateUpdated`). Offline fixtures cover category routing, slot validation,
    event delivery and unsubscription. These are not yet verified in the game
    client; the API does not invoke inventory actions.
-9. **Options state and thresholds:** migrated upstream global defaults into the
+9. **Read-only junk candidate projection:** item names are retained from the
+   verified legacy `GetItemInfo` tuple, and a pure snapshot projection now
+   returns sorted SELL/DESTROY candidates with separate decisions and counts.
+   Invalid snapshots and unknown slots do not become candidates. This prepares
+   the source data for the missing item window, but is not an action service.
+10. **Options state and thresholds:** migrated upstream global defaults into the
    WotLK store, accepted legacy minimap state, validated global option writes,
    and added profile minimum/maximum item levels and minimum/maximum stack
    vendor value controls with per-filter scope and quality selection. Store
@@ -98,8 +103,8 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for this revision: Lua 5.1 syntax for 25 files passed; runtime suite
-**60 passed, 0 failed**; store **21 passed**; service **8 passed**; destroyer
+Results for this revision: Lua 5.1 syntax for 26 files passed; runtime suite
+**61 passed, 0 failed**; store **21 passed**; service **8 passed**; destroyer
 **11 passed**; UI model **62 passed**; UI interaction flows passed. TOC/API
 read-only boundary, documentation and package checks passed. Two generated ZIPs
 were reproducible and passed content, layout, CRC and overwrite checks.

@@ -396,6 +396,16 @@ function Addon.NewApplication(runtime)
     return Addon.Preview.EvaluateSnapshot(self.cache:GetSnapshot(), settings, action)
   end
 
+  function app:GetJunkItems()
+    if self.state ~= "READY" or not self.store then return nil, "APP_NOT_READY" end
+    local settings = {
+      profile = self.store:GetActiveProfile(),
+      global = self.store:GetState().global or {},
+      protectUnboundEquipment = true
+    }
+    return Addon.JunkItems.Build(self.cache:GetSnapshot(), settings)
+  end
+
   function app:OpenConfig(initialScreen)
     local function profile()
       return self.store and self.store:GetActiveProfile() or nil

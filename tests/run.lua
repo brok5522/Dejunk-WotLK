@@ -488,6 +488,25 @@ test("preview command reports read-only rows and invalidated snapshots fail clos
   w:Fire("BAG_UPDATE",0)
   local rows,reason=w.app:Preview("SELL"); equal(#rows,0); equal(reason,"SNAPSHOT_INVALID")
 end)
+test("junk item projection filters, sorts and separates sell and destroy decisions", function()
+  local addon=populated():Ready().addon
+  local function item(id,name,price,count,quality)
+    return {state="OCCUPIED",metadata="known",itemId=id,name=name,unitVendorPrice=price,count=count,
+      quality=quality,locked=false,refundable=false,inEquipmentSet=false,quest=false,bag=0,slot=id}
+  end
+  local snapshot={valid=true,generation=4,currentGeneration=4,items={
+    ["0:3"]=item(3,"Zulu",5,1,0),["0:2"]=item(2,"Beta",5,1,0),["0:1"]=item(1,"Alpha",5,3,0),
+    ["0:4"]={state="UNKNOWN",bag=0,slot=4}
+  }}
+  local settings={profile={options={quality={[0]=true},excludeEquipmentSets={enabled=true,scope="BOTH"}}},global={}}
+  local result=addon.JunkItems.Build(snapshot,settings)
+  equal(result.sellable,3); equal(result.destroyable,3); equal(#result.items,3)
+  equal(result.items[1].name,"Beta"); equal(result.items[2].name,"Zulu"); equal(result.items[3].name,"Alpha")
+  equal(result.items[1].sell.result,"JUNK"); equal(result.items[1].destroy.result,"JUNK")
+  result.items[1].name="mutated"; equal(snapshot.items["0:2"].name,"Beta")
+  snapshot.currentGeneration=5
+  local invalid,reason=addon.JunkItems.Build(snapshot,settings); equal(invalid,nil); equal(reason,"SNAPSHOT_INVALID")
+end)
 test("public Dejunk API classifies read-only slots and publishes removable update listeners", function()
   local w=H.New(); w:AddItem(0,1)
   w.api.GetItemInfo=function(link) return "Example",link,0,10,1,"Misc","Junk",20,"","texture",5 end

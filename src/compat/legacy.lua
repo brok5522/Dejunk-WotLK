@@ -146,6 +146,7 @@ function Legacy.New(api)
         metadata[2] == link and integer(metadata[3], 0, 7) and
         integer(metadata[4], 0, 2147483647) then
       item.metadata = "known"
+      item.name = metadata[1]
       item.quality, item.itemLevel = metadata[3], metadata[4]
       item.itemType, item.itemSubType, item.equipLoc = metadata[6], metadata[7], metadata[9]
       if integer(metadata[12],0,20) then item.classId=metadata[12] end
