@@ -25,11 +25,12 @@ and its clickable caption stay inside the scroll panel at narrow resolutions.
 OptionCard/SettingsBox visual components are not yet ported pixel-for-pixel,
 and checkbox captions use separate clickable text regions because the legacy
 CheckButton template has no `SetText` method. Checkboxes stay at their native
-size so their template art is not stretched. Target-client visual review is
-still pending. Global Options remains
-partial. Global state preserves upstream defaults for chat messages, bag
-display, merchant, minimap and frame settings, but the corresponding game
-integrations remain unimplemented.
+size so their template art is not stretched. Global Options now follows the
+upstream Safety, Interface and Bags group order, with cards for the stored
+options and choices for chat detail and icon size. These settings update saved
+state, but merchant, minimap, bag icon/tooltip, chat and frame integrations are
+not connected yet. The native OptionCard/SettingsBox visuals are not pixel
+identical to Waffle, and target-client review remains pending.
 The list editor provides
 global/profile inclusions and exclusions in four panes, with search by item ID
 or cached item name. Search treats input literally and de-duplicates repeated

@@ -65,7 +65,12 @@ current UI has not been exercised in the original client at this revision.
    separate clickable text region, hides and fades sibling pages, and gives
    Options an opaque panel background. UI fixtures reject CheckButton:SetText,
    exercise caption clicks, and verify page exclusivity. The corrected package
-   still needs one client visual check. Native controls approximate the pinned
+   still needs one client visual check. The Global Options page now follows the
+   upstream Safety / Interface / Bags groups and exposes the corresponding
+   persisted settings, including chat-detail and bag-icon-size choices. UI
+   fixtures cover group order, card bounds and option writes. These settings
+   do not yet connect merchant, minimap, bag, chat or frame integrations.
+   Native controls approximate the pinned
    Waffle OptionCard/SettingsBox and SelectableRow visuals; other upstream screens and
    integrations remain unfinished.
 

@@ -11,7 +11,8 @@ function Runtime.New(environment)
   local configContentComponent,configOverviewComponent,mainContentFrame
   local optionsPageComponent,profilePageComponent,listPageComponent
   local configScreens,selectedConfigScreen={},nil
-  local optionsOptionCards,optionsCardDividers,optionsQualityRows
+  local optionsOptionCards,optionsCardDividers,optionsQualityRows,optionsResponsiveDescriptions
+  local optionsGlobalControls,optionsGlobalChoices
   local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
   local profileWaffleRoot,listsWaffleRoot,importWaffleRoot,optionsWaffleRoot,reportWaffleRoot
   local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listPanels
@@ -991,7 +992,8 @@ function Runtime.New(environment)
         optionsScrollFrame:SetScrollChild(optionsContentFrame)
         optionsFrame.scrollFrame=optionsScrollFrame; optionsFrame.contentFrame=optionsContentFrame
         optionsProfileDecorations={}; optionsGlobalDecorations={}
-        optionsOptionCards={}; optionsCardDividers={}; optionsQualityRows={}
+        optionsOptionCards={}; optionsCardDividers={}; optionsQualityRows={}; optionsResponsiveDescriptions={}
+        optionsGlobalControls={}; optionsGlobalChoices={}
         local optionCheckSerial=0
         local function createOptionCheck(labelText,x,y,hitWidth)
           optionCheckSerial=optionCheckSerial+1
@@ -1064,7 +1066,6 @@ function Runtime.New(environment)
         optionCardFrames.excludeEquipmentSets=addOptionCard(-1678,100)
         optionCardFrames.excludeQuestItems=addOptionCard(-1788,72)
         optionCardFrames.excludeUnboundEquipment=addOptionCard(-1870,150)
-        addSection("Safety",-8,true); addOptionCard(-30,92,true)
         local function bindCardClick(key,handler)
           local card=optionCardFrames[key]
           if not card then return end
@@ -1075,7 +1076,16 @@ function Runtime.New(environment)
           local label=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
           label:SetPoint("TOPLEFT",x,y); if width then label:SetWidth(width) end
           label:SetJustifyH("LEFT"); label:SetText(text)
+          if width and width>=400 then label.optionDescription=true; optionsResponsiveDescriptions[#optionsResponsiveDescriptions+1]=label end
           optionsProfileDecorations[#optionsProfileDecorations+1]=label
+          return label
+        end
+        local function addGlobalText(text,x,y,width)
+          local label=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+          label:SetPoint("TOPLEFT",x,y); if width then label:SetWidth(width) end
+          label:SetJustifyH("LEFT"); label:SetText(text)
+          if width and width>=400 then label.optionDescription=true; optionsResponsiveDescriptions[#optionsResponsiveDescriptions+1]=label end
+          optionsGlobalDecorations[#optionsGlobalDecorations+1]=label
           return label
         end
         local function addCardDivider(y)
@@ -1383,19 +1393,67 @@ function Runtime.New(environment)
         end
         createEquipmentTypeCard("includeByEquipmentType","Include by equipment type",-650)
         createEquipmentTypeCard("excludeByEquipmentType","Exclude by equipment type",-1338)
-        local globalRows={{key="safeSell",label="Safe Sell"},{key="safeDestroy",label="Safe Destroy"}}
-        for index,row in ipairs(globalRows) do
-          local button=api.CreateFrame("Button",nil,optionsContentFrame,"UIPanelButtonTemplate")
-          button:SetWidth(300); button:SetHeight(24); button:SetPoint("TOPLEFT",24,-48-(index-1)*38)
-          button:SetScript("OnClick",function()
+        local function addGlobalToggle(key,labelText,description,top,height,read,encode)
+          local card=addOptionCard(top,height or 64,true)
+          optionCardFrames[key]=card
+          local button=createOptionCheck(labelText,24,top-8)
+          optionsGlobalDecorations[#optionsGlobalDecorations+1]=button
+          addGlobalText(description,52,top-34,470)
+          local function toggle()
             local currentCallbacks=optionsCallbacks or callbacks
-            local opts=currentCallbacks.globalOptions and currentCallbacks.globalOptions() or {}
-            local changed,reason=currentCallbacks.setGlobalOption and currentCallbacks.setGlobalOption(row.key,not opts[row.key])
-            self:Print(changed and (row.label.." updated.") or ("Option update failed: "..tostring(reason)))
-            self:ShowOptions(currentCallbacks,optionsFrame.scope)
-          end)
-          optionsFields[#optionsFields+1]={key=row.key,button=button,label=row.label,global=true}
+            local global=currentCallbacks.globalOptions and currentCallbacks.globalOptions() or {}
+            local enabled=not read(global)
+            local value=encode and encode(global,enabled) or enabled
+            local changed,reason=currentCallbacks.setGlobalOption and currentCallbacks.setGlobalOption(key,value)
+            self:Print(changed and (labelText.." updated.") or ("Option update failed: "..tostring(reason)))
+            self:ShowOptions(currentCallbacks,"global")
+          end
+          setOptionCheckHandler(button,toggle)
+          bindCardClick(key,toggle)
+          optionsGlobalControls[#optionsGlobalControls+1]={key=key,label=labelText,button=button,read=read}
+          return card
         end
+        local function globalEnabled(key)
+          return function(global) return global[key]==true end
+        end
+        addSection("Safety",-8,true)
+        addGlobalToggle("safeDestroy","Safe Destroy","Require confirmation before destroying an item.",-30,64,globalEnabled("safeDestroy"))
+        addGlobalToggle("safeSell","Safe Sell","Only sell up to 12 items at a time.",-104,64,globalEnabled("safeSell"))
+        addSection("Interface",-178,true)
+        addGlobalToggle("merchantButton","Merchant Button","Enable a button on the merchant frame.",-200,64,globalEnabled("merchantButton"))
+        addGlobalToggle("minimapIcon","Minimap Icon","Enable an icon on the minimap.",-274,64,
+          function(global) return type(global.minimapIcon)=="table" and global.minimapIcon.hide~=true end,
+          function(global,enabled) return {hide=not enabled} end)
+        addGlobalToggle("autoJunkFrame","Auto Junk Frame","Automatically show the Junk frame at a merchant when you have junk items, and close it once you don't.",-348,64,globalEnabled("autoJunkFrame"))
+        addGlobalToggle("autoLootableFrame","Auto Lootable Frame","Automatically show the Lootable Items frame when you have items to loot, and close it once you don't.",-422,64,globalEnabled("autoLootableFrame"))
+        addGlobalToggle("chatMessages","Chat Messages","Enable chat messages.",-496,112,
+          function(global) return type(global.chatMessages)~="table" or global.chatMessages.enabled~=false end,
+          function(global,enabled) return {enabled=enabled} end)
+        addCardDivider(-546)
+        addGlobalText("Detail",24,-554,78)
+        local function addGlobalChoice(key,field,choices,x,y)
+          local entry={key=key,field=field,controls={}}
+          for index,choice in ipairs(choices) do
+            local control=createOptionCheck(choice.label,x+(index-1)*100,y,96)
+            optionsGlobalDecorations[#optionsGlobalDecorations+1]=control
+            control:SetScript("OnClick",function()
+              local currentCallbacks=optionsCallbacks or callbacks
+              local value=field and {[field]=choice.value} or choice.value
+              local changed,reason=currentCallbacks.setGlobalOption and currentCallbacks.setGlobalOption(key,value)
+              self:Print(changed and (choice.label.." updated.") or ("Option update failed: "..tostring(reason)))
+              self:ShowOptions(currentCallbacks,"global")
+            end)
+            entry.controls[#entry.controls+1]={button=control,value=choice.value,label=choice.label}
+          end
+          optionsGlobalChoices[#optionsGlobalChoices+1]=entry
+        end
+        addGlobalChoice("chatMessages","detail",{{value="REDUCED",label="Reduced"},{value="VERBOSE",label="Verbose"}},110,-554)
+        addSection("Bags",-626,true)
+        addGlobalToggle("itemTooltips","Bag Item Tooltips","Add Dejunk information to the tooltips of items in your bags.",-650,64,globalEnabled("itemTooltips"))
+        addGlobalToggle("itemIcons","Bag Item Icons","Overlay an icon on junk items in your bags.",-724,112,globalEnabled("itemIcons"))
+        addCardDivider(-774)
+        addGlobalText("Size",24,-782,78)
+        addGlobalChoice("itemIconStyle",nil,{{value="SMALL",label="Small"},{value="LARGE",label="Large"}},110,-782)
         local back=api.CreateFrame("Button",nil,optionsFrame,"UIPanelButtonTemplate")
         back:SetWidth(110); back:SetHeight(24); back:SetPoint("BOTTOMRIGHT",optionsFrame,"BOTTOMRIGHT",-20,18); back:SetText("Back")
         back:SetScript("OnClick",function() optionsFrame:Hide(); self:ShowConfig(callbacks) end)
@@ -1407,7 +1465,10 @@ function Runtime.New(environment)
       local activeProfile=callbacks.activeProfileName and callbacks.activeProfileName() or nil
       optionsFrame.pageTitle:SetText(scope=="global" and "Dejunk | Global Options" or
         ("Dejunk | Profile Options"..(activeProfile and (" ("..activeProfile..")") or "")))
-      if scope=="profile" then optionsFrame.pageDescription:Show() else optionsFrame.pageDescription:Hide() end
+      optionsFrame.pageDescription:SetText(scope=="profile" and
+        "These options only apply to characters using the active profile." or
+        "These options apply to every character, regardless of active profile.")
+      optionsFrame.pageDescription:Show()
       if scope=="global" then optionsFrame.qualityTitle:Hide() else optionsFrame.qualityTitle:Show() end
       for _,entry in ipairs(optionsProfileDecorations or {}) do if scope=="profile" then entry:Show() else entry:Hide() end end
       for _,entry in ipairs(optionsGlobalDecorations or {}) do if scope=="global" then entry:Show() else entry:Hide() end end
@@ -1522,6 +1583,15 @@ function Runtime.New(environment)
           setOptionCheckText(entry.button,entry.label)
         end
       end
+      for _,entry in ipairs(optionsGlobalControls or {}) do
+        entry.button:SetChecked(entry.read(global)==true)
+        setOptionCheckText(entry.button,entry.label)
+      end
+      for _,entry in ipairs(optionsGlobalChoices or {}) do
+        local state=global[entry.key]
+        local selected=entry.field and type(state)=="table" and state[entry.field] or state
+        for _,choice in ipairs(entry.controls) do choice.button:SetChecked(choice.value==selected) end
+      end
       local activeProfile=callbacks.activeProfileName and callbacks.activeProfileName() or nil
       optionsFrame.pageTitle:SetText(scope=="global" and "Dejunk | Global Options" or
         ("Dejunk | Profile Options"..(activeProfile and (" ("..activeProfile..")") or "")))
@@ -1536,6 +1606,10 @@ function Runtime.New(environment)
           optionsFrame.pageDescription:SetWidth(pageWidth-50)
           for _,card in ipairs(optionsOptionCards or {}) do card:SetWidth(contentWidth-20) end
           for _,divider in ipairs(optionsCardDividers or {}) do divider:SetWidth(contentWidth-56) end
+          for _,description in ipairs(optionsResponsiveDescriptions or {}) do
+            local x=description.point and description.point[2] or 0
+            description:SetWidth(math.max(100,contentWidth-x-20))
+          end
           local qualityStep=math.min(92,(contentWidth-104)/5)
           for _,control in ipairs(optionsQualityRows or {}) do
             local order=({poor=0,common=1,uncommon=2,rare=3,epic=4})[control.optionQuality]

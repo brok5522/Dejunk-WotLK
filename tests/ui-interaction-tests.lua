@@ -304,7 +304,9 @@ control("Button","Lists"):Click()
 assert(profilesPage.shown==false and namedFrame("DejunkWotLKLists").shown,"Lists navigation left the Profiles page visible")
 runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function() return "default" end})
 local optionState={quality={[0]=true},includeByQuality={enabled=true,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},includeBelowItemLevel={enabled=false,scope="BOTH",value=0,qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},includeBelowPrice={enabled=false,scope="SELL",value=0,qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},excludeAboveItemLevel={enabled=false,scope="BOTH",value=0,qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},excludeAbovePrice={enabled=false,scope="DESTROY",value=0,qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},includeByEquipmentType={enabled=false,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false},armor={},weapons={}},excludeByEquipmentType={enabled=false,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true},armor={},weapons={}},autoSell=false,autoRepair=false,excludeEquipmentSets={enabled=true,scope="BOTH"},excludeUnboundEquipment={enabled=false,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},excludeQuestItems={enabled=true,scope="BOTH"}}
-local globalOptionState={safeSell=false,safeDestroy=true}
+local globalOptionState={safeSell=false,safeDestroy=true,merchantButton=true,minimapIcon={hide=false},
+  autoJunkFrame=false,autoLootableFrame=false,chatMessages={enabled=true,detail="REDUCED"},
+  itemTooltips=true,itemIcons=false,itemIconStyle="SMALL"}
 local optionCallbacks={options=function() return optionState end,globalOptions=function() return globalOptionState end,
   setOption=function(key,value)
     if key=="quality" then
@@ -316,7 +318,11 @@ local optionCallbacks={options=function() return optionState end,globalOptions=f
     else optionState[key]=value end
     return true
   end,
-  setGlobalOption=function(key,value) globalOptionState[key]=value; return true end,
+  setGlobalOption=function(key,value)
+    if key=="chatMessages" then for field,setting in pairs(value) do globalOptionState.chatMessages[field]=setting end
+    else globalOptionState[key]=value end
+    return true
+  end,
   activeProfileName=function() return "Test" end}
 runtime:ShowOptions(optionCallbacks,"profile")
 local optionsPage=namedFrame("DejunkWotLKOptions")
@@ -362,7 +368,7 @@ assert(not listsPage or listsPage.shown==false,"Lists remained visible behind Pr
 assert(optionsPage.shown,"Profile Options did not become the active Waffle page")
 assert(optionsPage.alpha~=0,"Profile Options was made transparent by the legacy page visibility path")
 assert(control("CheckButton","Auto Sell").shown,"profile options were hidden on the Profile Options page")
-assert(control("Button","Safe Sell: OFF").shown==false,"global options leaked into Profile Options")
+assert(control("CheckButton","Safe Sell").shown==false,"global options leaked into Profile Options")
 local enableMinimum
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionLabel=="Include below item level" then enableMinimum=frame; break end
@@ -480,9 +486,38 @@ qualityCard.scripts.OnMouseDown(qualityCard)
 assert(optionState.includeByQuality.enabled==true,"option card did not toggle back on")
 control("CheckButton","Auto Sell"):Click(); assert(optionState.autoSell==true)
 runtime:ShowOptions(optionCallbacks,"global")
-assert(control("Button","Safe Sell: OFF").shown,"global options were hidden on the Global Options page")
+assert(control("CheckButton","Safe Sell").shown and control("CheckButton","Safe Destroy").shown,
+  "global safety option cards were hidden on the Global Options page")
 assert(control("CheckButton","Auto Sell").shown==false,"profile options leaked into Global Options")
-control("Button","Safe Sell: OFF"):Click(); assert(globalOptionState.safeSell==true)
+local globalHeadings={}
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="FontString" and frame.parent==optionsPage.contentFrame and (frame.text=="Safety" or frame.text=="Interface" or frame.text=="Bags") then
+    globalHeadings[#globalHeadings+1]=frame.text
+  end
+end
+assert(table.concat(globalHeadings,",")=="Safety,Interface,Bags","Global Options groups do not match the upstream order")
+local globalCards={}
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="Frame" and frame.optionCard and frame.parent==optionsPage.contentFrame and frame.shown and frame.point and frame.point[5] and frame.point[4] then
+    globalCards[#globalCards+1]=frame
+    assert(frame.point[4]+frame.width<=optionsPage.contentFrame.width,"global option card extends beyond the scroll content width")
+  end
+  if frame.kind=="FontString" and frame.optionDescription and frame.shown and frame.point and frame.point[2] then
+    assert(frame.point[2]+frame.width<=optionsPage.contentFrame.width,"option description extends beyond the scroll content width")
+  end
+end
+assert(#globalCards>=8,"Global Options did not create the upstream Safety, Interface and Bags option cards")
+assert(control("CheckButton","Merchant Button").shown and control("CheckButton","Bag Item Icons").shown,
+  "upstream Interface and Bags global option cards were not created")
+assert(optionsPage.pageDescription.text=="These options apply to every character, regardless of active profile.",
+  "Global Options panel description is missing")
+assert(control("CheckButton","Verbose").shown==true and control("CheckButton","Small").shown==true,
+  "global option detail and icon-size choices were not created")
+control("CheckButton","Merchant Button"):Click()
+assert(globalOptionState.merchantButton==false,"merchant button option did not persist")
+control("CheckButton","Verbose"):Click()
+assert(globalOptionState.chatMessages.detail=="VERBOSE","chat detail choice did not persist")
+control("CheckButton","Safe Sell"):Click(); assert(globalOptionState.safeSell==true)
 runtime:ShowOptions(optionCallbacks,"profile")
 control("CheckButton","Poor"):Click(); assert(optionState.includeByQuality.qualities.poor==false)
 control("CheckButton","Exclude unbound equipment"):Click(); assert(optionState.excludeUnboundEquipment.enabled==false)
