@@ -1,10 +1,10 @@
 # Dejunk-WotLK development downloads
 
-These are test builds for World of Warcraft 3.3.5a (build 12340). They are not releases. Install a ZIP by extracting its `Dejunk-WotLK` folder into `Interface/AddOns`.
+These are test builds for WoW 3.3.5a (build 12340), not releases. Extract the ZIP so `Dejunk-WotLK` is inside `Interface/AddOns`.
 
-## Latest test build
+## Latest client test
 
-- [Dejunk-WotLK test 0.16.3-dev](downloads/Dejunk-WotLK-test-0.16.3-dev.zip)
-- SHA-256: `a12799a44dfc735f449e83cb1f4f4f59232eef7717f3f8e303f467aac852d1fd`
+- [Dejunk-WotLK layout test v11](downloads/Dejunk-WotLK-layout-test-v11.zip)
+- SHA-256: `1ec18b337b82c790485f68f9d6e3579a775a3c7fabd0f692f5429920a3f6b356`
 
-Contains profile thresholds, filter scope/quality controls, improved 3.3.5 category reads, and the current read-only compatibility port. Selling, repair and destruction are not connected to live actions.
+This build widens filter quality and scope controls to prevent button text from overlapping. Inventory actions remain disconnected.
