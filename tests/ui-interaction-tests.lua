@@ -214,6 +214,15 @@ local mainWindow=namedFrame("DejunkWotLK_MainWindow")
 assert(listFrame and listFrame.width and listFrame.width>0 and listFrame.height and listFrame.height>0 and listFrame.shown,
   "Lists was not sized by the main Waffle layout")
 assert(listFrame.alpha~=0,"Lists was made transparent by the legacy page visibility path")
+local listPanelCount=0
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="Frame" and frame.parent==listFrame and frame.height==192 then
+    listPanelCount=listPanelCount+1
+    assert(frame.backdrop and frame.backdrop.edgeSize==1,"list panel is not a square Waffle panel")
+    assert(frame.backdropColor and frame.backdropColor[4]==0.03,"list panel background does not use the Waffle surface tint")
+  end
+end
+assert(listPanelCount==4,"Lists screen should show four Waffle list panels")
 assert(listFrame.backdrop==nil,"Lists page retained the extra nested window frame")
 local ancestor=listFrame
 while ancestor and ancestor~=mainWindow do ancestor=ancestor.parent end
@@ -301,7 +310,19 @@ local reportClose=lastChild(report,"Button")
 assert(reportClose.text=="X")
 reportClose:Click()
 assert(configFrame.shown==true)
-runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function() return "default" end})
+local selectedProfile
+local profileOperations={}
+local profileCallbacks={
+  profiles=function() return {{id="default",name="Default",active=true,numInclusions=0,numExclusions=0},{id="profile-1",name="Test",active=false,numInclusions=1,numExclusions=2}} end,
+  activeProfileId=function() return "default" end,activeProfileName=function() return "Default" end,
+  switchProfile=function(id) selectedProfile=id; return true end,
+  createProfile=function(name) profileOperations.create={name=name}; return "created" end,
+  duplicateProfileFrom=function(id,name) profileOperations.duplicate={id=id,name=name}; return "copy" end,
+  renameProfile=function(id,name) profileOperations.rename={id=id,name=name}; return true end,
+  resetProfile=function(id) profileOperations.reset=id; return true end,
+  deleteProfile=function(id) profileOperations.delete=id; return true end
+}
+runtime:ShowProfiles(profileCallbacks)
 local profilesPage=namedFrame("DejunkWotLKProfiles")
 assert(profilesPage,"profiles page was not created")
 assert(profilesPage.parent==namedFrame("DejunkWotLKLists").parent,"Profiles page is outside the main configuration content")
@@ -310,11 +331,63 @@ assert(profilesPage.width and profilesPage.width>0 and profilesPage.height and p
 assert(profilesPage.alpha~=0,"Profiles page was made transparent by the legacy page visibility path")
 assert(profilesPage.backdrop==nil,"Profiles page retained its own dialog backdrop")
 assert(profilesPage.shown,"Profiles page was not visible when selected")
-assert(lastControl("Button","Create").template==nil,"profile create still uses a red Blizzard template")
-assert(lastControl("Button","Back").template==nil,"profile Back still uses a red Blizzard template")
+assert(profilesPage.pageTitle.text=="Dejunk | Profiles (Default)","Profiles panel title did not show the active profile")
+assert(lastControl("Button","New Profile").template==nil,"New Profile still uses a red Blizzard template")
+assert(lastControl("Button","Ren").template==nil and lastControl("Button","Dup").template==nil,
+  "profile card actions still use red Blizzard templates")
+local protectedRename,protectedDelete
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="Button" and frame.profileId=="default" and frame.profileAction=="rename" then protectedRename=frame end
+  if frame.kind=="Button" and frame.profileId=="default" and frame.profileAction=="delete" then protectedDelete=frame end
+end
+assert(protectedRename and protectedRename.enabled==false,"default profile rename must be disabled")
+assert(protectedDelete and protectedDelete.enabled==false,"default profile delete must be disabled")
+local testProfileCard
+for _,frame in ipairs(uiFrames) do if frame.kind=="Button" and frame.parent and frame.parent.kind=="Frame" and frame.profileId=="profile-1" and frame.height==48 then testProfileCard=frame end end
+assert(testProfileCard,"profile selection card was not created")
+testProfileCard:Click()
+assert(selectedProfile=="profile-1","profile card did not activate the profile represented by that card")
+ui.StaticPopupDialogs={}
+ui.StaticPopup_Show=function(key,...)
+  local args={...}
+  local dialog={data=args[3],editBox=object("EditBox",nil,nil)}
+  ui.lastStaticPopup=dialog
+  local definition=ui.StaticPopupDialogs[key]
+  assert(definition,"profile action did not register its dialog")
+  if definition.OnShow then definition.OnShow(dialog) end
+  return dialog
+end
+local function profileAction(action,id)
+  for index=#uiFrames,1,-1 do
+    local frame=uiFrames[index]
+    if frame.kind=="Button" and frame.profileId==id and frame.profileAction==action then return frame end
+  end
+  error("missing profile action "..action.." for "..id)
+end
+local createProfileButton=lastControl("Button","New Profile")
+createProfileButton:Click()
+ui.lastStaticPopup.editBox:SetText("Fresh")
+ui.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_NAME.OnAccept(ui.lastStaticPopup)
+assert(profileOperations.create and profileOperations.create.name=="Fresh","New Profile dialog did not create the entered name")
+profileAction("duplicate","profile-1"):Click()
+ui.lastStaticPopup.editBox:SetText("Test Copy")
+ui.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_NAME.OnAccept(ui.lastStaticPopup)
+assert(profileOperations.duplicate and profileOperations.duplicate.id=="profile-1" and profileOperations.duplicate.name=="Test Copy",
+  "profile card duplicate did not copy the selected profile")
+profileAction("rename","profile-1"):Click()
+ui.lastStaticPopup.editBox:SetText("Renamed")
+ui.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_NAME.OnAccept(ui.lastStaticPopup)
+assert(profileOperations.rename and profileOperations.rename.id=="profile-1" and profileOperations.rename.name=="Renamed",
+  "profile card rename did not target the selected profile")
+profileAction("reset","profile-1"):Click()
+ui.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_CONFIRM.OnAccept(ui.lastStaticPopup)
+assert(profileOperations.reset=="profile-1","profile reset did not target the selected profile")
+profileAction("delete","profile-1"):Click()
+ui.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_CONFIRM.OnAccept(ui.lastStaticPopup)
+assert(profileOperations.delete=="profile-1","profile delete did not target the selected profile")
 control("Button","Lists"):Click()
 assert(profilesPage.shown==false and namedFrame("DejunkWotLKLists").shown,"Lists navigation left the Profiles page visible")
-runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function() return "default" end})
+runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function() return "default" end,activeProfileName=function() return "Default" end})
 local optionState={quality={[0]=true},includeByQuality={enabled=true,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},includeBelowItemLevel={enabled=false,scope="BOTH",value=0,qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},includeBelowPrice={enabled=false,scope="SELL",value=0,qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},excludeAboveItemLevel={enabled=false,scope="BOTH",value=0,qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},excludeAbovePrice={enabled=false,scope="DESTROY",value=0,qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},includeByEquipmentType={enabled=false,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false},armor={},weapons={}},excludeByEquipmentType={enabled=false,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true},armor={},weapons={}},autoSell=false,autoRepair=false,excludeEquipmentSets={enabled=true,scope="BOTH"},excludeUnboundEquipment={enabled=false,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},excludeQuestItems={enabled=true,scope="BOTH"}}
 local globalOptionState={safeSell=false,safeDestroy=true,merchantButton=true,minimapIcon={hide=false},
   autoJunkFrame=false,autoLootableFrame=false,chatMessages={enabled=true,detail="REDUCED"},

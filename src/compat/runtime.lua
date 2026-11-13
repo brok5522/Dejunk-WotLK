@@ -50,9 +50,9 @@ function Runtime.New(environment)
   local configNavButtons={}
   local optionsOptionCards,optionsCardDividers,optionsQualityRows,optionsResponsiveDescriptions
   local optionsGlobalControls,optionsGlobalChoices
-  local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
+  local profileFrame,profileSummary,profileList,profileButtons,profileScroll
   local profileWaffleRoot,listsWaffleRoot,importWaffleRoot,optionsWaffleRoot,reportWaffleRoot
-  local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listPanels
+  local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listSearchPlaceholder,listSearchClear,listPanels
   local importFrame,importTitle,importEdit,importStatus,importCommitButton,importPreview,importScope,importKind
   local reportReturnTarget
   local rulesFrame,rulesSummary,ruleIdInput,ruleValueInput,ruleScopeButton,ruleResultButton,ruleFieldButton,ruleOpButton,ruleGroupButton
@@ -434,6 +434,7 @@ function Runtime.New(environment)
         if not mainContentFrame then profileFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}}) end
         local title=profileFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
         title:SetPoint("TOPLEFT",18,-18); title:SetText("Dejunk | Profiles"); setTextColor(title,"blue")
+        profileFrame.pageTitle=title
         if not mainContentFrame then
           local close=styleCloseButton(api.CreateFrame("Button",nil,profileFrame))
           close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() profileFrame:Hide() end)
@@ -443,34 +444,39 @@ function Runtime.New(environment)
         profileScroll=api.CreateFrame("ScrollFrame","DejunkWotLKProfileScrollFrame",profileFrame,"UIPanelScrollFrameTemplate")
         profileScroll:SetPoint("TOPLEFT",22,-72); profileScroll:SetPoint("BOTTOMRIGHT",-18,75)
         profileList=api.CreateFrame("Frame",nil,profileScroll); profileList:SetWidth(500); profileList:SetHeight(175); profileScroll:SetScrollChild(profileList); profileButtons={}
-        profileNameBox=api.CreateFrame("EditBox",nil,profileFrame,"InputBoxTemplate")
-        profileNameBox:SetWidth(190); profileNameBox:SetHeight(24); profileNameBox:SetPoint("BOTTOMLEFT",profileFrame,"BOTTOMLEFT",24,52)
-        profileNameBox:SetAutoFocus(false); profileNameBox:SetMaxLetters(32); profileNameBox:SetScript("OnEscapePressed",function() profileNameBox:ClearFocus() end)
-        local create=styleThemedButton(api.CreateFrame("Button",nil,profileFrame))
-        create:SetWidth(80); create:SetHeight(24); create:SetPoint("LEFT",profileNameBox,"RIGHT",8,0); create:SetText("Create")
-        create:SetScript("OnClick",function()
-          local name=profileNameBox:GetText() or ""
-          local id,reason=callbacks.createProfile and callbacks.createProfile(name)
-          if id then profileNameBox:SetText("") else self:Print("Profile creation failed: "..tostring(reason)) end
-          self:ShowProfiles(callbacks)
-        end)
-        local duplicate=styleThemedButton(api.CreateFrame("Button",nil,profileFrame))
-        duplicate:SetWidth(90); duplicate:SetHeight(24); duplicate:SetPoint("LEFT",create,"RIGHT",8,0); duplicate:SetText("Duplicate")
-        duplicate:SetScript("OnClick",function()
-          local name=profileNameBox:GetText() or ""
-          local id,reason=callbacks.duplicateProfile and callbacks.duplicateProfile(name)
-          if id then profileNameBox:SetText("") else self:Print("Profile copy failed: "..tostring(reason)) end
-          self:ShowProfiles(callbacks)
-        end)
-        local rename=styleThemedButton(api.CreateFrame("Button",nil,profileFrame))
-        rename:SetWidth(116); rename:SetHeight(24); rename:SetPoint("BOTTOMLEFT",profileFrame,"BOTTOMLEFT",24,16); rename:SetText("Rename active")
-        rename:SetScript("OnClick",function()
-          local name=profileNameBox:GetText() or ""
-          local renamed,reason=callbacks.renameActiveProfile and callbacks.renameActiveProfile(name)
-          self:Print(renamed and "Profile renamed." or ("Rename failed: "..tostring(reason or "DEFAULT_PROFILE_PROTECTED")))
-          self:ShowProfiles(callbacks)
-        end)
-        local function confirmAction(action)
+        local function showNamePrompt(action,profile)
+          if type(api.StaticPopup_Show)~="function" then
+            self:Print("Profile name dialog unavailable; use /djw profile "..action.." <profileID> <name>.")
+            return
+          end
+          api.StaticPopupDialogs=api.StaticPopupDialogs or {}
+          api.StaticPopupDialogs.DEJUNKWOTLK_PROFILE_NAME={
+            text="Enter a name for %s:",button1=api.ACCEPT or "Accept",button2=api.CANCEL or "Cancel",
+            hasEditBox=1,maxLetters=32,timeout=0,whileDead=1,hideOnEscape=1,
+            OnShow=function(dialog)
+              if dialog.editBox then
+                dialog.editBox:SetText(profile and profile.name or "")
+                dialog.editBox:SetFocus()
+              end
+            end,
+            OnAccept=function(dialog)
+              local current=runtime.configCallbacks or callbacks
+              local name=dialog.editBox and dialog.editBox:GetText() or ""
+              local id,reason
+              if action=="create" then id,reason=current.createProfile and current.createProfile(name)
+              elseif action=="duplicate" then
+                id,reason=current.duplicateProfileFrom and current.duplicateProfileFrom(profile.id,name)
+                if not id and current.duplicateProfile then id,reason=current.duplicateProfile(name) end
+              else id,reason=current.renameProfile and current.renameProfile(profile.id,name) end
+              self:Print(id and (action=="create" and "Profile created." or action=="duplicate" and "Profile duplicated." or "Profile renamed.") or
+                ((action=="create" and "Create" or action=="duplicate" and "Duplicate" or "Rename").." failed: "..tostring(reason or "UNAVAILABLE")))
+              self:ShowProfiles(current)
+            end
+          }
+          api.StaticPopup_Show("DEJUNKWOTLK_PROFILE_NAME",profile and profile.name or "new profile",nil,{action=action,profile=profile})
+        end
+        profileFrame.showNamePrompt=showNamePrompt
+        local function confirmAction(action,profile)
           if type(api.StaticPopup_Show)~="function" then
             self:Print("Confirmation dialog unavailable; use /djw profile "..action.." <profileID>.")
             return
@@ -480,28 +486,31 @@ function Runtime.New(environment)
             text="Are you sure you want to %s profile %s?",
             button1=api.YES or "Yes",button2=api.NO or "No",timeout=0,whileDead=1,hideOnEscape=1,
             OnAccept=function(dialog)
-              local acceptedAction=dialog.data
+              local data=dialog.data or {}
+              local acceptedAction=data.action
+              local current=runtime.configCallbacks or callbacks
               local changed,reason
-              if acceptedAction=="reset" then changed,reason=callbacks.resetActiveProfile and callbacks.resetActiveProfile()
-              else changed,reason=callbacks.deleteActiveProfile and callbacks.deleteActiveProfile() end
+              if acceptedAction=="reset" then changed,reason=current.resetProfile and current.resetProfile(data.profile.id)
+              else changed,reason=current.deleteProfile and current.deleteProfile(data.profile.id) end
               self:Print(changed and (acceptedAction=="reset" and "Profile reset." or "Profile deleted.") or
                 ((acceptedAction=="reset" and "Reset" or "Delete").." failed: "..tostring(reason or "DEFAULT_PROFILE_PROTECTED")))
-              self:ShowProfiles(callbacks)
+              self:ShowProfiles(current)
             end
           }
-          api.StaticPopup_Show("DEJUNKWOTLK_PROFILE_CONFIRM",action,callbacks.activeProfileName and callbacks.activeProfileName() or "active",action)
+          api.StaticPopup_Show("DEJUNKWOTLK_PROFILE_CONFIRM",action,profile.name,{action=action,profile=profile})
         end
-        local reset=styleThemedButton(api.CreateFrame("Button",nil,profileFrame))
-        reset:SetWidth(75); reset:SetHeight(24); reset:SetPoint("LEFT",rename,"RIGHT",6,0); reset:SetText("Reset")
-        reset:SetScript("OnClick",function() confirmAction("reset") end)
-        local delete=styleThemedButton(api.CreateFrame("Button",nil,profileFrame))
-        delete:SetWidth(75); delete:SetHeight(24); delete:SetPoint("LEFT",reset,"RIGHT",6,0); delete:SetText("Delete")
-        delete:SetScript("OnClick",function() confirmAction("delete") end)
-        local back=styleThemedButton(api.CreateFrame("Button",nil,profileFrame))
-        back:SetWidth(85); back:SetHeight(24); back:SetPoint("BOTTOMRIGHT",profileFrame,"BOTTOMRIGHT",-18,16); back:SetText("Back")
-        back:SetScript("OnClick",function() profileFrame:Hide(); self:ShowConfig(callbacks) end)
+        profileFrame.confirmProfileAction=confirmAction
+        local create=styleThemedButton(api.CreateFrame("Button",nil,profileFrame),"New Profile")
+        create:SetWidth(130); create:SetHeight(28); create:SetPoint("BOTTOMLEFT",profileFrame,"BOTTOMLEFT",22,16)
+        create:SetScript("OnClick",function() showNamePrompt("create") end)
+        profileFrame.newProfileButton=create
       end
       local profiles=callbacks.profiles and callbacks.profiles() or {}
+      local activeName=callbacks.activeProfileName and callbacks.activeProfileName() or nil
+      if profileFrame.pageTitle then
+        profileFrame.pageTitle:SetText("Dejunk | Profiles"..(activeName and (" ("..activeName..")") or ""))
+        setTextColor(profileFrame.pageTitle,"blue")
+      end
       table.sort(profiles,function(a,b)
         if a.id=="default" then return true end
         if b.id=="default" then return false end
@@ -511,7 +520,9 @@ function Runtime.New(environment)
       for _,child in ipairs(profileButtons) do child:Hide() end
       profileButtons={}
       for index,profile in ipairs(profiles) do
+        local profileEntry=profile
         local button=api.CreateFrame("Button",nil,profileList)
+        button.profileId=profile.id
         button:SetWidth(470); button:SetHeight(48); button:SetPoint("TOPLEFT",profileList,"TOPLEFT",0,-row*52)
         button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); button:SetBackdropBorderColor(0,0,0,0)
         button:SetBackdropColor(1,1,1,0.03)
@@ -519,10 +530,10 @@ function Runtime.New(environment)
         accent:SetWidth(3); accent:SetPoint("TOPLEFT"); accent:SetPoint("BOTTOMLEFT")
         accent:SetVertexColor(theme.blue[1],theme.blue[2],theme.blue[3],profile.active and 1 or 0)
         local name=button:CreateFontString(nil,"ARTWORK","GameFontNormal")
-        name:SetPoint("TOPLEFT",12,-7); name:SetPoint("RIGHT",-8,0); name:SetJustifyH("LEFT")
+        name:SetPoint("TOPLEFT",12,-7); name:SetPoint("RIGHT",-172,0); name:SetJustifyH("LEFT")
         name:SetText(profile.name); setTextColor(name,profile.active and "blue" or "white")
         local summary=button:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
-        summary:SetPoint("BOTTOMLEFT",name,"BOTTOMLEFT",0,-15); summary:SetPoint("RIGHT",-8,0); summary:SetJustifyH("LEFT")
+        summary:SetPoint("BOTTOMLEFT",name,"BOTTOMLEFT",0,-15); summary:SetPoint("RIGHT",-172,0); summary:SetJustifyH("LEFT")
         local bits={}
         if profile.autoSell then bits[#bits+1]="Auto Sell" end
         bits[#bits+1]="Inclusions: "..tostring(profile.numInclusions or 0)
@@ -531,16 +542,32 @@ function Runtime.New(environment)
         button:SetScript("OnEnter",function(self) self:SetBackdropColor(1,1,1,0.06) end)
         button:SetScript("OnLeave",function(self) self:SetBackdropColor(1,1,1,0.03) end)
         button:SetScript("OnClick",function()
-          local switched,reason=callbacks.switchProfile and callbacks.switchProfile(profile.id)
-          self:Print(switched and ("Active profile: "..profile.name) or ("Profile switch failed: "..tostring(reason)))
+          local current=runtime.configCallbacks or callbacks
+          local switched,reason=current.switchProfile and current.switchProfile(profileEntry.id)
+          self:Print(switched and ("Active profile: "..profileEntry.name) or ("Profile switch failed: "..tostring(reason)))
           self:ShowProfiles(callbacks)
         end)
+        local actions={{"Del","delete",34},{"Reset","reset",42},{"Dup","duplicate",34},{"Ren","rename",34}}
+        local right=-5
+        for _,entry in ipairs(actions) do
+          local action,label,width=entry[2],entry[1],entry[3]
+          local actionButton=styleThemedButton(api.CreateFrame("Button",nil,button),label)
+          actionButton:SetWidth(width); actionButton:SetHeight(22); actionButton:SetPoint("RIGHT",button,"RIGHT",right,0)
+          actionButton.profileAction=action; actionButton.profileId=profile.id
+          if (action=="rename" or action=="delete") and profile.id=="default" then
+            actionButton:Disable(); actionButton:SetAlpha(0.35)
+          end
+          actionButton:SetScript("OnClick",function()
+            if action=="rename" or action=="duplicate" then profileFrame.showNamePrompt(action,profileEntry)
+            else profileFrame.confirmProfileAction(action,profileEntry) end
+          end)
+          right=right-width-3
+        end
         profileButtons[#profileButtons+1]=button
         row=row+1
       end
       profileList:SetHeight(math.max(175,row*52))
       profileSummary:SetText("Select a profile to activate it:")
-      if profileNameBox:GetText()=="" and callbacks.activeProfileName then profileNameBox:SetText(callbacks.activeProfileName()) end
       setConfigPageVisible(listFrame,false)
       setConfigPageVisible(optionsFrame,false)
       if profilePageComponent and configWaffleRoot then
@@ -579,10 +606,17 @@ function Runtime.New(environment)
         listSearch=api.CreateFrame("EditBox",nil,listFrame,"InputBoxTemplate")
         listSearch:SetWidth(350); listSearch:SetHeight(24); listSearch:SetPoint("TOPLEFT",12,-14)
         listSearch:SetAutoFocus(false); listSearch:SetMaxLetters(64)
+        if listSearch.SetTextInsets then listSearch:SetTextInsets(24,24,0,0) end
+        local searchIcon=listSearch:CreateTexture(nil,"ARTWORK")
+        searchIcon:SetTexture("Interface\\Common\\UI-Searchbox-Icon"); searchIcon:SetWidth(14); searchIcon:SetHeight(14); searchIcon:SetPoint("LEFT",6,0)
+        listSearchPlaceholder=listSearch:CreateFontString(nil,"OVERLAY","GameFontDisableSmall")
+        listSearchPlaceholder:SetPoint("LEFT",24,0); listSearchPlaceholder:SetText("Search by item name or ID"); setTextColor(listSearchPlaceholder,"grey")
+        listSearchClear=styleCloseButton(api.CreateFrame("Button",nil,listSearch))
+        listSearchClear:SetWidth(18); listSearchClear:SetHeight(18); listSearchClear:SetPoint("RIGHT",-3,0)
+        listSearchClear:SetScript("OnClick",function() listSearch:SetText(""); listSearch:ClearFocus() end)
+        listSearchClear:Hide()
         listSearch:SetScript("OnEscapePressed",function() listSearch:ClearFocus() end)
         listSearch:SetScript("OnTextChanged",function() self:ShowLists(callbacks) end)
-        local searchLabel=listFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-        searchLabel:SetPoint("LEFT",listSearch,"RIGHT",10,0); searchLabel:SetText("Search by item name or ID"); setTextColor(searchLabel,"grey")
         listScopeButton=styleThemedButton(api.CreateFrame("Button",nil,listFrame))
         listScopeButton:SetWidth(100); listScopeButton:SetHeight(24); listScopeButton:SetPoint("TOPLEFT",12,-48)
         listScopeButton:SetScript("OnClick",function()
@@ -606,18 +640,21 @@ function Runtime.New(environment)
         listButton("Add",8,function() self:EditList(callbacks,true) end)
         listButton("Remove",76,function() self:EditList(callbacks,false) end)
         listPanels={}
+        local listWidth=listFrame:GetWidth() or 540
+        local paneWidth=math.max(220,math.floor((listWidth-36)/2))
+        local paneHeight=192
         local panes={
           {scope="global",kind="inclusions",title="Inclusions (Global)",x=8,y=-84},
-          {scope="global",kind="exclusions",title="Exclusions (Global)",x=276,y=-84},
-          {scope="profile",kind="inclusions",title="Inclusions (Profile)",x=8,y=-292},
-          {scope="profile",kind="exclusions",title="Exclusions (Profile)",x=276,y=-292}
+          {scope="global",kind="exclusions",title="Exclusions (Global)",x=paneWidth+20,y=-84},
+          {scope="profile",kind="inclusions",title="Inclusions (Profile)",x=8,y=-(84+paneHeight+12)},
+          {scope="profile",kind="exclusions",title="Exclusions (Profile)",x=paneWidth+20,y=-(84+paneHeight+12)}
         }
         for _,pane in ipairs(panes) do
           local paneScope,paneKind=pane.scope,pane.kind
           local box=api.CreateFrame("Frame",nil,listFrame)
-          box:SetWidth(248); box:SetHeight(192); box:SetPoint("TOPLEFT",listFrame,"TOPLEFT",pane.x,pane.y)
-          box:EnableMouse(true); box:SetBackdrop({bgFile="Interface\\Tooltips\\UI-Tooltip-Background",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",tile=true,tileSize=16,edgeSize=10,insets={left=3,right=3,top=3,bottom=3}})
-          box:SetBackdropColor(0,0,0,0.65)
+          box:SetWidth(paneWidth); box:SetHeight(paneHeight); box:SetPoint("TOPLEFT",listFrame,"TOPLEFT",pane.x,pane.y)
+          box:EnableMouse(true); box:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+          box:SetBackdropColor(1,1,1,0.03); box:SetBackdropBorderColor(1,1,1,0.22)
           local function addCursorItem()
             local itemId=getCursorItemId()
             if not itemId then return false end
@@ -633,18 +670,23 @@ function Runtime.New(environment)
           end
           box:SetScript("OnMouseDown",function() addCursorItem() end)
           local heading=box:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-          heading:SetPoint("TOPLEFT",8,-7); heading:SetText(pane.title); setTextColor(heading,"blue")
+          heading:SetPoint("TOPLEFT",8,-7); heading:SetText(pane.title); setTextColor(heading,"white")
           local empty=box:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-          empty:SetPoint("TOPLEFT",8,-30); empty:SetWidth(224); empty:SetJustifyH("LEFT")
+          empty:SetPoint("TOPLEFT",8,-30); empty:SetWidth(paneWidth-16); empty:SetJustifyH("LEFT"); setTextColor(empty,"grey")
           local rows={}
           for rowIndex=1,7 do
             local row=api.CreateFrame("Button",nil,box)
-            row:SetWidth(230); row:SetHeight(18); row:SetPoint("TOPLEFT",8,-27-(rowIndex-1)*20)
+            row:SetWidth(paneWidth-16); row:SetHeight(20); row:SetPoint("TOPLEFT",8,-27-(rowIndex-1)*21)
+            row:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); row:SetBackdropBorderColor(0,0,0,0)
             local icon=row:CreateTexture(nil,"ARTWORK")
-            icon:SetWidth(16); icon:SetHeight(16); icon:SetPoint("LEFT",0,0)
+            icon:SetWidth(18); icon:SetHeight(18); icon:SetPoint("LEFT",3,0)
             local label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-            label:SetPoint("LEFT",icon,"RIGHT",5,0); label:SetWidth(205); label:SetJustifyH("LEFT")
-            row.icon=icon; row.label=label; row.listScope=paneScope; row.listKind=paneKind
+            label:SetPoint("LEFT",icon,"RIGHT",5,0); label:SetWidth(paneWidth-52); label:SetJustifyH("LEFT"); setTextColor(label,"white")
+            local accent=row:CreateTexture(nil,"ARTWORK")
+            accent:SetWidth(2); accent:SetPoint("TOPLEFT"); accent:SetPoint("BOTTOMLEFT")
+            row.icon=icon; row.label=label; row.accent=accent; row.listScope=paneScope; row.listKind=paneKind
+            row:SetScript("OnEnter",function(self) self:SetBackdropColor(1,1,1,0.06) end)
+            row:SetScript("OnLeave",function(self) self:SetBackdropColor(1,1,1,0) end)
             if type(row.RegisterForClicks)=="function" then row:RegisterForClicks("LeftButtonUp","RightButtonUp") end
             row:SetScript("OnMouseDown",function()
               if getCursorItemId() then row.cursorHandled=addCursorItem() end
@@ -698,6 +740,8 @@ function Runtime.New(environment)
       listScopeButton:SetText("Scope: "..scope)
       listKindButton:SetText(kind=="inclusions" and "Inclusions" or "Exclusions")
       local query=(listSearch:GetText() or ""):lower()
+      if listSearchPlaceholder then if query=="" then listSearchPlaceholder:Show() else listSearchPlaceholder:Hide() end end
+      if listSearchClear then if query=="" then listSearchClear:Hide() else listSearchClear:Show() end end
       local raws,allIds,seenIds={}, {}, {}
       for index,pane in ipairs(listPanels) do
         local raw=callbacks.listItems and callbacks.listItems(pane.scope,pane.kind) or ""
@@ -750,6 +794,11 @@ function Runtime.New(environment)
             local presentation=itemPresentationCache[item.id] or {}
             row.itemId=item.id; row.label:SetText((presentation.name or item.name or "Item").." (#"..item.id..")")
             if presentation.texture then row.icon:SetTexture(presentation.texture); row.icon:Show() else row.icon:Hide() end
+            if type(api.GetItemQualityColor)=="function" and presentation.quality then
+              local colorOk,r,g,b=pcall(api.GetItemQualityColor,presentation.quality)
+              if colorOk and type(r)=="number" and type(g)=="number" and type(b)=="number" then row.accent:SetVertexColor(r,g,b,1); row.accent:Show()
+              else row.accent:Hide() end
+            else row.accent:Hide() end
             row:Show()
           else row:Hide() end
         end

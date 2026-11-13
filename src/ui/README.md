@@ -36,12 +36,19 @@ metadata last; serialized import/export order remains numeric. Add/remove uses
 an item ID; each pane shows six matches at a time. Clicking a row selects its ID
 and its corresponding scope/list for the Add or Remove action. Icons and names
 use cached item metadata when available; otherwise the row falls back to its
-item ID. The Lists page has bulk Import and Export controls; imports preview new
+item ID. Search now has an inline icon, placeholder and clear control. List
+panes use the dark square bordered treatment from the upstream list panels.
+The Lists page has bulk Import and Export controls; imports preview new
 and existing IDs before the user commits them. `/djw lists` remains available as
 a chat-command fallback.
 Right-click removal and Shift/Ctrl/Alt-right-click transfers now follow the
 upstream list mapping. Left-click selection and explicit ID editing remain
-temporary development controls and are not UI parity.
+temporary development controls and are not UI parity. Profile cards show the
+active profile accent, inclusion/exclusion counts and per-profile rename,
+duplicate, reset and delete controls. The default profile cannot be renamed or
+deleted; reset and deletion ask for confirmation. Creation and renaming use the
+native text prompt. Mocked UI checks cover these actions; their appearance and
+popup behavior still need observation in the 3.3.5 client.
 Uncached item metadata is requested in batches of at most 25 IDs per UI refresh;
 the Lists frame polls only while open and stops after 30 seconds if data never
 arrives. This avoids relying on a newer item-info completion event.
@@ -51,7 +58,7 @@ returns to the configuration window. This screen is development scaffolding,
 not the original Dejunk main window. Its former custom-rule controls are being
 removed because they do not exist in upstream Dejunk. Options and reports also
 need to be replaced by/adapted from the pinned upstream screen components.
-The main window's sidebar styling, exact upstream components, keybinding screen,
+The main window's exact upstream components, keybinding screen,
 item presentation, junk/lootable frames and game integrations remain unfinished.
 Profile/list widgets are not accepted as full UI parity until original-client
 review.

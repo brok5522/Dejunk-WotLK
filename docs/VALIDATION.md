@@ -73,7 +73,7 @@ current UI has not been exercised in the original client at this revision.
    Native controls approximate the pinned
    Waffle OptionCard/SettingsBox and SelectableRow visuals; other upstream screens and
    integrations remain unfinished.
-   A further client screenshot showed red Blizzard button art remained on Lists, profile actions and threshold Apply controls. The subsequent 3.3.5 client screenshot confirmed the red templates were removed but showed checkbox marks were not visible. Custom checkboxes now accept both boolean `true` and numeric `1` from `GetChecked`, and the interaction fixture exercises the numeric/`nil` return shape. All addon-created `UIPanelButtonTemplate` instances now use plain square controls with the upstream dark-grey background, gold label and black border; close controls use a grey X that highlights red on hover. The active-profile rename control is widened to prevent label truncation. UI interaction fixtures assert the screenshot-visible Lists and Apply buttons no longer use Blizzard red templates. This client appearance change has not yet been observed in game.
+   A further client screenshot showed red Blizzard button art remained on Lists, profile actions and threshold Apply controls. The subsequent 3.3.5 client screenshot confirmed the red templates were removed but showed checkbox marks were not visible. Custom checkboxes now accept both boolean `true` and numeric `1` from `GetChecked`, and the interaction fixture exercises the numeric/`nil` return shape. All addon-created `UIPanelButtonTemplate` instances now use plain square controls with the upstream dark-grey background, gold label and black border; close controls use a grey X that highlights red on hover. The active-profile rename control is widened to prevent label truncation. UI interaction fixtures assert the screenshot-visible Lists and Apply buttons no longer use Blizzard red templates. New profile cards add compact per-profile actions with protected default-profile controls and explicit confirmation for reset/delete; Lists now has the inline search treatment and dark square panes. Mocked UI interaction checks pass for all profile actions and the list panels, but these latest visual changes have not yet been observed in game.
    The latest client screenshot exposed a WoW-specific positioning issue:
    native frames do not provide the mock-only `.point` field used by the width
    adjustment. The code now stores each quality row's vertical offset and each
@@ -124,9 +124,13 @@ do not validate WoW rendering or inputs.
 methods and options rendered as a detached overlay. The options screen has now
 been corrected and all content screens follow the Waffle selector model. Offline
 fixtures check screen exclusivity, sibling parenting, layout sizing, section
-order, scroll content size and card bounds. The latest screen-controller change
-still needs one consolidated visual check in WoW. No live sale, repair or delete
-test was performed.
+order, scroll content size and card bounds. The 0.16.15 screenshot confirmed the
+checkbox checked state is visible; later profile card and list search/panel
+styling changes are only covered by offline mocks. Please install the next
+package and check Profiles (create, rename, duplicate, reset, delete prompts and
+activation) and Lists search/pane sizing at the user's resolution. No live sale,
+repair or inventory deletion test is required or requested. No live sale, repair
+or delete test was performed.
 
 ## Historical evidence
 

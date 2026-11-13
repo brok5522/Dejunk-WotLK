@@ -3,7 +3,7 @@
 ## SavedVariables: DejunkWotLKDB
 ## Notes: Development port for original 3.3.5a. UI parity and live actions are incomplete.
 ## Author: Dejunk-WotLK contributors
-## Version: 0.16.15-dev
+## Version: 0.16.17-dev
 
 src\namespace.lua
 libs\Waffle.lua
