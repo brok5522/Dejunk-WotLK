@@ -328,6 +328,7 @@ assert(optionsPage.backdrop~=nil,"Options page is missing the opaque active-page
 assert(optionsPage.backdropColor and optionsPage.backdropColor[4]==1,"Options page background is not opaque over inactive screens")
 assert(optionsPage.scrollFrame and optionsPage.scrollFrame.template=="UIPanelScrollFrameTemplate","Profile options must use the legacy scroll-panel pattern")
 assert(optionsPage.contentFrame and optionsPage.contentFrame.height>=2040,"Profile option groups must fit in the scroll content")
+assert(optionsPage.contentFrame.width and optionsPage.contentFrame.width>=420,"Profile options content was not sized to its page")
 local sectionOrder={}
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="FontString" and frame.parent==optionsPage.contentFrame and
@@ -345,6 +346,15 @@ end
 table.sort(cards,function(a,b) return -a.point[5] < -b.point[5] end)
 for i=1,#cards-1 do
   assert(-cards[i].point[5]+cards[i].height<=-cards[i+1].point[5],"profile option cards overlap vertically")
+end
+for _,card in ipairs(cards) do
+  assert(card.point[4]+card.width<=optionsPage.contentFrame.width,"profile option card extends beyond the scroll content width")
+end
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.qualityRow then
+    assert(frame.point[2]+frame.width+2+frame.labelHit.width<=optionsPage.contentFrame.width,
+      "quality option and clickable label extend beyond the scroll content width")
+  end
 end
 assert(profilesPage.shown==false,"Profiles page remained visible while Options was selected")
 local listsPage=namedFrame("DejunkWotLKLists")
@@ -383,7 +393,8 @@ assert(optionState.includeBelowItemLevel.scope=="SELL","threshold action scope d
 local minimumPoor
 for _,frame in ipairs(uiFrames) do if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionGroup=="includeBelowItemLevel" and frame.optionQuality=="poor" then minimumPoor=frame end end
 assert(minimumPoor,"threshold quality control was not created")
-assert(minimumPoor.width==24 and minimumPoor.labelHit.width==60,"threshold quality choice is not a compact checkbox with a clickable text label")
+assert(minimumPoor.width==24 and minimumPoor.labelHit.width>=20 and minimumPoor.labelHit.width<=60,
+  "threshold quality choice is not a compact checkbox with a responsive clickable text label")
 assert(minimumPoor.labelRegion and minimumPoor.labelRegion.text=="Poor","legacy checkbox label is not rendered through its own FontString")
 local minScopeWidth
 for _,frame in ipairs(uiFrames) do if frame==minimumScope then minScopeWidth=frame.width end end
@@ -395,7 +406,8 @@ end
 table.sort(minQualityRow,function(a,b) return a.point[2]<b.point[2] end)
 assert(#minQualityRow==5,"minimum item level should have five quality controls")
 for i=1,#minQualityRow-1 do
-  assert(minQualityRow[i+1].point[2]-minQualityRow[i].point[2]>=92,"threshold quality choices overlap horizontally")
+  assert(minQualityRow[i].point[2]+minQualityRow[i].width+2+minQualityRow[i].labelHit.width<=minQualityRow[i+1].point[2],
+    "threshold quality choice labels overlap horizontally")
 end
 minimumPoor.labelHit:Click()
 assert(optionState.includeBelowItemLevel.qualities.poor==false,"threshold quality selection did not update through the UI")

@@ -53,7 +53,12 @@ current UI has not been exercised in the original client at this revision.
    choices and gold/silver/copper price inputs. Exclusion cards and unbound
    quality controls fit within their card bounds. The heading retains the
    active profile name. Automated UI fixtures cover card bounds, settings
-   interactions and coin conversion. Client screenshots of v12/v13 exposed
+   interactions and coin conversion. A later screenshot showed the fifth
+   quality chip and caption extending past the right edge at the user's
+   resolution. Quality rows now recompute spacing from the Waffle page width;
+   fixtures assert that cards, controls and clickable captions stay within the
+   scroll content and that quality labels do not overlap. Client screenshots
+   of v12/v13 exposed
    page overlap and incorrect checkbox styling: legacy CheckButton:SetText is
    unavailable, and expanding the checkbox width stretched its template
    texture. The port now keeps the checkbox at 24px, renders its caption in a
@@ -66,10 +71,11 @@ current UI has not been exercised in the original client at this revision.
 
 ## Checks run for this report
 
-Command:
+Commands:
 
 ```sh
 python3 tools/check.py --lua /workspace/work/lua51/usr/bin/lua5.1 --luac /workspace/work/lua51/usr/bin/luac5.1
+python3 tools/check_phase0.py
 git diff --check
 ```
 

@@ -20,6 +20,8 @@ behavior, action-scope and quality chips, and gold/silver/copper inputs for
 price limits. Controls cover quality, four item-level and stack-price
 thresholds, and localized armor/weapon type filters. These are rebuilt with
 legacy 3.3.5 widgets inside the project's Waffle main window; the upstream
+quality rows and cards resize to the actual content width so the fifth quality
+and its clickable caption stay inside the scroll panel at narrow resolutions.
 OptionCard/SettingsBox visual components are not yet ported pixel-for-pixel,
 and checkbox captions use separate clickable text regions because the legacy
 CheckButton template has no `SetText` method. Checkboxes stay at their native

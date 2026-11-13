@@ -11,6 +11,7 @@ function Runtime.New(environment)
   local configContentComponent,configOverviewComponent,mainContentFrame
   local optionsPageComponent,profilePageComponent,listPageComponent
   local configScreens,selectedConfigScreen={},nil
+  local optionsOptionCards,optionsCardDividers,optionsQualityRows
   local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
   local profileWaffleRoot,listsWaffleRoot,importWaffleRoot,optionsWaffleRoot,reportWaffleRoot
   local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listPanels
@@ -990,6 +991,7 @@ function Runtime.New(environment)
         optionsScrollFrame:SetScrollChild(optionsContentFrame)
         optionsFrame.scrollFrame=optionsScrollFrame; optionsFrame.contentFrame=optionsContentFrame
         optionsProfileDecorations={}; optionsGlobalDecorations={}
+        optionsOptionCards={}; optionsCardDividers={}; optionsQualityRows={}
         local optionCheckSerial=0
         local function createOptionCheck(labelText,x,y,hitWidth)
           optionCheckSerial=optionCheckSerial+1
@@ -1038,11 +1040,12 @@ function Runtime.New(environment)
           local card=api.CreateFrame("Frame",nil,optionsContentFrame)
           card.optionCard=true
           card:SetPoint("TOPLEFT",optionsContentFrame,"TOPLEFT",10,y)
-          card:SetWidth(mainContentFrame and 548 or 458); card:SetHeight(height)
+          card:SetWidth(math.max(380,optionsContentFrame:GetWidth()-20)); card:SetHeight(height)
           card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",tile=true,tileSize=8})
           card:SetBackdropColor(1,1,1,0.03)
           local group=isGlobal and optionsGlobalDecorations or optionsProfileDecorations
           group[#group+1]=card
+          optionsOptionCards[#optionsOptionCards+1]=card
           return card
         end
         local optionCardFrames={}
@@ -1082,6 +1085,7 @@ function Runtime.New(environment)
           divider:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"})
           divider:SetBackdropColor(1,1,1,0.12)
           optionsProfileDecorations[#optionsProfileDecorations+1]=divider
+          optionsCardDividers[#optionsCardDividers+1]=divider
           return divider
         end
         local qualityTitle=createOptionCheck("Include by quality",24,-216)
@@ -1098,9 +1102,13 @@ function Runtime.New(environment)
         setOptionCheckHandler(qualityTitle,toggleQualityFilter)
         bindCardClick("includeByQuality",toggleQualityFilter)
         local labels={"Poor","Common","Uncommon","Rare","Epic"}
+        local qualityCaptions={"Poor","Com","Unc","Rare","Epic"}
+        local qualityStep=92
         optionsQualityButtons={}
         for quality=0,4 do
-          local b=createOptionCheck(labels[quality+1],110+quality*92,-296,88)
+          local b=createOptionCheck(qualityCaptions[quality+1],110+quality*qualityStep,-296,88)
+          b.optionGroup="includeByQuality"; b.optionQuality=labels[quality+1]:lower(); b.qualityRow=true
+          optionsQualityRows[#optionsQualityRows+1]=b
           setOptionCheckHandler(b,function()
             local currentCallbacks=optionsCallbacks or callbacks
             local opts=currentCallbacks.options and currentCallbacks.options() or {}
@@ -1167,9 +1175,11 @@ function Runtime.New(environment)
         optionsUnboundQualityFields.title=unboundQualityTitle
         for quality=1,5 do
           local q=quality
-          local name=({"Poor","Common","Uncommon","Rare","Epic"})[quality]
+          local name=({"Poor","Com","Unc","Rare","Epic"})[quality]
           local button=createOptionCheck(name,110+(quality-1)*92,-1960,88)
           button.optionGroup="excludeUnboundEquipment"; button.optionQuality=({"poor","common","uncommon","rare","epic"})[quality]
+          button.qualityRow=true
+          optionsQualityRows[#optionsQualityRows+1]=button
           setOptionCheckHandler(button,function()
             local currentCallbacks=optionsCallbacks or callbacks
             local current=currentCallbacks.options and currentCallbacks.options() or {}
@@ -1252,8 +1262,10 @@ function Runtime.New(environment)
           for quality=1,5 do
             local q=quality
             local qualityName=({"Poor","Common","Uncommon","Rare","Epic"})[quality]
-            local button=createOptionCheck(qualityName,110+(quality-1)*92,qualityY,88)
+            local button=createOptionCheck(({"Poor","Com","Unc","Rare","Epic"})[quality],110+(quality-1)*92,qualityY,88)
             button.optionGroup=row.key; button.optionQuality=qualityKeys[q]
+            button.qualityRow=true
+            optionsQualityRows[#optionsQualityRows+1]=button
             setOptionCheckHandler(button,function()
               local currentCallbacks=optionsCallbacks or callbacks
               local current=currentCallbacks.options and currentCallbacks.options() or {}
@@ -1347,8 +1359,10 @@ function Runtime.New(environment)
           field.qualityButtons={}
           local qualityKeys={"poor","common","uncommon","rare","epic"}
           for index,name in ipairs(qualityKeys) do
-            local button=createOptionCheck(name,110+(index-1)*92,top-290,88)
+            local button=createOptionCheck(({"Poor","Com","Unc","Rare","Epic"})[index],110+(index-1)*92,top-290,88)
             button.optionGroup=key; button.optionQuality=name
+            button.qualityRow=true
+            optionsQualityRows[#optionsQualityRows+1]=button
             setOptionCheckHandler(button,function()
               local currentCallbacks=optionsCallbacks or callbacks
               local current=currentCallbacks.options and currentCallbacks.options() or {}
@@ -1485,7 +1499,7 @@ function Runtime.New(environment)
         for _,control in ipairs(entry.qualityButtons) do
           local enabled=type(option.qualities)~="table" or option.qualities[control.name]~=false
           control.button:SetChecked(enabled)
-          setOptionCheckText(control.button,control.name)
+          setOptionCheckText(control.button,({poor="Poor",common="Com",uncommon="Unc",rare="Rare",epic="Epic"})[control.name] or control.name)
           if scope=="profile" then control.button:Show() else control.button:Hide() end
           setOptionCheckEnabled(control.button,option.enabled==true)
         end
@@ -1496,7 +1510,7 @@ function Runtime.New(environment)
         local enabled=qualities[labels[quality+1]:lower()]
         if enabled==nil then enabled=opts.quality and opts.quality[quality] end
         optionsQualityButtons[quality+1]:SetChecked(enabled==true)
-        setOptionCheckText(optionsQualityButtons[quality+1],labels[quality+1])
+        setOptionCheckText(optionsQualityButtons[quality+1],({"Poor","Com","Unc","Rare","Epic"})[quality+1])
       end
       local global=callbacks.globalOptions and callbacks.globalOptions() or {}
       for _,entry in ipairs(optionsFields) do
@@ -1517,8 +1531,21 @@ function Runtime.New(environment)
         selectConfigScreen("options")
         local pageWidth=optionsFrame:GetWidth()
         if pageWidth and pageWidth>120 then
-          optionsContentFrame:SetWidth(pageWidth-90)
+          local contentWidth=math.max(420,pageWidth-44)
+          optionsContentFrame:SetWidth(contentWidth)
           optionsFrame.pageDescription:SetWidth(pageWidth-50)
+          for _,card in ipairs(optionsOptionCards or {}) do card:SetWidth(contentWidth-20) end
+          for _,divider in ipairs(optionsCardDividers or {}) do divider:SetWidth(contentWidth-56) end
+          local qualityStep=math.min(92,(contentWidth-104)/5)
+          for _,control in ipairs(optionsQualityRows or {}) do
+            local order=({poor=0,common=1,uncommon=2,rare=3,epic=4})[control.optionQuality]
+            if order then
+              local y=control.point and control.point[3] or 0
+              control:ClearAllPoints()
+              control:SetPoint("TOPLEFT",110+order*qualityStep,y)
+              control.labelHit:SetWidth(math.max(16,qualityStep-32))
+            end
+          end
         end
       else
         setConfigPageVisible(optionsFrame,true)
