@@ -203,7 +203,9 @@ control("Button","Lists"):Click()
 assert(namedFrame("DejunkWotLKLists"),"Lists page frame was not created")
 local listFrame=namedFrame("DejunkWotLKLists")
 local mainWindow=namedFrame("DejunkWotLK_MainWindow")
-assert(listFrame and listFrame.width==540 and listFrame.shown)
+assert(listFrame and listFrame.width and listFrame.width>0 and listFrame.height and listFrame.height>0 and listFrame.shown,
+  "Lists was not sized by the main Waffle layout")
+assert(listFrame.alpha~=0,"Lists was made transparent by the legacy page visibility path")
 assert(listFrame.backdrop==nil,"Lists page retained the extra nested window frame")
 local ancestor=listFrame
 while ancestor and ancestor~=mainWindow do ancestor=ancestor.parent end
@@ -225,8 +227,13 @@ control("Button","Global Options"):Click()
 assert(firstOptionsPage.shown and listFrame.shown==false,"Global Options navigation restored or left Lists visible")
 control("Button","Profile Options"):Click()
 assert(firstOptionsPage.shown and listFrame.shown==false,"switching back to Profile Options left a stale page visible")
+control("Button","Profiles"):Click()
+assert(firstOptionsPage.shown==false and namedFrame("DejunkWotLKProfiles").shown,"Profiles navigation left the Options Waffle page visible")
+control("Button","Profile Options"):Click()
+assert(firstOptionsPage.shown and namedFrame("DejunkWotLKProfiles").shown==false,"Profile Options navigation left Profiles visible")
 control("Button","Lists"):Click()
-assert(mainWindow.shown and listFrame.shown,"Lists navigation did not restore the embedded screen")
+assert(mainWindow.shown and listFrame.shown and firstOptionsPage.shown==false,
+  "Lists navigation did not restore Lists and hide the Options Waffle page")
 control("Button","Export"):Click()
 local report=uiFrames[#uiFrames]
 while report and report.name~="DejunkWotLKReadOnlyReport" do report=report.parent end
@@ -288,6 +295,9 @@ runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function
 local profilesPage=namedFrame("DejunkWotLKProfiles")
 assert(profilesPage,"profiles page was not created")
 assert(profilesPage.parent==namedFrame("DejunkWotLKLists").parent,"Profiles page is outside the main configuration content")
+assert(profilesPage.width and profilesPage.width>0 and profilesPage.height and profilesPage.height>0,
+  "Profiles page was not sized by the main Waffle layout")
+assert(profilesPage.alpha~=0,"Profiles page was made transparent by the legacy page visibility path")
 assert(profilesPage.backdrop==nil,"Profiles page retained its own dialog backdrop")
 assert(profilesPage.shown,"Profiles page was not visible when selected")
 control("Button","Lists"):Click()
@@ -312,7 +322,8 @@ runtime:ShowOptions(optionCallbacks,"profile")
 local optionsPage=namedFrame("DejunkWotLKOptions")
 assert(optionsPage,"options page was not created")
 assert(optionsPage.parent==profilesPage.parent,"Options page is outside the main configuration content")
-assert(optionsPage.allPoints==optionsPage.parent,"Options page does not fill the main content panel")
+assert(optionsPage.width and optionsPage.width>0 and optionsPage.height and optionsPage.height>0,
+  "Options page was not sized by the main Waffle layout")
 assert(optionsPage.backdrop~=nil,"Options page is missing the opaque active-page background")
 assert(optionsPage.backdropColor and optionsPage.backdropColor[4]==1,"Options page background is not opaque over inactive screens")
 assert(optionsPage.scrollFrame and optionsPage.scrollFrame.template=="UIPanelScrollFrameTemplate","Profile options must use the legacy scroll-panel pattern")
@@ -337,8 +348,9 @@ for i=1,#cards-1 do
 end
 assert(profilesPage.shown==false,"Profiles page remained visible while Options was selected")
 local listsPage=namedFrame("DejunkWotLKLists")
-assert(not listsPage or (listsPage.shown==false and listsPage.alpha==0),"Lists remained visible behind Profile Options")
-assert(optionsPage.alpha==1,"Profile Options did not become the active opaque page")
+assert(not listsPage or listsPage.shown==false,"Lists remained visible behind Profile Options")
+assert(optionsPage.shown,"Profile Options did not become the active Waffle page")
+assert(optionsPage.alpha~=0,"Profile Options was made transparent by the legacy page visibility path")
 assert(control("CheckButton","Auto Sell").shown,"profile options were hidden on the Profile Options page")
 assert(control("Button","Safe Sell: OFF").shown==false,"global options leaked into Profile Options")
 local enableMinimum

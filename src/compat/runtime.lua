@@ -9,6 +9,8 @@ function Runtime.New(environment)
   local frame, update, scanTooltip, reportFrame, reportEdit, reportTitle, configFrame, configSummary, poorButton
   local configWaffleRoot
   local configContentComponent,configOverviewComponent,mainContentFrame
+  local optionsPageComponent,profilePageComponent,listPageComponent
+  local configScreens,selectedConfigScreen={},nil
   local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
   local profileWaffleRoot,listsWaffleRoot,importWaffleRoot,optionsWaffleRoot,reportWaffleRoot
   local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listPanels
@@ -203,18 +205,18 @@ function Runtime.New(environment)
           configContentComponent=main
           local overview=main:AddColumn({grow=1,gap=8})
           configOverviewComponent=overview
+          configScreens.overview=overview
           nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Lists",function()
-            configOverviewComponent:SetVisibility("GONE"); configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
             self:ShowLists(runtime.configCallbacks)
           end)))
           nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Profiles",function()
-            configOverviewComponent:SetVisibility("GONE"); configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout(); self:ShowProfiles(runtime.configCallbacks)
+            self:ShowProfiles(runtime.configCallbacks)
           end)))
           nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Global Options",function()
-            configOverviewComponent:SetVisibility("GONE"); configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout(); self:ShowOptions(runtime.configCallbacks,"global")
+            self:ShowOptions(runtime.configCallbacks,"global")
           end)))
           nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Profile Options",function()
-            configOverviewComponent:SetVisibility("GONE"); configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout(); self:ShowOptions(runtime.configCallbacks,"profile")
+            self:ShowOptions(runtime.configCallbacks,"profile")
           end)))
           overview:AttachComponent(Addon.Waffle:Flex(text(nil,"Dejunk | main window",28)))
           overview:AttachComponent(Addon.Waffle:Flex(text(nil,"Settings and inventory previews are read-only. No item action will be taken.",46)))
@@ -291,8 +293,18 @@ function Runtime.New(environment)
 
   local function setConfigPageVisible(page,visible)
     if not page then return end
+    if (page==listFrame and listPageComponent) or
+        (page==profileFrame and profilePageComponent) or
+        (page==optionsFrame and optionsPageComponent) then return end
     if page.SetAlpha then page:SetAlpha(visible and 1 or 0) end
     if visible then page:Show() else page:Hide() end
+  end
+  local function selectConfigScreen(key)
+    selectedConfigScreen=key
+    for screenKey,component in pairs(configScreens) do
+      component:SetVisibility(screenKey==key and "VISIBLE" or "GONE")
+    end
+    if configWaffleRoot then configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout() end
   end
   local function getMainConfigContent()
     if not configContentComponent then return nil end
@@ -306,11 +318,10 @@ function Runtime.New(environment)
     runtime.configCallbacks=callbacks
     if not configWaffleRoot then self:ShowConfig(callbacks) end
     if configWaffleRoot and configContentComponent and configOverviewComponent then
+      selectConfigScreen(nil)
       setConfigPageVisible(listFrame,false)
       setConfigPageVisible(profileFrame,false)
       setConfigPageVisible(optionsFrame,false)
-      configOverviewComponent:SetVisibility("GONE")
-      configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
       mainContentFrame=getMainConfigContent()
     end
     setConfigPageVisible(listFrame,false)
@@ -318,15 +329,19 @@ function Runtime.New(environment)
     setConfigPageVisible(optionsFrame,false)
     local ok,optionsError=pcall(function()
       if not profileFrame then
-        if mainContentFrame then profileFrame=api.CreateFrame("Frame","DejunkWotLKProfiles",mainContentFrame)
+        mainContentFrame=getMainConfigContent()
+        if mainContentFrame then
+          profileFrame=api.CreateFrame("Frame","DejunkWotLKProfiles",mainContentFrame)
+          profilePageComponent=configContentComponent:AddColumn({frame=profileFrame,grow=1,gap=8,visibility="GONE"})
+          configScreens.profiles=profilePageComponent
         else
           profileWaffleRoot,profileFrame=createWaffleWindow("DejunkWotLKProfiles",420,360)
           profileFrame=profileFrame or api.CreateFrame("Frame",nil,api.UIParent)
         end
-        profileFrame:SetWidth(mainContentFrame and 540 or 420); profileFrame:SetHeight(mainContentFrame and 540 or 360)
-        if mainContentFrame then profileFrame:SetParent(mainContentFrame); profileFrame:ClearAllPoints(); profileFrame:SetPoint("TOPLEFT",mainContentFrame,"TOPLEFT",0,0)
-        else profileFrame:SetPoint("CENTER") end
-        profileFrame:SetFrameStrata("DIALOG"); profileFrame:EnableMouse(true)
+        if not mainContentFrame then
+          profileFrame:SetWidth(420); profileFrame:SetHeight(360); profileFrame:SetPoint("CENTER"); profileFrame:SetFrameStrata("DIALOG")
+        end
+        profileFrame:EnableMouse(true)
         if not mainContentFrame then profileFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}}) end
         local title=profileFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
         title:SetPoint("TOPLEFT",18,-18); title:SetText("Dejunk-WotLK | Profiles")
@@ -419,7 +434,9 @@ function Runtime.New(environment)
       if callbacks.activeProfileName then profileNameBox:SetText(callbacks.activeProfileName()) end
       setConfigPageVisible(listFrame,false)
       setConfigPageVisible(optionsFrame,false)
-      setConfigPageVisible(profileFrame,true)
+      if profilePageComponent and configWaffleRoot then
+        selectConfigScreen("profiles")
+      else setConfigPageVisible(profileFrame,true) end
     end)
     if not ok then self:Print("Profiles window unavailable; use /djw profiles list|create|switch.") end
   end
@@ -429,27 +446,26 @@ function Runtime.New(environment)
     runtime.configCallbacks=callbacks
     if not configWaffleRoot then self:ShowConfig(callbacks) end
     if configWaffleRoot and configContentComponent and configOverviewComponent then
+      selectConfigScreen(nil)
       setConfigPageVisible(listFrame,false)
       setConfigPageVisible(profileFrame,false)
       setConfigPageVisible(optionsFrame,false)
-      configOverviewComponent:SetVisibility("GONE")
-      configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
       mainContentFrame=getMainConfigContent()
     end
     setConfigPageVisible(profileFrame,false)
     setConfigPageVisible(optionsFrame,false)
     local ok=pcall(function()
       if not listFrame then
+        mainContentFrame=getMainConfigContent()
         if mainContentFrame then
           listFrame=api.CreateFrame("Frame","DejunkWotLKLists",mainContentFrame)
+          listPageComponent=configContentComponent:AddColumn({frame=listFrame,grow=1,gap=8,visibility="GONE"})
+          configScreens.lists=listPageComponent
         else
           listsWaffleRoot,listFrame=createWaffleWindow("DejunkWotLKLists",540,540)
           listFrame=listFrame or api.CreateFrame("Frame","DejunkWotLKLists",api.UIParent)
         end
-        listFrame:SetWidth(540); listFrame:SetHeight(540)
-        if mainContentFrame then
-          listFrame:SetParent(mainContentFrame); listFrame:ClearAllPoints(); listFrame:SetPoint("TOPLEFT",mainContentFrame,"TOPLEFT",0,0)
-        else listFrame:SetPoint("CENTER") end
+        if not mainContentFrame then listFrame:SetWidth(540); listFrame:SetHeight(540); listFrame:SetPoint("CENTER") end
         listFrame:EnableMouse(true)
         listSearch=api.CreateFrame("EditBox",nil,listFrame,"InputBoxTemplate")
         listSearch:SetWidth(350); listSearch:SetHeight(24); listSearch:SetPoint("TOPLEFT",12,-14)
@@ -645,7 +661,9 @@ function Runtime.New(environment)
       end
       setConfigPageVisible(profileFrame,false)
       setConfigPageVisible(optionsFrame,false)
-      setConfigPageVisible(listFrame,true)
+      if listPageComponent and configWaffleRoot then
+        selectConfigScreen("lists")
+      else setConfigPageVisible(listFrame,true) end
     end)
     if not ok then self:Print("Lists window unavailable; use /djw lists show|add|remove <global|profile> <inclusions|exclusions> <itemID>.") end
   end
@@ -922,11 +940,10 @@ function Runtime.New(environment)
     scope=scope=="global" and "global" or "profile"
     if not configWaffleRoot then self:ShowConfig(callbacks) end
     if configWaffleRoot and configContentComponent and configOverviewComponent then
+      selectConfigScreen(nil)
       setConfigPageVisible(listFrame,false)
       setConfigPageVisible(profileFrame,false)
       setConfigPageVisible(optionsFrame,false)
-      configOverviewComponent:SetVisibility("GONE")
-      configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
       mainContentFrame=getMainConfigContent()
     end
     setConfigPageVisible(listFrame,false)
@@ -935,14 +952,15 @@ function Runtime.New(environment)
     local ok,optionsError=xpcall(function()
       if not optionsFrame then
         mainContentFrame=getMainConfigContent()
-        if mainContentFrame then optionsFrame=api.CreateFrame("Frame","DejunkWotLKOptions",mainContentFrame)
+        if mainContentFrame then
+          optionsFrame=api.CreateFrame("Frame","DejunkWotLKOptions",mainContentFrame)
+          optionsPageComponent=configContentComponent:AddColumn({frame=optionsFrame,grow=1,gap=8,visibility="GONE"})
+          configScreens.options=optionsPageComponent
         else
           optionsWaffleRoot,optionsFrame=createWaffleWindow("DejunkWotLKOptions",560,420)
           optionsFrame=optionsFrame or api.CreateFrame("Frame",nil,api.UIParent)
         end
-        if mainContentFrame then
-          optionsFrame:SetParent(mainContentFrame); optionsFrame:ClearAllPoints(); optionsFrame:SetAllPoints(mainContentFrame)
-        else
+        if not mainContentFrame then
           optionsFrame:SetWidth(560); optionsFrame:SetHeight(440); optionsFrame:SetPoint("CENTER"); optionsFrame:SetFrameStrata("DIALOG")
         end
         optionsFrame:EnableMouse(true)
@@ -1495,7 +1513,16 @@ function Runtime.New(environment)
         ("Dejunk | Profile Options"..(activeProfile and (" ("..activeProfile..")") or "")))
       setConfigPageVisible(listFrame,false)
       setConfigPageVisible(profileFrame,false)
-      setConfigPageVisible(optionsFrame,true)
+      if optionsPageComponent and configWaffleRoot then
+        selectConfigScreen("options")
+        local pageWidth=optionsFrame:GetWidth()
+        if pageWidth and pageWidth>120 then
+          optionsContentFrame:SetWidth(pageWidth-90)
+          optionsFrame.pageDescription:SetWidth(pageWidth-50)
+        end
+      else
+        setConfigPageVisible(optionsFrame,true)
+      end
     end,function(err)
       if api.debugstack then return tostring(err).."\n"..api.debugstack(2,8,8) end
       return tostring(err)
@@ -1503,8 +1530,7 @@ function Runtime.New(environment)
     if not ok then
       self:Print("Options window error: "..tostring(optionsError).."; use /djw rules list and /djw rules quality|minlevel|maxlevel|maxprice.")
       if optionsFrame then optionsFrame:Hide() end
-      if configOverviewComponent then configOverviewComponent:SetVisibility("VISIBLE") end
-      if configWaffleRoot then configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout() end
+      selectConfigScreen("overview")
     end
   end
 

@@ -26,10 +26,12 @@ current UI has not been exercised in the original client at this revision.
    against explicit fake adapters; none is wired to live game APIs.
 6. **Main-window navigation correction:** Lists is the initial screen; Profiles,
    Global Options and Profile Options are separate screens hosted in the same
-   Waffle main window. A client screenshot exposed Profiles controls remaining
-   visible over Lists; page switching now hides inactive screens, with an
-   interaction fixture for that exact route. Options callbacks also follow the
-   currently active page. This is still not the pinned upstream UI port: original
+  Waffle main window. A client screenshot exposed options as a black overlay.
+  All five content screens now use sibling Waffle components and one screen
+  selector modeled on pinned upstream `MainWindow:SelectSidebarRow`; this removes
+  manual child-dialog sizing and hides the previous screen from layout. Interaction
+  fixtures cover Lists → Profile Options → Global Options → Profiles → Profile
+  Options → Lists. This is still not the pinned upstream UI port: original
    keybindings, profile/global option coverage, item presentation and game
    integrations remain incomplete, and some list controls are port scaffolding.
    The upstream cursor-item-to-list interaction is now restored in the UI
@@ -59,7 +61,7 @@ current UI has not been exercised in the original client at this revision.
    Options an opaque panel background. UI fixtures reject CheckButton:SetText,
    exercise caption clicks, and verify page exclusivity. The corrected package
    still needs one client visual check. Native controls approximate the pinned
-   Waffle OptionCard/SettingsBox visuals; other upstream screens and
+   Waffle OptionCard/SettingsBox and SelectableRow visuals; other upstream screens and
    integrations remain unfinished.
 
 ## Checks run for this report
@@ -100,10 +102,13 @@ do not validate WoW rendering or inputs.
 ### Client check status
 
 **Client check:** the owner confirmed the minimum item level value survived
-`/reload`. A later screenshot exposed overlap among the threshold rows. The
-current scrollable grouped layout has not been run in WoW yet. Automated layout
-fixtures now check section order, scroll content size and card bounds, but do not
-prove rendering in the game. No live sale, repair or delete test was performed.
+`/reload`. Screenshots then exposed threshold overlap, unsupported legacy EditBox
+methods and options rendered as a detached overlay. The options screen has now
+been corrected and all content screens follow the Waffle selector model. Offline
+fixtures check screen exclusivity, sibling parenting, layout sizing, section
+order, scroll content size and card bounds. The latest screen-controller change
+still needs one consolidated visual check in WoW. No live sale, repair or delete
+test was performed.
 
 ## Historical evidence
 

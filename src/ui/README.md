@@ -8,8 +8,11 @@ Waffle visual components that depend on APIs absent from 3.3.5a are not copied
 blindly. Target-client verification is still required.
 
 The current port-built configuration has an 800×640 Waffle root with a sidebar
-and content region. Lists, Profiles, Global Options and Profile Options are
-mounted in that content region; Overview and navigation stay in the same root.
+and content region. Overview, Lists, Profiles, Global Options and Profile
+Options are sibling Waffle screens. A single screen controller marks the
+previous screen `GONE`, selects the new screen and lays out the root, following
+the pinned upstream `MainWindow` controller flow. Embedded screens are no
+longer manually sized dialog overlays.
 Profile Options now follows the upstream screen's scrollable General, Include
 and Exclude groups and card order. The cards include the panel description,
 option descriptions, divider-separated settings lines, card-wide toggle
@@ -48,5 +51,7 @@ returns to the configuration window. This screen is development scaffolding,
 not the original Dejunk main window. Its former custom-rule controls are being
 removed because they do not exist in upstream Dejunk. Options and reports also
 need to be replaced by/adapted from the pinned upstream screen components.
+The main window's sidebar styling, exact upstream components, keybinding screen,
+item presentation, junk/lootable frames and game integrations remain unfinished.
 Profile/list widgets are not accepted as full UI parity until original-client
 review.
