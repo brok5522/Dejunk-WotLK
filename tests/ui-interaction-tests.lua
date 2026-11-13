@@ -44,7 +44,7 @@ local function object(kind,name,parent,template)
   function frame:SetScrollChild(child) self.scrollChild=child end
   function frame:SetScrollChildRect() end
   function frame:SetTextHeight(value) self.textHeight=value end
-  function frame:SetFocus() self.focused=true end
+  function frame:SetFocus() self.focused=true; self.focusedWhileVisible=self.shown==true and self.parent and self.parent.shown==true end
   function frame:SetVerticalScroll(value) self.verticalScroll=value end
   function frame:SetScript(event,callback) self.scripts[event]=callback end
   function frame:RegisterForClicks(...) self.registeredClicks={...} end
@@ -63,7 +63,7 @@ local function object(kind,name,parent,template)
   function frame:Show() self.shown=true end
   function frame:Hide() self.shown=false end
   function frame:ClearFocus() self.focused=false end
-  function frame:SetFocus() self.focused=true end
+  function frame:SetFocus() self.focused=true; self.focusedWhileVisible=self.shown==true and self.parent and self.parent.shown==true end
   function frame:HighlightText() self.highlighted=true end
   function frame:CreateFontString(fontName,layer,template)
     local child=object("FontString",fontName,self)
@@ -453,6 +453,10 @@ assert(profilePopup and profilePopup.shown and profilePopup.backdrop and profile
   "profile name dialog was not rendered as an addon-styled prompt")
 assert(profilePopup.blocker.shown and profilePopup.strata=="FULLSCREEN_DIALOG" and profilePopup.blocker.frameLevel==1000,
   "profile prompt did not render above the main window as a modal")
+assert(profilePopup.editBox.focused and profilePopup.editBox.focusedWhileVisible,
+  "profile name input did not receive focus after the modal became visible")
+assert(profilePopup.editBox.backdrop and profilePopup.editBox.fontObject=="GameFontHighlight",
+  "profile name input has no visible legacy edit field styling")
 profilePopup.editBox:SetText("Fresh")
 profilePopup.acceptButton:Click()
 assert(profileOperations.create and profileOperations.create.name=="Fresh","New Profile dialog did not create the entered name")
@@ -536,6 +540,10 @@ for _,card in ipairs(cards) do
 end
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.qualityRow then
+    assert(frame.mouse==true and frame.registeredClicks and frame.registeredClicks[1]=="LeftButtonUp",
+      "legacy quality checkbox is not explicitly mouse-clickable")
+    assert(frame.labelHit.mouse==true and frame.labelHit.registeredClicks and frame.labelHit.registeredClicks[1]=="LeftButtonUp",
+      "legacy quality label is not explicitly mouse-clickable")
     assert(frame.qualityRowY~=nil and frame.point[3]==frame.qualityRowY,
       "responsive quality row lost its saved vertical position")
     assert(frame.point[2]+frame.width+2+frame.labelHit.width<=optionsPage.contentFrame.width-10,
@@ -548,6 +556,8 @@ assert(not listsPage or listsPage.shown==false,"Lists remained visible behind Pr
 assert(optionsPage.shown,"Profile Options did not become the active Waffle page")
 assert(optionsPage.alpha~=0,"Profile Options was made transparent by the legacy page visibility path")
 assert(control("CheckButton","Auto Sell").shown,"profile options were hidden on the Profile Options page")
+assert(control("CheckButton","Auto Sell").registeredClicks[1]=="LeftButtonUp",
+  "Auto Sell checkbox has no explicit legacy click registration")
 assert(control("CheckButton","Safe Sell").shown==false,"global options leaked into Profile Options")
 local enableMinimum
 for _,frame in ipairs(uiFrames) do

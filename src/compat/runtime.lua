@@ -11,6 +11,8 @@ function Runtime.New(environment)
     if region and region.SetTextColor and theme[color] then region:SetTextColor(theme[color][1],theme[color][2],theme[color][3],1) end
   end
   local function styleThemedButton(button,label)
+    button:EnableMouse(true)
+    if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp") end
     button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
     local text=button:CreateFontString(nil,"ARTWORK","GameFontNormal")
     text:SetPoint("LEFT",7,0); text:SetPoint("RIGHT",-7,0); text:SetJustifyH("CENTER")
@@ -562,12 +564,21 @@ function Runtime.New(environment)
         local popupEdit=api.CreateFrame("EditBox",nil,profilePopup,"InputBoxTemplate")
         popupEdit:SetWidth(220); popupEdit:SetHeight(26); popupEdit:SetPoint("TOP",profilePopup,"TOP",0,-50)
         popupEdit:SetAutoFocus(false); popupEdit:SetMaxLetters(32)
+        popupEdit:SetFontObject("GameFontHighlight")
+        popupEdit:SetTextInsets(8,8,0,0)
+        popupEdit:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+        popupEdit:SetBackdropColor(0,0,0,0.9); popupEdit:SetBackdropBorderColor(0.55,0.55,0.55,1)
+        popupEdit:EnableMouse(true)
+        if type(popupEdit.RegisterForClicks)=="function" then popupEdit:RegisterForClicks("LeftButtonUp") end
+        local executeProfileName
+        popupEdit:SetScript("OnEnterPressed",function(self) self:ClearFocus(); executeProfileName() end)
+        popupEdit:SetScript("OnEscapePressed",function(self) self:ClearFocus(); hideProfilePopup() end)
         local popupAccept=styleThemedButton(api.CreateFrame("Button",nil,profilePopup),"Accept")
         popupAccept:SetWidth(112); popupAccept:SetHeight(26); popupAccept:SetPoint("BOTTOMLEFT",16,14)
         local popupCancel=styleThemedButton(api.CreateFrame("Button",nil,profilePopup),"Cancel")
         popupCancel:SetWidth(112); popupCancel:SetHeight(26); popupCancel:SetPoint("BOTTOMRIGHT",-16,14)
         local popupMode,popupAction,popupProfile
-        local function executeProfileName()
+        executeProfileName=function()
           local current=runtime.configCallbacks or callbacks
           local name=popupEdit:GetText() or ""
           local id,reason
@@ -597,9 +608,11 @@ function Runtime.New(environment)
         local function showNamePrompt(action,profile)
           popupMode="name"; popupAction=action; popupProfile=profile
           popupMessage:SetText(action=="create" and "Enter a name for the new profile:" or (action=="duplicate" and "Copy profile: " or "Rename profile: ")..(profile and profile.name or ""))
-          popupEdit:SetText(profile and profile.name or ""); popupEdit:Show(); popupEdit:SetFocus()
+          popupEdit:SetText(profile and profile.name or "")
+          popupAccept:SetText("Accept"); popupCancel:SetText("Cancel"); popupBlocker:Show(); profilePopup:Show(); popupEdit:Show()
+          -- 3.3.5 drops SetFocus when called while an ancestor is hidden.
+          popupEdit:SetFocus()
           if popupEdit.HighlightText then popupEdit:HighlightText() end
-          popupAccept:SetText("Accept"); popupCancel:SetText("Cancel"); popupBlocker:Show(); profilePopup:Show()
         end
         profileFrame.showNamePrompt=showNamePrompt
         local function confirmAction(action,profile)
@@ -1308,6 +1321,8 @@ function Runtime.New(environment)
           local size=hitWidth and 12 or 18
           local check=api.CreateFrame("CheckButton","DejunkWotLKOptionCheck"..optionCheckSerial,optionsContentFrame)
           check:SetWidth(size); check:SetHeight(size); check:SetPoint("TOPLEFT",x,y)
+          check:EnableMouse(true)
+          if type(check.RegisterForClicks)=="function" then check:RegisterForClicks("LeftButtonUp") end
           check.optionEnabled=true
           local box=api.CreateFrame("Frame",nil,check)
           box:SetWidth(12); box:SetHeight(12); box:SetPoint("CENTER",check,"CENTER",0,0)
@@ -1320,6 +1335,8 @@ function Runtime.New(environment)
           local labelHit=api.CreateFrame("Button",nil,check)
           labelHit:SetWidth(math.max(16,(hitWidth or 220)-size-2)); labelHit:SetHeight(20)
           labelHit:SetPoint("LEFT",check,"RIGHT",2,0)
+          labelHit:EnableMouse(true)
+          if type(labelHit.RegisterForClicks)=="function" then labelHit:RegisterForClicks("LeftButtonUp") end
           local label=labelHit:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
           label:SetPoint("LEFT",labelHit,"LEFT",0,0)
           check.labelRegion=label
