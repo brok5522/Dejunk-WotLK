@@ -940,10 +940,12 @@ function Runtime.New(environment)
           optionsWaffleRoot,optionsFrame=createWaffleWindow("DejunkWotLKOptions",560,420)
           optionsFrame=optionsFrame or api.CreateFrame("Frame",nil,api.UIParent)
         end
-        optionsFrame:SetWidth(mainContentFrame and 640 or 560); optionsFrame:SetHeight(mainContentFrame and 540 or 440)
-        if mainContentFrame then optionsFrame:SetParent(mainContentFrame); optionsFrame:ClearAllPoints(); optionsFrame:SetPoint("TOPLEFT",mainContentFrame,"TOPLEFT",0,0)
-        else optionsFrame:SetPoint("CENTER") end
-        optionsFrame:SetFrameStrata("DIALOG"); optionsFrame:EnableMouse(true)
+        if mainContentFrame then
+          optionsFrame:SetParent(mainContentFrame); optionsFrame:ClearAllPoints(); optionsFrame:SetAllPoints(mainContentFrame)
+        else
+          optionsFrame:SetWidth(560); optionsFrame:SetHeight(440); optionsFrame:SetPoint("CENTER"); optionsFrame:SetFrameStrata("DIALOG")
+        end
+        optionsFrame:EnableMouse(true)
         if not mainContentFrame then optionsFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
         else
           optionsFrame:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",tile=true,tileSize=8})
@@ -952,7 +954,9 @@ function Runtime.New(environment)
         local title=optionsFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
         title:SetPoint("TOPLEFT",20,-18); optionsFrame.pageTitle=title
         local description=optionsFrame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-        description:SetPoint("TOPLEFT",20,-40); description:SetWidth(mainContentFrame and 590 or 500)
+        description:SetPoint("TOPLEFT",20,-40)
+        local mainWidth=mainContentFrame and mainContentFrame.GetWidth and mainContentFrame:GetWidth() or 0
+        description:SetWidth(mainWidth>80 and mainWidth-50 or (mainContentFrame and 520 or 500))
         description:SetText("These options only apply to characters using the active profile.")
         optionsFrame.pageDescription=description
         if not mainContentFrame then
@@ -963,7 +967,7 @@ function Runtime.New(environment)
         optionsScrollFrame:SetPoint("TOPLEFT",optionsFrame,"TOPLEFT",14,-64)
         optionsScrollFrame:SetPoint("BOTTOMRIGHT",optionsFrame,"BOTTOMRIGHT",-30,42)
         optionsContentFrame=api.CreateFrame("Frame",nil,optionsScrollFrame)
-        optionsContentFrame:SetWidth(mainContentFrame and 580 or 490)
+        optionsContentFrame:SetWidth(mainWidth>100 and mainWidth-90 or (mainContentFrame and 520 or 490))
         optionsContentFrame:SetHeight(2040)
         optionsScrollFrame:SetScrollChild(optionsContentFrame)
         optionsFrame.scrollFrame=optionsScrollFrame; optionsFrame.contentFrame=optionsContentFrame

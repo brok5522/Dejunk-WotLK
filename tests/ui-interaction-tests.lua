@@ -15,6 +15,7 @@ local function object(kind,name,parent,template)
   function frame:SetHeight(value) self.height=value end
   function frame:SetAlpha(value) self.alpha=value end
   function frame:SetPoint(...) self.point={...} end
+  function frame:SetAllPoints(relative) self.allPoints=relative end
   function frame:ClearAllPoints() self.point=nil end
   function frame:SetParent(parent) self.parent=parent end
   function frame:SetFrameStrata(value) self.strata=value end
@@ -311,6 +312,7 @@ runtime:ShowOptions(optionCallbacks,"profile")
 local optionsPage=namedFrame("DejunkWotLKOptions")
 assert(optionsPage,"options page was not created")
 assert(optionsPage.parent==profilesPage.parent,"Options page is outside the main configuration content")
+assert(optionsPage.allPoints==optionsPage.parent,"Options page does not fill the main content panel")
 assert(optionsPage.backdrop~=nil,"Options page is missing the opaque active-page background")
 assert(optionsPage.backdropColor and optionsPage.backdropColor[4]==1,"Options page background is not opaque over inactive screens")
 assert(optionsPage.scrollFrame and optionsPage.scrollFrame.template=="UIPanelScrollFrameTemplate","Profile options must use the legacy scroll-panel pattern")
