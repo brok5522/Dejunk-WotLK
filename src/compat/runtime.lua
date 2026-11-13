@@ -1029,7 +1029,8 @@ function Runtime.New(environment)
     local visual=check.optionVisual
     if not visual then return end
     local enabled=check.optionEnabled~=false
-    local checked=check:GetChecked()==true
+    local checkState=check:GetChecked()
+    local checked=checkState==true or checkState==1
     visual.box:SetBackdropColor(checked and theme.blue[1] or theme.dark[1],checked and theme.blue[2] or theme.dark[2],checked and theme.blue[3] or theme.dark[3],enabled and (checked and 0.5 or 0.25) or 0.5)
     visual.box:SetBackdropBorderColor(theme.blue[1],theme.blue[2],theme.blue[3],enabled and (checked and 1 or 0.75) or 0.35)
     visual.fill:SetVertexColor(theme.blue[1],theme.blue[2],theme.blue[3],enabled and 1 or 0.75)
@@ -1546,6 +1547,7 @@ function Runtime.New(environment)
           local card=addOptionCard(top,height or 64,true)
           optionCardFrames[key]=card
           local button=createOptionCheck(labelText,24,top-8)
+          button.globalOptionKey=key
           optionsGlobalDecorations[#optionsGlobalDecorations+1]=button
           addGlobalText(description,52,top-34,470)
           local function toggle()

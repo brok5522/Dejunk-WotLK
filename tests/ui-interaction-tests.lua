@@ -51,7 +51,7 @@ local function object(kind,name,parent,template)
     if self.kind=="EditBox" and self.scripts.OnTextChanged then self.scripts.OnTextChanged(self) end
   end
   function frame:SetChecked(value) self.checked=value end
-  function frame:GetChecked() return self.checked end
+  function frame:GetChecked() if ui.numericChecked then return self.checked and 1 or nil end; return self.checked end
   function frame:GetText() return self.text end
   function frame:GetWidth() return self.width end
   function frame:Enable() if self.kind=="EditBox" then error("legacy EditBox has no Enable method") end; self.enabled=true end
@@ -561,3 +561,18 @@ listsWindow.scripts.OnUpdate(listsWindow,29.9)
 assert(listsWindow.scripts.OnUpdate==nil,"uncached item metadata polling did not time out")
 
 print("UI INTERACTION RESULT: options, list transport, metadata polling and report navigation passed")
+
+-- Original 3.3.5 CheckButton:GetChecked may return 1/nil instead of booleans.
+globalOptionState.safeSell=false
+ui.numericChecked=true
+runtime:ShowOptions(optionCallbacks,"global")
+local checkedGlobal,uncheckedGlobal
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="CheckButton" and frame.globalOptionKey=="safeDestroy" then checkedGlobal=frame
+  elseif frame.kind=="CheckButton" and frame.globalOptionKey=="safeSell" then uncheckedGlobal=frame end
+end
+assert(checkedGlobal and checkedGlobal.optionVisual.fill.shown==true,
+  "legacy numeric GetChecked result did not draw the checked state")
+assert(uncheckedGlobal and uncheckedGlobal.optionVisual.fill.shown==false,
+  "legacy numeric GetChecked result drew an unchecked state as checked")
+ui.numericChecked=false
