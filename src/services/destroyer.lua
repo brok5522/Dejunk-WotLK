@@ -11,9 +11,8 @@ local function sameItem(a,b)
     a.count==b.count and a.locked==false
 end
 local function safeItem(item)
-  if not item or item.quest~=false or item.refundable~=false or item.inEquipmentSet~=false then return false end
+  if not item then return false end
   if item.quality==5 or item.quality==7 then return false end
-  if item.equipLoc and item.equipLoc~="" and item.bound~=true then return false end
   return true
 end
 local function contextSafe(context, session)

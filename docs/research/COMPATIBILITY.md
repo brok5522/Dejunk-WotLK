@@ -17,7 +17,7 @@ inventory, not an exhaustive list of all globals or proof that every row fails.
 | GetContainerItemQuestInfo | legacy tuple; falsey quest flag and nil quest ID mean no quest marker in stock bag UI | F: ContainerFrame.lua:282,292; absent/failed tuple stays unknown |
 | C_Container.GetContainerItemPurchaseInfo table.refundSeconds | global tuple money,honor,arena,itemCount,refundSec (fifth return); absent refundSec hides refund prompt | F: ContainerFrame.lua:632-633; failed reads remain unknown |
 | C_Container.UseContainerItem / PickupContainerItem | global UseContainerItem / PickupContainerItem | F: ContainerFrame.lua:700, EquipmentManager.lua:97; planned executor only, never called in Phase 0 |
-| C_Item.GetItemInfo and extra class/subclass numeric returns | global GetItemInfo; old localized itemType/itemSubType returns; build locale-safe lookup from legacy class tables/client categories; use link for ID | F: MailFrame.lua:91; P for classification mapping; do not assume return 12/13 exist |
+| C_Item.GetItemInfo and numeric class/subclass returns | 3.3.5a global GetItemInfo is consumed through legacy localized `itemType`/`itemSubType`; no numeric returns 12/13 are assumed. When available, `GetAuctionItemClasses()` and `GetAuctionItemSubClasses(classIndex)` provide localized labels whose list positions map to legacy class/subclass IDs (position minus one); this crosswalk is used only for Armor (4) and Weapon (2), and unknown labels stay unclassified. Quest exclusion uses a positive legacy quest flag when available. | F: MailFrame.lua:91 shows the legacy fields; Blizzard_AuctionUI.lua:380 and :621 use the auction class/subclass lists. P: list ordering as numeric ID and locale equivalence require client verification; missing/ambiguous labels leave IDs unknown. Source SHA-256: `e97c4de049587d8f196f5d880540dc2e953358bd0da421d3ae1c89e6bdc87647` |
 | GetItemInfoInstant and modern uncached item handling | validate positive integer IDs; GetItemInfo + bounded retry on scheduler and bag refresh; unknown retained but ineligible | U/P; invalid/uncached IDs must not stall forever |
 | ItemLocation; C_Item.IsLocked | third return of global GetContainerItemInfo | F: EquipmentManager.lua:284 |
 | C_Item.IsBound / IsBoundToAccountUntilEquip | hidden GameTooltip:SetBagItem scan using localized ITEM_SOULBOUND and known binding strings | F: ContainerFrame.lua:774 and GlobalStrings.lua; P: tri-state scan, unknown protects, locales and account-bound heirlooms need testing |
@@ -51,8 +51,12 @@ identifiers. Until verified, refund/binding/set uncertainties block actions.
 The root TOC now uses Interface 30300. `src/compat/client.lua` accepts version
 3.3.5 or 3.3.5a only with build 12340 and Interface 30300; missing required read
 APIs disable startup. `legacy.lua` normalizes original tuple returns, reads
-localized class/subclass labels without pretending they are numeric enums,
-uses the fifth refund return, and protects uncertainty with explicit unknowns.
+localized class/subclass labels, and can crosswalk Weapon/Armor categories via
+the legacy auction class lists. This mapping is inferred from list positions
+and needs target-client verification across locales; missing API functions or
+unmatched labels leave IDs unknown. Numeric class/subclass returns are accepted
+if actually provided, not assumed. The adapter uses the fifth refund return and
+protects uncertainty with explicit unknowns.
 Equipment-set IDs are read conservatively. No class mapping or complete binding
 classification is claimed yet: binding is an opt-in localized tooltip probe,
 and absent text or missing APIs stay unknown. Successful nil lock/quest/refund

@@ -33,6 +33,8 @@ end)
 test(function()
   local calls=0; local service=assert(Addon.SimulationSeller.New({simulation=true,AttemptSale=function() calls=calls+1 end}))
   local _,snapshot,intent,decision,context=fixture()
+  context.safeSell=true
+  context.safeSell=true
   for i=1,12 do
     local output=assert(service:Attempt(intent,snapshot,decision,context))
     eq(service:GetAttemptCount(context.sessionId),i)
@@ -41,6 +43,15 @@ test(function()
   end
   local output,reason=service:Attempt(intent,snapshot,decision,context)
   eq(output,nil); eq(reason,"SESSION_CAP"); eq(calls,12)
+end)
+test(function()
+  local service=assert(Addon.SimulationSeller.New({simulation=true,AttemptSale=function() end}))
+  local _,snapshot,intent,decision,context=fixture()
+  for i=1,13 do
+    local output=assert(service:Attempt(intent,snapshot,decision,context))
+    service:Observe(output.token,{sessionId=context.sessionId,sameItemAtSlot=false,moneyDelta=10})
+  end
+  eq(service:GetAttemptCount(context.sessionId),13)
 end)
 test(function()
   local calls=0; local service=assert(Addon.SimulationSeller.New({simulation=true,AttemptSale=function() calls=calls+1 end}))

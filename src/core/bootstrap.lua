@@ -12,36 +12,35 @@ if type(Addon.Rules) ~= "table" or type(Addon.Rules.Evaluate) ~= "function" then
   end
   local function junk(action, reason, item, ruleId)
     if action == "SELL" then
+      if unknown(item.refundable) then return result("UNKNOWN", "REFUND_UNKNOWN", action, ruleId) end
+      if item.refundable then return result("KEEP", "REFUNDABLE", action, ruleId) end
       if unknown(item.unitVendorPrice) then return result("UNKNOWN", "PRICE_UNKNOWN", action, ruleId) end
       if item.unitVendorPrice <= 0 then return result("KEEP", "NO_VENDOR_VALUE", action, ruleId) end
     end
     return result("JUNK", reason, action, ruleId)
   end
-  function Rules.MatchGroup(item, group, action)
-    if type(group) ~= "table" then return false, true end
-    if group.scope ~= "BOTH" and group.scope ~= action then return false, false end
-    if (group.result ~= "JUNK" and group.result ~= "KEEP") or
-        (group.match ~= "ALL" and group.match ~= "ANY") or type(group.predicates) ~= "table" or #group.predicates == 0 then
-      return false, true
+  local function applies(option,action)
+    return type(option)=="table" and option.enabled==true and (option.scope=="BOTH" or option.scope==action)
+  end
+  local function selectedQuality(option,quality)
+    local names={[0]="poor",[1]="common",[2]="uncommon",[3]="rare",[4]="epic"}
+    return names[quality]~=nil and type(option.qualities)=="table" and option.qualities[names[quality]]==true
+  end
+  local function equipment(item)
+    return type(item.equipLoc)=="string" and item.equipLoc~=""
+  end
+  local function selectedEquipmentType(item,option)
+    if not equipment(item) then return false end
+    if type(item.classId)~="number" then return nil end
+    if item.classId==4 then
+      if type(item.subclassId)~="number" or type(option.armor)~="table" then return nil end
+      return option.armor[item.subclassId]==true
     end
-    local yes, no, maybe = 0, 0, 0
-    for _, predicate in ipairs(group.predicates) do
-      if type(predicate) ~= "table" then return false, true end
-      local actual, expected, op = item[predicate.field], predicate.value, predicate.op
-      if unknown(actual) then maybe = maybe + 1
-      elseif op == "EQ" then if actual == expected then yes=yes+1 else no=no+1 end
-      elseif (op == "LT" or op == "GT") and type(actual) == "number" and type(expected) == "number" then
-        if (op == "LT" and actual < expected) or (op == "GT" and actual > expected) then yes=yes+1 else no=no+1 end
-      else return false, true end
+    if item.classId==2 then
+      if type(item.subclassId)~="number" or type(option.weapons)~="table" then return nil end
+      return option.weapons[item.subclassId]==true
     end
-    if group.match == "ALL" then
-      if no > 0 then return false, false end
-      if maybe > 0 then return false, true end
-      return yes == #group.predicates, false
-    end
-    if yes > 0 then return true, false end
-    if maybe > 0 then return false, true end
-    return false, false
+    return false
   end
   function Rules.Evaluate(item, action, settings)
     settings=settings or {}
@@ -52,46 +51,67 @@ if type(Addon.Rules) ~= "table" or type(Addon.Rules.Evaluate) ~= "function" then
     if type(item.itemId)~="number" or type(item.count)~="number" or item.count<1 or item.metadata~="known" then
       return result("UNKNOWN","METADATA_UNKNOWN",action)
     end
-    for _, gate in ipairs({
-      {"locked","LOCK_UNKNOWN","LOCKED"}, {"quest","QUEST_UNKNOWN","QUEST_ITEM"},
-      {"inEquipmentSet","EQUIPMENT_SET_UNKNOWN","EQUIPMENT_SET_ITEM"},
-      {"refundable","REFUND_UNKNOWN","REFUNDABLE"}
-    }) do
-      local value=item[gate[1]]
-      if unknown(value) then return result("UNKNOWN",gate[2],action) end
-      if value then return result("KEEP",gate[3],action) end
-    end
+    if unknown(item.locked) then return result("UNKNOWN","LOCK_UNKNOWN",action) end
+    if item.locked then return result("KEEP","LOCKED",action) end
     if item.quality==5 or item.quality==7 then return result("KEEP","LEGENDARY_OR_HEIRLOOM",action) end
-    if settings.maxItemLevel ~= nil then
-      if type(settings.maxItemLevel)~="number" or type(item.itemLevel)~="number" then return result("UNKNOWN","ITEM_LEVEL_UNKNOWN",action) end
-      if item.itemLevel>settings.maxItemLevel then return result("KEEP","ABOVE_MAX_ITEM_LEVEL",action) end
+    local profile,global=settings.profile or {},settings.global or {}
+    local options=profile.options or {}
+    local excludeLevel=options.excludeAboveItemLevel
+    if applies(excludeLevel,action) and equipment(item) and selectedQuality(excludeLevel,item.quality) then
+      if type(excludeLevel.value)~="number" or type(item.itemLevel)~="number" then return result("UNKNOWN","ITEM_LEVEL_UNKNOWN",action) end
+      if item.itemLevel>excludeLevel.value then return result("KEEP","ABOVE_MAX_ITEM_LEVEL",action) end
     end
-    if settings.maxStackVendorPrice ~= nil then
-      if type(settings.maxStackVendorPrice)~="number" or type(item.unitVendorPrice)~="number" then return result("UNKNOWN","PRICE_UNKNOWN",action) end
-      if item.unitVendorPrice*item.count>settings.maxStackVendorPrice then return result("KEEP","ABOVE_MAX_STACK_PRICE",action) end
+    local excludePrice=options.excludeAbovePrice
+    if applies(excludePrice,action) and selectedQuality(excludePrice,item.quality) then
+      if type(excludePrice.value)~="number" or type(item.unitVendorPrice)~="number" then return result("UNKNOWN","PRICE_UNKNOWN",action) end
+      if item.unitVendorPrice>0 and item.unitVendorPrice*item.count>excludePrice.value then return result("KEEP","ABOVE_MAX_STACK_PRICE",action) end
     end
-    if item.equipLoc and item.equipLoc~="" and settings.protectUnboundEquipment~=false then
+    if profile.exclusions and profile.exclusions[item.itemId] then return result("KEEP","PROFILE_EXCLUSION",action) end
+    if profile.inclusions and profile.inclusions[item.itemId] then return junk(action,"PROFILE_INCLUSION",item) end
+    if global.exclusions and global.exclusions[item.itemId] then return result("KEEP","GLOBAL_EXCLUSION",action) end
+    if global.inclusions and global.inclusions[item.itemId] then return junk(action,"GLOBAL_INCLUSION",item) end
+    local setOption=options.excludeEquipmentSets
+    if setOption==true then setOption={enabled=true,scope="BOTH"} end
+    if applies(setOption,action) then
+      if unknown(item.inEquipmentSet) then return result("UNKNOWN","EQUIPMENT_SET_UNKNOWN",action) end
+      if item.inEquipmentSet then return result("KEEP","EQUIPMENT_SET_ITEM",action) end
+    end
+    local unboundOption=options.excludeUnboundEquipment
+    if unboundOption==true then unboundOption={enabled=true,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}} end
+    if applies(unboundOption,action) and equipment(item) and selectedQuality(unboundOption,item.quality) then
       if unknown(item.bound) then return result("UNKNOWN","BINDING_UNKNOWN",action) end
       if item.bound==false then return result("KEEP","UNBOUND_EQUIPMENT",action) end
     end
-    local profile,global=settings.profile or {},settings.global or {}
-    if profile.exclusions and profile.exclusions[item.itemId] then return result("KEEP","PROFILE_EXCLUSION",action) end
-    if global.exclusions and global.exclusions[item.itemId] then return result("KEEP","GLOBAL_EXCLUSION",action) end
-    for _, group in ipairs(profile.rules or {}) do
-      local matches, uncertain=Rules.MatchGroup(item,group,action)
-      if uncertain then return result("UNKNOWN","RULE_DATA_UNKNOWN",action,group.id) end
-      if matches then
-        if group.result=="JUNK" then return junk(action,"CUSTOM_RULE",item,group.id) end
-        return result("KEEP","CUSTOM_RULE",action,group.id)
-      end
+    local excludeType=options.excludeByEquipmentType
+    if applies(excludeType,action) and selectedQuality(excludeType,item.quality) then
+      local selected=selectedEquipmentType(item,excludeType)
+      if selected==nil then return result("UNKNOWN","EQUIPMENT_TYPE_UNKNOWN",action) end
+      if selected then return result("KEEP","EXCLUDED_EQUIPMENT_TYPE",action) end
     end
-    if profile.inclusions and profile.inclusions[item.itemId] then return junk(action,"PROFILE_INCLUSION",item) end
-    if global.inclusions and global.inclusions[item.itemId] then return junk(action,"GLOBAL_INCLUSION",item) end
-    local options=profile.options or {}
-    if options.quality and options.quality[item.quality] then return junk(action,"QUALITY",item) end
-    if settings.minItemLevel ~= nil then
-      if type(settings.minItemLevel)~="number" or type(item.itemLevel)~="number" then return result("UNKNOWN","ITEM_LEVEL_UNKNOWN",action) end
-      if item.itemLevel<settings.minItemLevel then return junk(action,"BELOW_MIN_ITEM_LEVEL",item) end
+    local quest=options.excludeQuestItems
+    if quest==true then quest={enabled=true,scope="BOTH"} end
+    if applies(quest,action) then
+      if item.classId==12 or item.quest==true then return result("KEEP","QUEST_ITEM",action) end
+      if item.classId==nil and unknown(item.quest) then return result("UNKNOWN","QUEST_UNKNOWN",action) end
+    end
+    local quality=options.includeByQuality
+    if quality==nil and options.quality then quality={enabled=true,scope="BOTH",qualities={poor=options.quality[0],common=options.quality[1],uncommon=options.quality[2],rare=options.quality[3],epic=options.quality[4]}} end
+    if applies(quality,action) and selectedQuality(quality,item.quality) then return junk(action,"QUALITY",item) end
+    local includeLevel=options.includeBelowItemLevel
+    if applies(includeLevel,action) and equipment(item) and selectedQuality(includeLevel,item.quality) then
+      if type(includeLevel.value)~="number" or type(item.itemLevel)~="number" then return result("UNKNOWN","ITEM_LEVEL_UNKNOWN",action) end
+      if item.itemLevel<includeLevel.value then return junk(action,"BELOW_MIN_ITEM_LEVEL",item) end
+    end
+    local includePrice=options.includeBelowPrice
+    if applies(includePrice,action) and selectedQuality(includePrice,item.quality) then
+      if type(includePrice.value)~="number" or type(item.unitVendorPrice)~="number" then return result("UNKNOWN","PRICE_UNKNOWN",action) end
+      if item.unitVendorPrice>0 and item.unitVendorPrice*item.count<includePrice.value then return junk(action,"BELOW_MIN_STACK_PRICE",item) end
+    end
+    local includeType=options.includeByEquipmentType
+    if applies(includeType,action) and selectedQuality(includeType,item.quality) then
+      local selected=selectedEquipmentType(item,includeType)
+      if selected==nil then return result("UNKNOWN","EQUIPMENT_TYPE_UNKNOWN",action) end
+      if selected then return junk(action,"INCLUDED_EQUIPMENT_TYPE",item) end
     end
     return result("KEEP","NO_RULE_MATCH",action)
   end
@@ -150,14 +170,10 @@ if type(Addon.Config) ~= "table" or type(Addon.Config.Summary) ~= "function" or
     local profile=store:GetActiveProfile(); local options=profile.options or {}; local quality=options.quality or {}
     return table.concat({"Active profile: "..tostring(profile.name).." ("..tostring(profile.id)..")",
       "Poor quality rule: "..(quality[0] and "ON" or "OFF"),
-      "Item level minimum: "..tostring(options.minItemLevel or "off"),
-      "Item level maximum: "..tostring(options.maxItemLevel or "off"),
-      "Maximum stack vendor value (copper): "..tostring(options.maxStackVendorPrice or "off"),
-      "Custom rule groups: "..tostring(#(profile.rules or {})),
       "Profile inclusions/exclusions: "..count(profile.inclusions).."/"..count(profile.exclusions)},"\n")
   end
   function Addon.Config.ToggleQuality(store,quality)
-    if type(quality)~="number" or quality<0 or quality>7 or quality~=math.floor(quality) then return false,"INVALID_OPTION" end
+    if type(quality)~="number" or quality<0 or quality>4 or quality~=math.floor(quality) then return false,"INVALID_OPTION" end
     local options=store:GetActiveProfile().options or {}
     local enabled=not (options.quality or {})[quality]
     local ok,reason=store:SetOption("quality",{quality=quality,enabled=enabled})
@@ -219,18 +235,52 @@ if type(Addon.Config) ~= "table" or type(Addon.Config.Summary) ~= "function" or
     if not store then return false,"STORE_UNAVAILABLE" end
     return store:SetOption(key,value)
   end
+  function Addon.Config.SetGlobalOption(store,key,value)
+    if not store then return false,"STORE_UNAVAILABLE" end
+    return store:SetGlobalOption(key,value)
+  end
+  function Addon.Config.GetGlobalOptions(store)
+    if not store then return nil,"STORE_UNAVAILABLE" end
+    return store:GetState().global or {}
+  end
   function Addon.Config.GetOptions(store)
     if not store then return nil,"STORE_UNAVAILABLE" end
     return store:GetActiveProfile().options or {}
   end
   function Addon.Config.FilterItemIds(raw,query,resolveName)
     raw=type(raw)=="string" and raw or ""; query=type(query)=="string" and query:lower() or ""
-    local result={}
+    local result,seen={},{}
     for id in raw:gmatch("%d+") do
-      local name
-      if type(resolveName)=="function" then local ok,value=pcall(resolveName,id); if ok and type(value)=="string" then name=value end end
-      if query=="" or id:find(query,1,true) or (name and name:lower():find(query,1,true)) then result[#result+1]={id=id,name=name} end
+      if not seen[id] then
+        seen[id]=true
+        local name
+        if type(resolveName)=="function" then local ok,value=pcall(resolveName,id); if ok and type(value)=="string" then name=value end end
+        if query=="" or id:find(query,1,true) or (name and name:lower():find(query,1,true)) then result[#result+1]={id=id,name=name} end
+      end
     end
+    return result
+  end
+  function Addon.Config.SortListItems(items,resolveItem)
+    local result,seen={},{}
+    for _,entry in ipairs(type(items)=="table" and items or {}) do
+      local id=type(entry)=="table" and tostring(entry.id or "") or tostring(entry)
+      if id:match("^%d+$") and not seen[id] then
+        seen[id]=true
+        local item=type(entry)=="table" and entry or nil
+        if (not item or item.quality==nil or item.name==nil) and type(resolveItem)=="function" then
+          local ok,value=pcall(resolveItem,id); if ok and type(value)=="table" then item=value end
+        end
+        result[#result+1]={id=id,name=item and type(item.name)=="string" and item.name or nil,
+          quality=item and type(item.quality)=="number" and item.quality or nil}
+      end
+    end
+    table.sort(result,function(a,b)
+      local aq,bq=a.quality or math.huge,b.quality or math.huge
+      if aq~=bq then return aq<bq end
+      local an,bn=(a.name or ""):lower(),(b.name or ""):lower()
+      if an~=bn then return an<bn end
+      return tonumber(a.id)<tonumber(b.id)
+    end)
     return result
   end
   function Addon.Config.PreviewListImport(store,scope,kind,text)
@@ -256,7 +306,7 @@ function Addon.NewApplication(runtime)
     if app.loaded and app.loggedIn and app.state ~= "READY" and app.client.supported then
       app.state = "READY"
       app.cache:Start()
-      runtime:Print("Phase 6 ready. Configuration and inventory previews are read-only; /djw help lists commands.")
+      runtime:Print("Development compatibility port ready. Previews are read-only; /djw help lists commands.")
     end
   end
   function app:HandleEvent(event, ...)
@@ -317,9 +367,6 @@ function Addon.NewApplication(runtime)
     local settings = {
       profile = profile,
       global = self.store and self.store:GetState().global or {},
-      minItemLevel = profile.options and profile.options.minItemLevel,
-      maxItemLevel = profile.options and profile.options.maxItemLevel,
-      maxStackVendorPrice = profile.options and profile.options.maxStackVendorPrice,
       protectUnboundEquipment = true
     }
     return Addon.Preview.EvaluateSnapshot(self.cache:GetSnapshot(), settings, action)
@@ -357,6 +404,8 @@ function Addon.NewApplication(runtime)
       removeRule=function(id) return Addon.Config.RemoveRule(self.store,id) end,
       options=function() return Addon.Config.GetOptions(self.store) end,
       setOption=function(key,value) return Addon.Config.SetOption(self.store,key,value) end,
+      globalOptions=function() return Addon.Config.GetGlobalOptions(self.store) end,
+      setGlobalOption=function(key,value) return Addon.Config.SetGlobalOption(self.store,key,value) end,
       preview=function(action)
         local requested=type(action)=="string" and action:upper() or ""
         if requested~="SELL" and requested~="DESTROY" then runtime:Print("Preview unavailable: INVALID_ACTION"); return end
@@ -417,44 +466,11 @@ function Addon.NewApplication(runtime)
         local ok,err=false,"INVALID_OPTION"
         if quality and (enabled=="on" or enabled=="off") then ok,err=self.store:SetOption("quality",{quality=quality,enabled=enabled=="on"}) end
         runtime:Print(ok and "Quality rule updated." or ("Rule update failed: "..tostring(err)))
-      elseif action=="minlevel" or action=="maxlevel" or action=="maxprice" then
-        local raw=args:lower(); local value=raw=="off" and nil or tonumber(raw)
-        local key=action=="minlevel" and "minItemLevel" or action=="maxlevel" and "maxItemLevel" or "maxStackVendorPrice"
-        local ok,err=self.store:SetOption(key,value)
-        if raw~="off" and (not value or value<0 or value~=math.floor(value)) then ok,err=false,"INVALID_OPTION" end
-        runtime:Print(ok and "Threshold updated." or ("Rule update failed: "..tostring(err)))
-      elseif action=="add" then
-        local id,scope,result,match,predicateText=args:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(.+)$")
-        local tokens={}
-        for token in (predicateText or ""):gmatch("%S+") do tokens[#tokens+1]=token end
-        local group={id=id,scope=scope and scope:upper(),result=result and result:upper(),match=match and match:upper(),predicates={}}
-        local valid=#tokens>=3 and #tokens<=30 and #tokens%3==0
-        if valid then
-          for index=1,#tokens,3 do
-            group.predicates[#group.predicates+1]={field=tokens[index],op=tokens[index+1]:upper(),value=tonumber(tokens[index+2])}
-          end
-        end
-        local ok,err=false,"INVALID_RULE"
-        if valid then ok,err=self.store:AddRule(group) end
-        runtime:Print(ok and "Custom rule added." or ("Rule add failed: "..tostring(err)))
-      elseif action=="remove" then
-        local ok,err=self.store:RemoveRule(args)
-        runtime:Print(ok and "Custom rule removed." or ("Rule remove failed: "..tostring(err)))
       elseif action=="list" or action=="" then
         local profile=self.store:GetActiveProfile(); local options=profile.options or {}
-        runtime:Print("Active rules for "..profile.name..": "..#(profile.rules or {}))
-        for _,rule in ipairs(profile.rules or {}) do
-          local predicates={}
-          for _,predicate in ipairs(rule.predicates or {}) do
-            predicates[#predicates+1]=tostring(predicate.field).." "..tostring(predicate.op).." "..tostring(predicate.value)
-          end
-          runtime:Print(rule.id.." "..rule.scope.." "..rule.result.." "..rule.match.." "..table.concat(predicates,rule.match=="ANY" and " OR " or " AND "))
-        end
-        runtime:Print("Item level min/max: "..tostring(options.minItemLevel or "off").."/"..tostring(options.maxItemLevel or "off").."; max stack copper: "..tostring(options.maxStackVendorPrice or "off"))
-        runtime:Print("Quality indexes enabled (0-7): "..table.concat((function() local values={} for i=0,7 do if options.quality and options.quality[i] then values[#values+1]=tostring(i) end end return values end)(),","))
+        runtime:Print("Quality indexes enabled (0-4): "..table.concat((function() local values={} for i=0,4 do if options.quality and options.quality[i] then values[#values+1]=tostring(i) end end return values end)(),","))
       else
-        runtime:Print("Use /djw rules list | quality <0-7> on|off | minlevel|maxlevel|maxprice <value|off>")
-        runtime:Print("Custom: /djw rules add <id> <SELL|DESTROY|BOTH> <JUNK|KEEP> <ALL|ANY> <field> <EQ|LT|GT> <number> [<field> <operator> <number> ...]")
+      runtime:Print("Use /djw rules list | quality <0-4> on|off")
       end
     elseif command == "config" then
       self:OpenConfig()
@@ -471,11 +487,9 @@ function Addon.NewApplication(runtime)
         for _,profile in ipairs(profiles or {}) do runtime:Print((profile.active and "* " or "  ")..profile.id.." — "..profile.name) end
       else runtime:Print("Use /djw profiles list | create <name> | switch <id>") end
     elseif command == "help" then
-      runtime:Print("Config: /djw config | Profiles: /djw profiles list | /djw profiles create <name> | /djw profiles switch <id>")
-      runtime:Print("Lists: /djw lists show <global|profile> <inclusions|exclusions> | add/remove <scope> <list> <ID> | import <scope> <list> <IDs>")
-      runtime:Print("Rules: /djw rules list | quality <0-7> on|off | minlevel|maxlevel|maxprice <value|off>")
-      runtime:Print("Rule: /djw rules add <id> <SELL|DESTROY|BOTH> <JUNK|KEEP> <ALL|ANY> <field> <EQ|LT|GT> <number> [<field> <operator> <number> ...].")
-      runtime:Print("Read-only: /djw preview sell|destroy | /djw slot <bag> <slot> | /djw report. No selling, destroying or repair is connected.")
+      runtime:Print("Dejunk: /dejunk or /dejunk options opens the main settings window; /dejunk profiles lists profiles.")
+      runtime:Print("SELL, DESTROY, repair, junk-frame and loot-frame actions are not connected in this development build.")
+      runtime:Print("Development diagnostics: /djw status | /djw preview sell|destroy | /djw slot <bag> <slot> | /djw report.")
     elseif command == "report" then
       runtime:ShowReport(self.diagnostics:Report(self))
     elseif command == "preview" then

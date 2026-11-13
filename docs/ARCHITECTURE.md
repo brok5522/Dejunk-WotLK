@@ -77,16 +77,12 @@ than overwriting data. No automatic upstream SavedVariables import in v1; a
 future explicit importer needs its own fixture-driven design.
 
 ## Rule composition
-Safety gates run first. Global and profile exclusions then precede ordered
-custom rule groups, followed by profile and global inclusions, then built-in
-quality and level rules. This is the port's explicit composition order; it is
-not identical to upstream's profile-inclusion-before-global-exclusion order.
-Predicates are structured data
-(quality, item level, stack vendor price, item ID and equipment category), with
-all/any groups and action scope; first matching group decides KEEP/JUNK.
-Groups cannot override mandatory safety or earlier list decisions. Missing
-predicate data yields UNKNOWN. No loadstring, Lua expression editor or arbitrary
-callback imports. UI explains safety-first behavior and exact precedence.
+The compatibility target follows the pinned upstream filter order: above-level
+and above-price exclusions; profile exclusions, profile inclusions, global
+exclusions, global inclusions; profile safety/options; quality and below-level/
+price includes; equipment-type filters. There is no generalized ALL/ANY custom
+rule language. Legacy saved custom rules are ignored by classification and
+retained only as old serialized data pending a safe schema migration.
 
 ## Planned load order and UI
 Future TOC: target metadata and SavedVariables; audited optional libraries;

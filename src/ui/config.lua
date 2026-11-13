@@ -15,22 +15,35 @@ function Config.Summary(store)
   local quality=options.quality or {}
   return table.concat({
     "Active profile: "..tostring(profile.name).." ("..tostring(profile.id)..")",
-    "Poor quality rule: "..(quality[0] and "ON" or "OFF"),
-    "Item level minimum: "..tostring(options.minItemLevel or "off"),
-    "Item level maximum: "..tostring(options.maxItemLevel or "off"),
-    "Maximum stack vendor value (copper): "..tostring(options.maxStackVendorPrice or "off"),
-    "Custom rule groups: "..tostring(#(profile.rules or {})),
+    "Poor quality rule: "..((options.includeByQuality and options.includeByQuality.qualities and options.includeByQuality.qualities.poor) and "ON" or (quality[0] and "ON" or "OFF")),
     "Profile inclusions/exclusions: "..count(profile.inclusions).."/"..count(profile.exclusions),
   },"\n")
 end
 
 function Config.ToggleQuality(store,quality)
-  if type(quality)~="number" or quality<0 or quality>7 or quality~=math.floor(quality) then
+  if type(quality)~="number" or quality<0 or quality>4 or quality~=math.floor(quality) then
     return false,"INVALID_OPTION"
   end
   local enabled=not (store:GetActiveProfile().options.quality or {})[quality]
   local ok,reason=store:SetOption("quality",{quality=quality,enabled=enabled})
   return ok,reason,enabled
+end
+
+function Config.SetFilter(store,key,option)
+  if not store then return false,"STORE_UNAVAILABLE" end
+  return store:SetOption(key,option)
+end
+function Config.SetGlobalOption(store,key,value)
+  if not store then return false,"STORE_UNAVAILABLE" end
+  return store:SetGlobalOption(key,value)
+end
+function Config.GetGlobalOptions(store)
+  if not store then return nil,"STORE_UNAVAILABLE" end
+  return store:GetState().global or {}
+end
+
+function Config.GetQualityNames()
+  return {"poor","common","uncommon","rare","epic"}
 end
 
 function Config.ListProfiles(store)
@@ -114,17 +127,50 @@ end
 function Config.FilterItemIds(raw,query,resolveName)
   raw=type(raw)=="string" and raw or ""
   query=type(query)=="string" and query:lower() or ""
-  local result={}
+  local result,seen={},{}
   for id in raw:gmatch("%d+") do
-    local name
-    if type(resolveName)=="function" then
-      local ok,value=pcall(resolveName,id)
-      if ok and type(value)=="string" then name=value end
-    end
-    if query=="" or id:find(query,1,true) or (name and name:lower():find(query,1,true)) then
-      result[#result+1]={id=id,name=name}
+    if not seen[id] then
+      seen[id]=true
+      local name
+      if type(resolveName)=="function" then
+        local ok,value=pcall(resolveName,id)
+        if ok and type(value)=="string" then name=value end
+      end
+      -- Names are optional while client metadata is still loading. Keep an item
+      -- only when its ID matches until a name can actually be resolved.
+      if query=="" or id:find(query,1,true) or (name and name:lower():find(query,1,true)) then
+        result[#result+1]={id=id,name=name}
+      end
     end
   end
+  return result
+end
+
+-- The upstream Lists screen sorts parsed items by quality, then name. The
+-- serialized list remains numeric for stable plain-text transport; only the
+-- presentation model uses this comparator. Unknown metadata sorts last.
+function Config.SortListItems(items,resolveItem)
+  local result,seen={},{}
+  for _,entry in ipairs(type(items)=="table" and items or {}) do
+    local id=type(entry)=="table" and tostring(entry.id or "") or tostring(entry)
+    if id:match("^%d+$") and not seen[id] then
+      seen[id]=true
+      local item=type(entry)=="table" and entry or nil
+      if (not item or item.quality==nil or item.name==nil) and type(resolveItem)=="function" then
+        local ok,value=pcall(resolveItem,id)
+        if ok and type(value)=="table" then item=value end
+      end
+      result[#result+1]={id=id,name=item and type(item.name)=="string" and item.name or nil,
+        quality=item and type(item.quality)=="number" and item.quality or nil}
+    end
+  end
+  table.sort(result,function(a,b)
+    local aq,bq=a.quality or math.huge,b.quality or math.huge
+    if aq~=bq then return aq<bq end
+    local an,bn=(a.name or ""):lower(),(b.name or ""):lower()
+    if an~=bn then return an<bn end
+    return tonumber(a.id)<tonumber(b.id)
+  end)
   return result
 end
 

@@ -8,16 +8,20 @@ function Runtime.New(environment)
   local runtime = { registration = {} }
   local frame, update, scanTooltip, reportFrame, reportEdit, reportTitle, configFrame, configSummary, poorButton
   local configWaffleRoot
+  local configContentComponent,configOverviewComponent,mainContentFrame
   local profileFrame,profileSummary,profileNameBox,profileList,profileButtons,profileScroll
-  local profileWaffleRoot,listsWaffleRoot,importWaffleRoot,rulesWaffleRoot,optionsWaffleRoot,reportWaffleRoot
+  local profileWaffleRoot,listsWaffleRoot,importWaffleRoot,optionsWaffleRoot,reportWaffleRoot
   local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listPanels
   local importFrame,importTitle,importEdit,importStatus,importCommitButton,importPreview,importScope,importKind
   local reportReturnTarget
   local rulesFrame,rulesSummary,ruleIdInput,ruleValueInput,ruleScopeButton,ruleResultButton,ruleFieldButton,ruleOpButton,ruleGroupButton
   local ruleDraftPredicates,ruleDraftProfileId={},nil
-  local optionsFrame,optionsQualityButtons,optionsFields
+  local optionsFrame,optionsContentFrame,optionsScrollFrame,optionsProfileDecorations,optionsGlobalDecorations,optionsQualityButtons,optionsFields,optionsThresholdFields,optionsScopeFields,optionsEnableFields,optionsUnboundQualityFields,optionsEquipmentTypeFields
+  local optionsCallbacks
   local readingTooltip = false
   local itemPresentationCache={}
+  local listMetadataIds,listMetadataSignature,listMetadataCursor={},nil,1
+  local listMetadataElapsed,listMetadataAge=0,0
 
   function runtime:Inspect() return Addon.Client.Inspect(api) end
   function runtime:Print(message)
@@ -44,7 +48,8 @@ function Runtime.New(environment)
     local reads = {}
     for _, name in ipairs(Addon.Client.Required) do reads[name] = api[name] end
     for _, name in ipairs(Addon.Client.Optional) do reads[name] = api[name] end
-    for _, name in ipairs({ "ITEM_SOULBOUND", "ITEM_BIND_TO_ACCOUNT", "ITEM_BIND_ON_EQUIP", "ITEM_BIND_ON_USE" }) do
+    for _, name in ipairs({ "ITEM_SOULBOUND", "ITEM_BIND_TO_ACCOUNT", "ITEM_BIND_ON_EQUIP", "ITEM_BIND_ON_USE",
+      "GetAuctionItemClasses", "GetAuctionItemSubClasses" }) do
       reads[name] = api[name]
     end
     reads.ReadBindingLines = function(bag, slot)
@@ -81,6 +86,12 @@ function Runtime.New(environment)
     api.SLASH_DEJUNKWOTLK1 = "/dejunkwotlk"
     api.SLASH_DEJUNKWOTLK2 = "/djw"
     api.SlashCmdList.DEJUNKWOTLK = callback
+    api.SLASH_DEJUNK1 = "/dejunk"
+    api.SlashCmdList.DEJUNK = function(input)
+      local command=type(input)=="string" and input:match("^%s*(%S*)") or ""
+      if command=="" or command:lower()=="options" then callback("config")
+      else callback(input) end
+    end
   end
   function runtime:Start(onEvent, onUpdate)
     if type(api.CreateFrame) ~= "function" then return false end
@@ -125,6 +136,14 @@ function Runtime.New(environment)
     end)
     return ok and root or nil,ok and window or nil
   end
+  local function getCursorItemId()
+    if type(api.GetCursorInfo)~="function" then return nil end
+    local ok,kind,itemId=pcall(api.GetCursorInfo)
+    itemId=tonumber(itemId)
+    if ok and kind=="item" and itemId and itemId>0 and itemId<2147483648 and itemId==math.floor(itemId) then
+      return itemId
+    end
+  end
   function runtime:Stop()
     if frame then
       frame:SetScript("OnUpdate", nil)
@@ -135,6 +154,7 @@ function Runtime.New(environment)
 
   function runtime:ShowConfig(callbacks)
     callbacks=callbacks or {}
+    runtime.configCallbacks=callbacks
     if Addon.Waffle then
       local ok,waffleError=pcall(function()
         if not configWaffleRoot then
@@ -180,29 +200,45 @@ function Runtime.New(environment)
           local main=content:AddColumn({grow=1,padding=10,gap=8,frameFactory=function(parent)
             local panel=api.CreateFrame("Frame",nil,parent); panel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1,insets={left=1,right=1,top=1,bottom=1}}); panel:SetBackdropColor(0,0,0,0.45); panel:SetBackdropBorderColor(0.32,0.32,0.32,1); return panel
           end})
-          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Overview",function() end)))
-          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Profiles",function() configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout(); self:ShowProfiles(callbacks) end)))
-          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Lists",function() configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout(); self:ShowLists(callbacks) end)))
-          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Rules",function() configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout(); self:ShowRules(callbacks) end)))
-          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Options",function() configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout(); self:ShowOptions(callbacks) end)))
-          main:AttachComponent(Addon.Waffle:Flex(text(nil,"Active profile and safe preview",28)))
-          main:AttachComponent(Addon.Waffle:Flex(text(nil,"Settings and inventory previews are read-only. No item action will be taken.",46)))
-          main:AttachComponent(Addon.Waffle:Flex({height=26,frameFactory=function(parent)
+          configContentComponent=main
+          local overview=main:AddColumn({grow=1,gap=8})
+          configOverviewComponent=overview
+          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Lists",function()
+            configOverviewComponent:SetVisibility("GONE"); configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
+            self:ShowLists(runtime.configCallbacks)
+          end)))
+          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Profiles",function()
+            configOverviewComponent:SetVisibility("GONE"); configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout(); self:ShowProfiles(runtime.configCallbacks)
+          end)))
+          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Global Options",function()
+            configOverviewComponent:SetVisibility("GONE"); configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout(); self:ShowOptions(runtime.configCallbacks,"global")
+          end)))
+          nav:AttachComponent(Addon.Waffle:Flex(button(nil,"Profile Options",function()
+            configOverviewComponent:SetVisibility("GONE"); configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout(); self:ShowOptions(runtime.configCallbacks,"profile")
+          end)))
+          overview:AttachComponent(Addon.Waffle:Flex(text(nil,"Dejunk | main window",28)))
+          overview:AttachComponent(Addon.Waffle:Flex(text(nil,"Settings and inventory previews are read-only. No item action will be taken.",46)))
+          overview:AttachComponent(Addon.Waffle:Flex({height=26,frameFactory=function(parent)
             configSummary=parent:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall"); configSummary:SetJustifyH("LEFT"); configSummary:SetWordWrap(true); return configSummary
           end}))
-          local controls=main:AddRow({height=34,gap=8,wrap=true})
-          controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Toggle Poor quality",function() if callbacks.togglePoor then callbacks.togglePoor() end; self:ShowConfig(callbacks) end)))
-          controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Preview SELL",function() if callbacks.preview then callbacks.preview("sell") end end)))
-          controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Preview DESTROY",function() if callbacks.preview then callbacks.preview("destroy") end end)))
+          local controls=overview:AddRow({height=34,gap=8,wrap=true})
+          controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Toggle Poor quality",function() local current=runtime.configCallbacks or {}; if current.togglePoor then current.togglePoor() end; self:ShowConfig(current) end)))
+          controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Preview SELL",function() local current=runtime.configCallbacks or {}; if current.preview then current.preview("sell") end end)))
+          controls:AttachComponent(Addon.Waffle:Flex(button(nil,"Preview DESTROY",function() local current=runtime.configCallbacks or {}; if current.preview then current.preview("destroy") end end)))
         end
         configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
         configFrame=configWaffleRoot:GetFrame()
+        mainContentFrame=configContentComponent and configContentComponent:GetFrame() or nil
+        if configOverviewComponent then configOverviewComponent:SetVisibility("GONE") end
+        if listFrame then listFrame:Hide() end
+        if profileFrame then profileFrame:Hide() end
+        if optionsFrame then optionsFrame:Hide() end
         configSummary:SetText(callbacks.summary and callbacks.summary() or "Settings unavailable.")
         if configFrame and poorButton and poorButton.SetText and callbacks.poorEnabled then
           poorButton:SetText(callbacks.poorEnabled() and "Disable Poor rule" or "Enable Poor rule")
         end
       end)
-      if ok then return end
+      if ok then self:ShowLists(callbacks); return end
       self:Print("Original Waffle configuration UI failed: "..tostring(waffleError).."; using the built-in fallback.")
     end
     local ok=pcall(function()
@@ -236,10 +272,6 @@ function Runtime.New(environment)
           configFrame:Hide()
           self:ShowLists(callbacks)
         end)
-        button("Rules",334,54,function()
-          configFrame:Hide()
-          self:ShowRules(callbacks)
-        end)
         button("Options",334,88,function()
           configFrame:Hide()
           self:ShowOptions(callbacks)
@@ -259,17 +291,31 @@ function Runtime.New(environment)
 
   function runtime:ShowProfiles(callbacks)
     callbacks=callbacks or {}
+    runtime.configCallbacks=callbacks
+    if not configWaffleRoot then self:ShowConfig(callbacks) end
+    if configWaffleRoot and configContentComponent and configOverviewComponent then
+      configOverviewComponent:SetVisibility("GONE")
+      configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
+      mainContentFrame=configContentComponent:GetFrame()
+    end
     local ok=pcall(function()
       if not profileFrame then
-        profileWaffleRoot,profileFrame=createWaffleWindow("DejunkWotLKProfiles",420,360)
-        profileFrame=profileFrame or api.CreateFrame("Frame",nil,api.UIParent)
-        profileFrame:SetWidth(420); profileFrame:SetHeight(360); profileFrame:SetPoint("CENTER")
+        if mainContentFrame then profileFrame=api.CreateFrame("Frame","DejunkWotLKProfiles",mainContentFrame)
+        else
+          profileWaffleRoot,profileFrame=createWaffleWindow("DejunkWotLKProfiles",420,360)
+          profileFrame=profileFrame or api.CreateFrame("Frame",nil,api.UIParent)
+        end
+        profileFrame:SetWidth(mainContentFrame and 540 or 420); profileFrame:SetHeight(mainContentFrame and 540 or 360)
+        if mainContentFrame then profileFrame:SetParent(mainContentFrame); profileFrame:ClearAllPoints(); profileFrame:SetPoint("TOPLEFT",mainContentFrame,"TOPLEFT",0,0)
+        else profileFrame:SetPoint("CENTER") end
         profileFrame:SetFrameStrata("DIALOG"); profileFrame:EnableMouse(true)
-        profileFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
+        if not mainContentFrame then profileFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}}) end
         local title=profileFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
         title:SetPoint("TOPLEFT",18,-18); title:SetText("Dejunk-WotLK | Profiles")
-        local close=api.CreateFrame("Button",nil,profileFrame,"UIPanelCloseButton")
-        close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() profileFrame:Hide() end)
+        if not mainContentFrame then
+          local close=api.CreateFrame("Button",nil,profileFrame,"UIPanelCloseButton")
+          close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() profileFrame:Hide() end)
+        end
         profileSummary=profileFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         profileSummary:SetPoint("TOPLEFT",22,-50); profileSummary:SetWidth(360); profileSummary:SetJustifyH("LEFT")
         -- The 3.3.5 scroll template builds scrollbar globals from its frame name.
@@ -353,6 +399,8 @@ function Runtime.New(environment)
       profileList:SetHeight(math.max(175,row*28))
       profileSummary:SetText("Select a profile to activate it:")
       if callbacks.activeProfileName then profileNameBox:SetText(callbacks.activeProfileName()) end
+      if listFrame then listFrame:Hide() end
+      if optionsFrame then optionsFrame:Hide() end
       profileFrame:Show()
     end)
     if not ok then self:Print("Profiles window unavailable; use /djw profiles list|create|switch.") end
@@ -360,73 +408,121 @@ function Runtime.New(environment)
 
   function runtime:ShowLists(callbacks)
     callbacks=callbacks or {}
+    runtime.configCallbacks=callbacks
+    if not configWaffleRoot then self:ShowConfig(callbacks) end
+    if configWaffleRoot and configContentComponent and configOverviewComponent then
+      configOverviewComponent:SetVisibility("GONE")
+      configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
+      mainContentFrame=configContentComponent:GetFrame()
+    end
     local ok=pcall(function()
       if not listFrame then
-        listsWaffleRoot,listFrame=createWaffleWindow("DejunkWotLKLists",720,500)
-        listFrame=listFrame or api.CreateFrame("Frame",nil,api.UIParent)
-        listFrame:SetWidth(720); listFrame:SetHeight(500); listFrame:SetPoint("CENTER")
-        listFrame:SetFrameStrata("DIALOG"); listFrame:EnableMouse(true)
-        listFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
-        local title=listFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
-        title:SetPoint("TOPLEFT",20,-18); title:SetText("Dejunk-WotLK | Inclusion and exclusion lists")
-        local close=api.CreateFrame("Button",nil,listFrame,"UIPanelCloseButton")
-        close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() listFrame:Hide() end)
+        if mainContentFrame then
+          listFrame=api.CreateFrame("Frame","DejunkWotLKLists",mainContentFrame)
+        else
+          listsWaffleRoot,listFrame=createWaffleWindow("DejunkWotLKLists",540,540)
+          listFrame=listFrame or api.CreateFrame("Frame","DejunkWotLKLists",api.UIParent)
+        end
+        listFrame:SetWidth(540); listFrame:SetHeight(540)
+        if mainContentFrame then
+          listFrame:SetParent(mainContentFrame); listFrame:ClearAllPoints(); listFrame:SetPoint("TOPLEFT",mainContentFrame,"TOPLEFT",0,0)
+        else listFrame:SetPoint("CENTER") end
+        listFrame:EnableMouse(true)
         listSearch=api.CreateFrame("EditBox",nil,listFrame,"InputBoxTemplate")
-        listSearch:SetWidth(400); listSearch:SetHeight(24); listSearch:SetPoint("TOPLEFT",24,-50)
+        listSearch:SetWidth(350); listSearch:SetHeight(24); listSearch:SetPoint("TOPLEFT",12,-14)
         listSearch:SetAutoFocus(false); listSearch:SetMaxLetters(64)
         listSearch:SetScript("OnEscapePressed",function() listSearch:ClearFocus() end)
         listSearch:SetScript("OnTextChanged",function() self:ShowLists(callbacks) end)
         local searchLabel=listFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         searchLabel:SetPoint("LEFT",listSearch,"RIGHT",10,0); searchLabel:SetText("Search by item name or ID")
         listScopeButton=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
-        listScopeButton:SetWidth(130); listScopeButton:SetHeight(24); listScopeButton:SetPoint("TOPLEFT",24,-86)
+        listScopeButton:SetWidth(100); listScopeButton:SetHeight(24); listScopeButton:SetPoint("TOPLEFT",12,-48)
         listScopeButton:SetScript("OnClick",function()
           listScopeButton.scope=listScopeButton.scope=="global" and "profile" or "global"
           self:ShowLists(callbacks)
         end)
         listKindButton=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
-        listKindButton:SetWidth(150); listKindButton:SetHeight(24); listKindButton:SetPoint("LEFT",listScopeButton,"RIGHT",10,0)
+        listKindButton:SetWidth(110); listKindButton:SetHeight(24); listKindButton:SetPoint("LEFT",listScopeButton,"RIGHT",8,0)
         listKindButton:SetScript("OnClick",function()
           listKindButton.kind=listKindButton.kind=="inclusions" and "exclusions" or "inclusions"
           self:ShowLists(callbacks)
         end)
         listInput=api.CreateFrame("EditBox",nil,listFrame,"InputBoxTemplate")
-        listInput:SetWidth(120); listInput:SetHeight(24); listInput:SetPoint("LEFT",listKindButton,"RIGHT",12,0)
+        listInput:SetWidth(72); listInput:SetHeight(24); listInput:SetPoint("LEFT",listKindButton,"RIGHT",8,0)
         listInput:SetAutoFocus(false); listInput:SetNumeric(true); listInput:SetMaxLetters(10)
         listInput:SetScript("OnEscapePressed",function() listInput:ClearFocus() end)
         local function listButton(label,x,handler)
           local b=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
-          b:SetWidth(90); b:SetHeight(24); b:SetPoint("LEFT",listInput,"RIGHT",x,0); b:SetText(label); b:SetScript("OnClick",handler); return b
+          b:SetWidth(label=="Add" and 60 or 66); b:SetHeight(24); b:SetPoint("LEFT",listInput,"RIGHT",x,0); b:SetText(label); b:SetScript("OnClick",handler); return b
         end
         listButton("Add",8,function() self:EditList(callbacks,true) end)
-        listButton("Remove",104,function() self:EditList(callbacks,false) end)
+        listButton("Remove",76,function() self:EditList(callbacks,false) end)
         listPanels={}
         local panes={
-          {scope="global",kind="inclusions",title="Inclusions (Global)",x=22,y=-132},
-          {scope="global",kind="exclusions",title="Exclusions (Global)",x=365,y=-132},
-          {scope="profile",kind="inclusions",title="Inclusions (Profile)",x=22,y=-300},
-          {scope="profile",kind="exclusions",title="Exclusions (Profile)",x=365,y=-300}
+          {scope="global",kind="inclusions",title="Inclusions (Global)",x=8,y=-84},
+          {scope="global",kind="exclusions",title="Exclusions (Global)",x=276,y=-84},
+          {scope="profile",kind="inclusions",title="Inclusions (Profile)",x=8,y=-292},
+          {scope="profile",kind="exclusions",title="Exclusions (Profile)",x=276,y=-292}
         }
         for _,pane in ipairs(panes) do
           local paneScope,paneKind=pane.scope,pane.kind
           local box=api.CreateFrame("Frame",nil,listFrame)
-          box:SetWidth(325); box:SetHeight(155); box:SetPoint("TOPLEFT",listFrame,"TOPLEFT",pane.x,pane.y)
+          box:SetWidth(248); box:SetHeight(192); box:SetPoint("TOPLEFT",listFrame,"TOPLEFT",pane.x,pane.y)
           box:EnableMouse(true); box:SetBackdrop({bgFile="Interface\\Tooltips\\UI-Tooltip-Background",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",tile=true,tileSize=16,edgeSize=10,insets={left=3,right=3,top=3,bottom=3}})
           box:SetBackdropColor(0,0,0,0.65)
+          local function addCursorItem()
+            local itemId=getCursorItemId()
+            if not itemId then return false end
+            local added,reason=callbacks.editItem and callbacks.editItem(paneScope,paneKind,itemId,true)
+            if added then
+              if type(api.ClearCursor)=="function" then pcall(api.ClearCursor) end
+              self:Print("Item added to "..paneScope.." "..paneKind..".")
+            else
+              self:Print("List update failed: "..tostring(reason or "UNAVAILABLE"))
+            end
+            self:ShowLists(callbacks)
+            return true
+          end
+          box:SetScript("OnMouseDown",function() addCursorItem() end)
           local heading=box:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
           heading:SetPoint("TOPLEFT",8,-7); heading:SetText(pane.title)
           local empty=box:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-          empty:SetPoint("TOPLEFT",8,-30); empty:SetWidth(300); empty:SetJustifyH("LEFT")
+          empty:SetPoint("TOPLEFT",8,-30); empty:SetWidth(224); empty:SetJustifyH("LEFT")
           local rows={}
-          for rowIndex=1,6 do
+          for rowIndex=1,7 do
             local row=api.CreateFrame("Button",nil,box)
-            row:SetWidth(300); row:SetHeight(19); row:SetPoint("TOPLEFT",8,-27-(rowIndex-1)*20)
+            row:SetWidth(230); row:SetHeight(18); row:SetPoint("TOPLEFT",8,-27-(rowIndex-1)*20)
             local icon=row:CreateTexture(nil,"ARTWORK")
             icon:SetWidth(16); icon:SetHeight(16); icon:SetPoint("LEFT",0,0)
             local label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-            label:SetPoint("LEFT",icon,"RIGHT",5,0); label:SetWidth(275); label:SetJustifyH("LEFT")
-            row.icon=icon; row.label=label; row:SetScript("OnClick",function()
-              listScopeButton.scope=paneScope; listKindButton.kind=paneKind; listInput:SetText(row.itemId)
+            label:SetPoint("LEFT",icon,"RIGHT",5,0); label:SetWidth(205); label:SetJustifyH("LEFT")
+            row.icon=icon; row.label=label; row.listScope=paneScope; row.listKind=paneKind
+            if type(row.RegisterForClicks)=="function" then row:RegisterForClicks("LeftButtonUp","RightButtonUp") end
+            row:SetScript("OnMouseDown",function()
+              if getCursorItemId() then row.cursorHandled=addCursorItem() end
+            end)
+            row:SetScript("OnClick",function(_,mouseButton)
+              if row.cursorHandled then row.cursorHandled=false; return end
+              if mouseButton=="RightButton" and row.itemId and callbacks.editItem then
+                local targetScope,targetKind=paneScope,paneKind
+                local shift=type(api.IsShiftKeyDown)=="function" and api.IsShiftKeyDown()
+                local control=type(api.IsControlKeyDown)=="function" and api.IsControlKeyDown()
+                local alt=type(api.IsAltKeyDown)=="function" and api.IsAltKeyDown()
+                if shift then targetKind=paneKind=="inclusions" and "exclusions" or "inclusions"
+                elseif control then targetScope=paneScope=="global" and "profile" or "global"; targetKind=paneKind=="inclusions" and "exclusions" or "inclusions"
+                elseif alt then targetScope=paneScope=="global" and "profile" or "global"
+                else
+                  local removed,reason=callbacks.editItem(paneScope,paneKind,row.itemId,false)
+                  self:Print(removed and "Item removed from list." or ("List update failed: "..tostring(reason)))
+                  self:ShowLists(callbacks)
+                  return
+                end
+                local added,reason=callbacks.editItem(targetScope,targetKind,row.itemId,true)
+                self:Print(added and "Item moved to list." or ("List update failed: "..tostring(reason)))
+                self:ShowLists(callbacks)
+                return
+              end
+              listScopeButton.scope=paneScope; listKindButton.kind=paneKind; listInput:SetText(row.itemId or "")
               listScopeButton:SetText("Scope: "..paneScope)
               listKindButton:SetText(paneKind=="inclusions" and "Inclusions" or "Exclusions")
             end)
@@ -434,9 +530,6 @@ function Runtime.New(environment)
           end
           listPanels[#listPanels+1]={scope=pane.scope,kind=pane.kind,empty=empty,rows=rows}
         end
-        local back=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
-        back:SetWidth(110); back:SetHeight(24); back:SetPoint("BOTTOMRIGHT",listFrame,"BOTTOMRIGHT",-20,18); back:SetText("Back")
-        back:SetScript("OnClick",function() listFrame:Hide(); self:ShowConfig(callbacks) end)
         local export=api.CreateFrame("Button",nil,listFrame,"UIPanelButtonTemplate")
         export:SetWidth(90); export:SetHeight(24); export:SetPoint("BOTTOMLEFT",listFrame,"BOTTOMLEFT",22,18); export:SetText("Export")
         export:SetScript("OnClick",function()
@@ -457,30 +550,56 @@ function Runtime.New(environment)
       listScopeButton:SetText("Scope: "..scope)
       listKindButton:SetText(kind=="inclusions" and "Inclusions" or "Exclusions")
       local query=(listSearch:GetText() or ""):lower()
-      for _,pane in ipairs(listPanels) do
+      local raws,allIds,seenIds={}, {}, {}
+      for index,pane in ipairs(listPanels) do
         local raw=callbacks.listItems and callbacks.listItems(pane.scope,pane.kind) or ""
-        local nameResolver=query:find("%D") and function(id)
-          if itemPresentationCache[id] and itemPresentationCache[id].name then return itemPresentationCache[id].name end
-          if type(api.GetItemInfo)=="function" then
+        raws[index]=raw
+        for id in raw:gmatch("%d+") do
+          if not seenIds[id] then seenIds[id]=true; allIds[#allIds+1]=id end
+        end
+      end
+      local signature=table.concat(allIds,"\31")
+      if signature~=listMetadataSignature then
+        listMetadataSignature=signature; listMetadataIds=allIds; listMetadataCursor=1
+        listMetadataAge,listMetadataElapsed=0,0
+      end
+      -- WotLK has no reliable item-info completion event. Follow upstream's
+      -- bounded queue behavior: request at most 25 IDs per refresh tick.
+      local metadataPending=false
+      if type(api.GetItemInfo)=="function" and #listMetadataIds>0 then
+        for _=1,math.min(25,#listMetadataIds) do
+          local id=listMetadataIds[listMetadataCursor]
+          listMetadataCursor=listMetadataCursor%#listMetadataIds+1
+          local cached=itemPresentationCache[id]
+          if not (cached and cached.name) then
             local values={pcall(api.GetItemInfo,tonumber(id))}
             if values[1] and type(values[2])=="string" then
-              itemPresentationCache[id]=itemPresentationCache[id] or {}
-              itemPresentationCache[id].name=values[2]; itemPresentationCache[id].texture=values[11]
-              return values[2]
+              itemPresentationCache[id]={name=values[2],quality=values[4],texture=values[11]}
+            else
+              metadataPending=true
             end
           end
+        end
+        if not metadataPending then
+          for _,id in ipairs(listMetadataIds) do
+            local cached=itemPresentationCache[id]
+            if not (cached and cached.name) then metadataPending=true; break end
+          end
+        end
+      end
+      for index,pane in ipairs(listPanels) do
+        local nameResolver=query:find("%D") and function(id)
+          local item=itemPresentationCache[id]
+          return item and item.name
         end or nil
-        local filtered=Addon.Config.FilterItemIds(raw,query,nameResolver)
+        local filtered=Addon.Config.SortListItems(Addon.Config.FilterItemIds(raws[index],query,nameResolver),function(id)
+          return itemPresentationCache[id]
+        end)
         local total=#filtered
         for index,row in ipairs(pane.rows) do
           local item=filtered[index]
           if item then
             local presentation=itemPresentationCache[item.id] or {}
-            if not presentation.name and type(api.GetItemInfo)=="function" then
-              local values={pcall(api.GetItemInfo,tonumber(item.id))}
-              if values[1] and type(values[2])=="string" then presentation.name=values[2]; presentation.texture=values[11] end
-              itemPresentationCache[item.id]=presentation
-            end
             row.itemId=item.id; row.label:SetText((presentation.name or item.name or "Item").." (#"..item.id..")")
             if presentation.texture then row.icon:SetTexture(presentation.texture); row.icon:Show() else row.icon:Hide() end
             row:Show()
@@ -490,6 +609,19 @@ function Runtime.New(environment)
           (total>6 and ("... "..(total-6).." more; search to narrow or use /djw lists show "..pane.scope.." "..pane.kind) or ""))
         if total==0 or total>6 then pane.empty:Show() else pane.empty:Hide() end
       end
+      if metadataPending and listMetadataAge<30 then
+        listFrame:SetScript("OnUpdate",function(_,elapsed)
+          listMetadataElapsed=listMetadataElapsed+elapsed
+          if listMetadataElapsed<0.1 then return end
+          listMetadataAge=listMetadataAge+listMetadataElapsed; listMetadataElapsed=0
+          if listMetadataAge>=30 then listFrame:SetScript("OnUpdate",nil); return end
+          self:ShowLists(callbacks)
+        end)
+      else
+        listFrame:SetScript("OnUpdate",nil)
+      end
+      if profileFrame then profileFrame:Hide() end
+      if optionsFrame then optionsFrame:Hide() end
       listFrame:Show()
     end)
     if not ok then self:Print("Lists window unavailable; use /djw lists show|add|remove <global|profile> <inclusions|exclusions> <itemID>.") end
@@ -677,7 +809,7 @@ function Runtime.New(environment)
           local added,reason=callbacks.addRule and callbacks.addRule(group)
           if added then
             ruleDraftPredicates={}; ruleDraftProfileId=nil; ruleIdInput:SetText(""); ruleValueInput:SetText("")
-            self:Print("Custom rule added.")
+            self:Print("Rule saved.")
           else self:Print("Rule add failed: "..tostring(reason or "INVALID_RULE")) end
           self:UpdateRules(callbacks)
         end)
@@ -693,7 +825,7 @@ function Runtime.New(environment)
           local id=ruleIdInput:GetText(); local removed,reason=callbacks.removeRule and callbacks.removeRule(id)
           if removed then
             ruleIdInput:SetText("")
-            self:Print("Custom rule removed.")
+            self:Print("Rule removed.")
           else
             self:Print("Rule remove failed: "..tostring(reason or "UNKNOWN_RULE"))
           end
@@ -743,72 +875,573 @@ function Runtime.New(environment)
     rulesSummary:SetText(table.concat(lines,"\n"))
   end
 
-  function runtime:ShowOptions(callbacks)
+  function runtime:ShowOptions(callbacks,scope)
     callbacks=callbacks or {}
+    runtime.configCallbacks=callbacks; optionsCallbacks=callbacks
+    scope=scope=="global" and "global" or "profile"
+    if not configWaffleRoot then self:ShowConfig(callbacks) end
+    if configWaffleRoot and configContentComponent and configOverviewComponent then
+      configOverviewComponent:SetVisibility("GONE")
+      configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout()
+      mainContentFrame=configContentComponent:GetFrame()
+    end
     local ok=pcall(function()
       if not optionsFrame then
-        optionsWaffleRoot,optionsFrame=createWaffleWindow("DejunkWotLKOptions",560,420)
-        optionsFrame=optionsFrame or api.CreateFrame("Frame",nil,api.UIParent)
-        optionsFrame:SetWidth(560); optionsFrame:SetHeight(420); optionsFrame:SetPoint("CENTER")
+        if mainContentFrame then optionsFrame=api.CreateFrame("Frame","DejunkWotLKOptions",mainContentFrame)
+        else
+          optionsWaffleRoot,optionsFrame=createWaffleWindow("DejunkWotLKOptions",560,420)
+          optionsFrame=optionsFrame or api.CreateFrame("Frame",nil,api.UIParent)
+        end
+        optionsFrame:SetWidth(mainContentFrame and 640 or 560); optionsFrame:SetHeight(mainContentFrame and 540 or 440)
+        if mainContentFrame then optionsFrame:SetParent(mainContentFrame); optionsFrame:ClearAllPoints(); optionsFrame:SetPoint("TOPLEFT",mainContentFrame,"TOPLEFT",0,0)
+        else optionsFrame:SetPoint("CENTER") end
         optionsFrame:SetFrameStrata("DIALOG"); optionsFrame:EnableMouse(true)
-        optionsFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
+        if not mainContentFrame then optionsFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}}) end
         local title=optionsFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
-        title:SetPoint("TOPLEFT",20,-18); title:SetText("Dejunk-WotLK | Quality and thresholds")
-        local close=api.CreateFrame("Button",nil,optionsFrame,"UIPanelCloseButton")
-        close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() optionsFrame:Hide() end)
-        local qualityTitle=optionsFrame:CreateFontString(nil,"OVERLAY","GameFontHighlight")
-        qualityTitle:SetPoint("TOPLEFT",24,-52); qualityTitle:SetText("Click a quality to toggle its rule:")
-        local labels={"Poor","Common","Uncommon","Rare","Epic","Legendary","Artifact","Heirloom"}
+        title:SetPoint("TOPLEFT",20,-18); optionsFrame.pageTitle=title
+        local description=optionsFrame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+        description:SetPoint("TOPLEFT",20,-40); description:SetWidth(mainContentFrame and 590 or 500)
+        description:SetText("These options only apply to characters using the active profile.")
+        optionsFrame.pageDescription=description
+        if not mainContentFrame then
+          local close=api.CreateFrame("Button",nil,optionsFrame,"UIPanelCloseButton")
+          close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() optionsFrame:Hide() end)
+        end
+        optionsScrollFrame=api.CreateFrame("ScrollFrame","DejunkWotLKOptionsScroll",optionsFrame,"UIPanelScrollFrameTemplate")
+        optionsScrollFrame:SetPoint("TOPLEFT",optionsFrame,"TOPLEFT",14,-64)
+        optionsScrollFrame:SetPoint("BOTTOMRIGHT",optionsFrame,"BOTTOMRIGHT",-30,42)
+        optionsContentFrame=api.CreateFrame("Frame",nil,optionsScrollFrame)
+        optionsContentFrame:SetWidth(mainContentFrame and 580 or 490)
+        optionsContentFrame:SetHeight(2040)
+        optionsScrollFrame:SetScrollChild(optionsContentFrame)
+        optionsFrame.scrollFrame=optionsScrollFrame; optionsFrame.contentFrame=optionsContentFrame
+        optionsProfileDecorations={}; optionsGlobalDecorations={}
+        local optionCheckSerial=0
+        local function createOptionCheck(labelText,x,y)
+          optionCheckSerial=optionCheckSerial+1
+          local check=api.CreateFrame("CheckButton","DejunkWotLKOptionCheck"..optionCheckSerial,optionsContentFrame,"UICheckButtonTemplate")
+          check:SetWidth(24); check:SetHeight(24); check:SetPoint("TOPLEFT",x,y)
+          check.optionLabel=labelText
+          check:SetText(labelText)
+          return check
+        end
+        local function addScopeChoices(key,x,y,step,defaultValue)
+          local choices={{value="SELL",label="Selling"},{value="DESTROY",label="Destroying"},{value="BOTH",label="Both"}}
+          local rows={}
+          for index,choice in ipairs(choices) do
+            local control=createOptionCheck(choice.label,x+(index-1)*step,y)
+            control.scopeKey=key; control.scopeValue=choice.value
+            control:SetScript("OnClick",function()
+              local currentCallbacks=optionsCallbacks or callbacks
+              local current=currentCallbacks.options and currentCallbacks.options() or {}
+              local previous=current[key] or defaultValue or {enabled=true,scope="BOTH",qualities={}}
+              local value={}
+              for field,fieldValue in pairs(previous) do value[field]=fieldValue end
+              value.scope=choice.value
+              local changed,reason=currentCallbacks.setOption and currentCallbacks.setOption(key,value)
+              self:Print(changed and (key.." scope updated.") or ("Option update failed: "..tostring(reason)))
+              self:ShowOptions(currentCallbacks,"profile")
+            end)
+            rows[#rows+1]=control
+          end
+          optionsScopeFields[#optionsScopeFields+1]={key=key,choices=rows}
+          return rows
+        end
+        local function addSection(titleText,y,isGlobal)
+          local heading=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontNormalLarge")
+          heading:SetPoint("TOPLEFT",18,y); heading:SetText(titleText)
+          local group=isGlobal and optionsGlobalDecorations or optionsProfileDecorations
+          group[#group+1]=heading
+          return heading
+        end
+        local function addOptionCard(y,height,isGlobal)
+          local card=api.CreateFrame("Frame",nil,optionsContentFrame)
+          card.optionCard=true
+          card:SetPoint("TOPLEFT",optionsContentFrame,"TOPLEFT",10,y)
+          card:SetWidth(mainContentFrame and 548 or 458); card:SetHeight(height)
+          card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",tile=true,tileSize=8})
+          card:SetBackdropColor(1,1,1,0.03)
+          local group=isGlobal and optionsGlobalDecorations or optionsProfileDecorations
+          group[#group+1]=card
+          return card
+        end
+        local optionCardFrames={}
+        addSection("General",-8)
+        optionCardFrames.autoRepair=addOptionCard(-30,64)
+        optionCardFrames.autoSell=addOptionCard(-104,64)
+        addSection("Include",-184)
+        optionCardFrames.includeByQuality=addOptionCard(-208,112)
+        optionCardFrames.includeBelowItemLevel=addOptionCard(-330,150)
+        optionCardFrames.includeBelowPrice=addOptionCard(-490,150)
+        optionCardFrames.includeByEquipmentType=addOptionCard(-650,330)
+        addSection("Exclude",-994)
+        optionCardFrames.excludeAboveItemLevel=addOptionCard(-1018,150)
+        optionCardFrames.excludeAbovePrice=addOptionCard(-1178,150)
+        optionCardFrames.excludeByEquipmentType=addOptionCard(-1338,330)
+        optionCardFrames.excludeEquipmentSets=addOptionCard(-1678,100)
+        optionCardFrames.excludeQuestItems=addOptionCard(-1788,72)
+        optionCardFrames.excludeUnboundEquipment=addOptionCard(-1870,150)
+        addSection("Safety",-8,true); addOptionCard(-30,92,true)
+        local function bindCardClick(key,handler)
+          local card=optionCardFrames[key]
+          if not card then return end
+          card:EnableMouse(true)
+          card:SetScript("OnMouseDown",function() handler() end)
+        end
+        local function addProfileText(text,x,y,width)
+          local label=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+          label:SetPoint("TOPLEFT",x,y); if width then label:SetWidth(width) end
+          label:SetJustifyH("LEFT"); label:SetText(text)
+          optionsProfileDecorations[#optionsProfileDecorations+1]=label
+          return label
+        end
+        local function addCardDivider(y)
+          local divider=api.CreateFrame("Frame",nil,optionsContentFrame)
+          divider:SetPoint("TOPLEFT",optionsContentFrame,"TOPLEFT",24,y)
+          divider:SetWidth(mainContentFrame and 510 or 420); divider:SetHeight(1)
+          divider:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"})
+          divider:SetBackdropColor(1,1,1,0.12)
+          optionsProfileDecorations[#optionsProfileDecorations+1]=divider
+          return divider
+        end
+        local qualityTitle=createOptionCheck("Include by quality",24,-216)
+        optionsFrame.qualityTitle=qualityTitle
+        local function toggleQualityFilter()
+          local currentCallbacks=optionsCallbacks or callbacks
+          local current=currentCallbacks.options and currentCallbacks.options() or {}
+          local previous=current.includeByQuality or {enabled=true,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}}
+          local value={enabled=not previous.enabled,scope=previous.scope or "BOTH",qualities=previous.qualities}
+          local changed,reason=currentCallbacks.setOption and currentCallbacks.setOption("includeByQuality",value)
+          self:Print(changed and "Include by quality updated." or ("Option update failed: "..tostring(reason)))
+          self:ShowOptions(currentCallbacks,"profile")
+        end
+        qualityTitle:SetScript("OnClick",toggleQualityFilter)
+        bindCardClick("includeByQuality",toggleQualityFilter)
+        local labels={"Poor","Common","Uncommon","Rare","Epic"}
         optionsQualityButtons={}
-        for quality=0,7 do
-          local b=api.CreateFrame("Button",nil,optionsFrame,"UIPanelButtonTemplate")
-          b:SetWidth(120); b:SetHeight(24)
-          local col=quality%4; local row=math.floor(quality/4)
-          b:SetPoint("TOPLEFT",24+col*128,-78-row*32)
+        for quality=0,4 do
+          local b=createOptionCheck(labels[quality+1],110+quality*82,-296)
           b:SetScript("OnClick",function()
-            local opts=callbacks.options and callbacks.options() or {}; local enabled=not (opts.quality or {})[quality]
-            local changed,reason=callbacks.setOption and callbacks.setOption("quality",{quality=quality,enabled=enabled})
-            self:Print(changed and (labels[quality+1].." quality rule "..(enabled and "enabled." or "disabled.")) or ("Rule update failed: "..tostring(reason)))
-            self:ShowOptions(callbacks)
+            local currentCallbacks=optionsCallbacks or callbacks
+            local opts=currentCallbacks.options and currentCallbacks.options() or {}
+            local values=(opts.includeByQuality and opts.includeByQuality.qualities) or {}
+            local enabled=not (values[labels[quality+1]:lower()] or false)
+            local current=opts.includeByQuality or {enabled=true,scope="BOTH",qualities={}}
+            current.qualities=current.qualities or {}; current.qualities[labels[quality+1]:lower()]=enabled
+            local changed,reason=currentCallbacks.setOption and currentCallbacks.setOption("includeByQuality",current)
+            if changed then currentCallbacks.setOption("quality",{quality=quality,enabled=enabled}) end
+            self:Print(changed and (labels[quality+1].." quality "..(enabled and "enabled." or "disabled.")) or ("Option update failed: "..tostring(reason)))
+            self:ShowOptions(currentCallbacks,optionsFrame.scope)
           end)
           optionsQualityButtons[quality+1]=b
         end
         optionsFields={}
-        local rows={
-          {key="minItemLevel",label="Minimum item level"},
-          {key="maxItemLevel",label="Maximum item level"},
-          {key="maxStackVendorPrice",label="Maximum stack vendor value (copper)"}
+        local optionRows={
+          {key="autoRepair",label="Auto Repair",x=24,y=-38},
+          {key="autoSell",label="Auto Sell",x=24,y=-112},
+          {key="excludeEquipmentSets",label="Exclude equipment sets",x=24,y=-1686},
+          {key="excludeQuestItems",label="Exclude quest items",x=24,y=-1796},
+          {key="excludeUnboundEquipment",label="Exclude unbound equipment",x=24,y=-1878}
         }
-        for index,row in ipairs(rows) do
-          local y=-160-(index-1)*48
-          local label=optionsFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-          label:SetPoint("TOPLEFT",26,y); label:SetText(row.label)
-          local input=api.CreateFrame("EditBox",nil,optionsFrame,"InputBoxTemplate")
-          input:SetWidth(110); input:SetHeight(24); input:SetPoint("TOPLEFT",300,y+5)
-          input:SetAutoFocus(false); input:SetMaxLetters(10)
-          local apply=api.CreateFrame("Button",nil,optionsFrame,"UIPanelButtonTemplate")
-          apply:SetWidth(90); apply:SetHeight(24); apply:SetPoint("LEFT",input,"RIGHT",10,0); apply:SetText("Apply")
-          apply:SetScript("OnClick",function()
-            local raw=(input:GetText() or ""):lower(); local value=raw=="off" and nil or tonumber(raw)
-            local valid=raw=="off" or (value and value>=0 and value<=2147483647 and value==math.floor(value))
-            local changed,reason=false,"INVALID_OPTION"
-            if valid and callbacks.setOption then changed,reason=callbacks.setOption(row.key,value) end
-            self:Print(changed and (row.label.." updated.") or ("Setting update failed: "..tostring(reason)))
-            self:ShowOptions(callbacks)
+        for index,row in ipairs(optionRows) do
+          local button=createOptionCheck(row.label,row.x,row.y)
+          local function toggleOption()
+            local currentCallbacks=optionsCallbacks or callbacks
+            local opts=currentCallbacks.options and currentCallbacks.options() or {}; local value=opts[row.key]
+            local enabled=type(value)=="table" and value.enabled or value==true
+            local changed,reason=currentCallbacks.setOption and currentCallbacks.setOption(row.key,not enabled)
+            self:Print(changed and (row.label.." updated.") or ("Option update failed: "..tostring(reason)))
+            self:ShowOptions(currentCallbacks,optionsFrame.scope)
+          end
+          button:SetScript("OnClick",toggleOption)
+          bindCardClick(row.key,toggleOption)
+          optionsFields[index]={key=row.key,button=button,label=row.label}
+        end
+        addProfileText("Automatically repair upon interacting with a merchant.",24,-58,510)
+        addProfileText("Automatically sell items upon interacting with a merchant.",24,-132,510)
+        addProfileText("Include items of the selected qualities.",52,-238,470)
+        addProfileText("Include equipment with an item level below a set value.",52,-360,470)
+        addProfileText("Include items below the selected stack vendor value.",52,-520,470)
+        addProfileText("Include equipment of the selected armor and weapon types.",52,-680,470)
+        addProfileText("Exclude equipment with an item level above a set value.",52,-1048,470)
+        addProfileText("Exclude items above the selected stack vendor value.",52,-1208,470)
+        addProfileText("Exclude equipment of the selected armor and weapon types.",52,-1368,470)
+        addProfileText("Exclude equipment saved to an equipment set.",52,-1708,470)
+        addProfileText("Exclude items classified by the game as quest items.",52,-1818,470)
+        addProfileText("Exclude equipment that is not bound.",52,-1900,470)
+        optionsThresholdFields={}
+        optionsScopeFields={}
+        addCardDivider(-262); addCardDivider(-384); addCardDivider(-544); addCardDivider(-704)
+        addCardDivider(-1032); addCardDivider(-1192); addCardDivider(-1352); addCardDivider(-1728); addCardDivider(-1920)
+        addProfileText("Applies to",24,-270,78)
+        addScopeChoices("includeByQuality",110,-270,98,{enabled=true,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}})
+        addProfileText("Qualities",24,-296,78)
+        addScopeChoices("excludeEquipmentSets",110,-1742,98,{enabled=true,scope="BOTH"})
+        addProfileText("Applies to",24,-1742,78)
+        addScopeChoices("excludeUnboundEquipment",110,-1934,98,{enabled=false,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}})
+        addProfileText("Applies to",24,-1934,78)
+        optionsEnableFields={}
+        optionsUnboundQualityFields={}
+        local unboundQualityTitle=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+        unboundQualityTitle:SetPoint("TOPLEFT",24,-1960); unboundQualityTitle:SetText("Qualities")
+        optionsUnboundQualityFields.title=unboundQualityTitle
+        for quality=1,5 do
+          local q=quality
+          local name=({"Poor","Common","Uncommon","Rare","Epic"})[quality]
+          local button=createOptionCheck(name,110+(quality-1)*82,-1960)
+          button.optionGroup="excludeUnboundEquipment"; button.optionQuality=({"poor","common","uncommon","rare","epic"})[quality]
+          button:SetScript("OnClick",function()
+            local currentCallbacks=optionsCallbacks or callbacks
+            local current=currentCallbacks.options and currentCallbacks.options() or {}
+            local previous=current.excludeUnboundEquipment or {enabled=false,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}}
+            local qualities={}
+            for _,name in ipairs({"poor","common","uncommon","rare","epic"}) do qualities[name]=not previous.qualities or previous.qualities[name]~=false end
+            local name=({"poor","common","uncommon","rare","epic"})[q]; qualities[name]=not qualities[name]
+            local value={enabled=previous.enabled==true,scope=previous.scope or "BOTH",qualities=qualities}
+            local changed,reason=currentCallbacks.setOption and currentCallbacks.setOption("excludeUnboundEquipment",value)
+            self:Print(changed and "Unbound equipment quality updated." or ("Option update failed: "..tostring(reason)))
+            self:ShowOptions(currentCallbacks,"profile")
           end)
-          optionsFields[index]={key=row.key,input=input}
+          optionsUnboundQualityFields[quality]=button
+        end
+        local thresholds={{key="includeBelowItemLevel",label="Include below item level"},{key="includeBelowPrice",label="Include below price"},{key="excludeAboveItemLevel",label="Exclude above item level"},{key="excludeAbovePrice",label="Exclude above price"}}
+        local qualityKeys={"poor","common","uncommon","rare","epic"}
+        local qualityLabels={"Poor","Com","Unc","Rare","Epic"}
+        for index,row in ipairs(thresholds) do
+          local cardTop=({-330,-490,-1018,-1178})[index]
+          local valueY,scopeY,qualityY=cardTop-54,cardTop-80,cardTop-106
+          local label=createOptionCheck(row.label,24,cardTop-8)
+          local function toggleThreshold()
+            local currentCallbacks=optionsCallbacks or callbacks
+            local current=currentCallbacks.options and currentCallbacks.options() or {}
+            local previous=current[row.key] or {scope=(row.key=="includeBelowPrice" or row.key=="excludeAbovePrice") and "DESTROY" or "BOTH",value=0,qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}}
+            local value={enabled=not previous.enabled,scope=previous.scope,value=previous.value or 0,qualities=previous.qualities}
+            local changed,reason=currentCallbacks.setOption and currentCallbacks.setOption(row.key,value)
+            self:Print(changed and (row.label.." updated.") or ("Option update failed: "..tostring(reason)))
+            self:ShowOptions(currentCallbacks,"profile")
+          end
+          label:SetScript("OnClick",toggleThreshold)
+          bindCardClick(row.key,toggleThreshold)
+          local valueLabel=addProfileText(row.key:find("Price") and "Price" or "Item level",24,valueY,78)
+          local scopeLabel=addProfileText("Applies to",24,scopeY,78)
+          local qualityLabel=addProfileText("Qualities",24,qualityY,78)
+          local edits={}
+          local isPrice=row.key=="includeBelowPrice" or row.key=="excludeAbovePrice"
+          local editWidths=isPrice and {42,34,34} or {78}
+          local coinIcons={"Interface\\MoneyFrame\\UI-GoldIcon","Interface\\MoneyFrame\\UI-SilverIcon","Interface\\MoneyFrame\\UI-CopperIcon"}
+          local x=110
+          for part,width in ipairs(editWidths) do
+            local edit=api.CreateFrame("EditBox",nil,optionsContentFrame,"InputBoxTemplate")
+            edit:SetWidth(width); edit:SetHeight(22); edit:SetAutoFocus(false); edit:SetNumeric(true); edit:SetMaxLetters(part==1 and isPrice and 6 or (isPrice and 2 or 10))
+            edit:SetPoint("TOPLEFT",x,valueY)
+            edit.thresholdKey=row.key; edit.thresholdPart=part
+            edit:SetScript("OnEnterPressed",function(self) self:ClearFocus() end)
+            edit:SetScript("OnEscapePressed",function(self) self:ClearFocus() end)
+            edits[part]=edit
+            if isPrice then
+              local icon=edit:CreateTexture(nil,"ARTWORK")
+              icon:SetWidth(14); icon:SetHeight(14); icon:SetTexture(coinIcons[part]); icon:SetPoint("LEFT",edit,"RIGHT",2,0)
+              x=x+62
+            end
+          end
+          local edit=edits[#edits]
+          local apply=api.CreateFrame("Button",nil,optionsContentFrame,"UIPanelButtonTemplate")
+          apply:SetWidth(68); apply:SetHeight(22); apply:SetText("Apply")
+          if isPrice then apply:SetPoint("TOPLEFT",x+4,valueY) else apply:SetPoint("LEFT",edit,"RIGHT",8,0) end
+          apply:SetScript("OnClick",function()
+            local currentCallbacks=optionsCallbacks or callbacks
+            local number
+            if isPrice then
+              local gold=tonumber(edits[1]:GetText()) or 0
+              local silver=tonumber(edits[2]:GetText()) or 0
+              local copper=tonumber(edits[3]:GetText()) or 0
+              number=gold*10000+silver*100+copper
+            else
+              local raw=edit:GetText(); number=raw~="" and tonumber(raw) or 0
+            end
+            local current=currentCallbacks.options and currentCallbacks.options() or {}
+            local previous=current[row.key] or {scope=(row.key=="excludeAbovePrice" or row.key=="includeBelowPrice") and "DESTROY" or "BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}}
+            local value={enabled=previous.enabled==true,scope=previous.scope or "BOTH",value=number or previous.value or 0,qualities=previous.qualities or {poor=true,common=true,uncommon=true,rare=true,epic=true}}
+            local changed,reason=currentCallbacks.setOption and currentCallbacks.setOption(row.key,value)
+            self:Print(changed and (row.label.." updated.") or ("Option update failed: "..tostring(reason)))
+            self:ShowOptions(currentCallbacks,"profile")
+          end)
+          local scopeChoices=addScopeChoices(row.key,110,scopeY,98,
+            {enabled=true,scope=(row.key=="excludeAbovePrice" or row.key=="includeBelowPrice") and "DESTROY" or "BOTH",value=0,qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}})
+          local qualityButtons={}
+          for quality=1,5 do
+            local q=quality
+            local qualityName=({"Poor","Common","Uncommon","Rare","Epic"})[quality]
+            local button=createOptionCheck(qualityName,110+(quality-1)*82,qualityY)
+            button.optionGroup=row.key; button.optionQuality=qualityKeys[q]
+            button:SetScript("OnClick",function()
+              local currentCallbacks=optionsCallbacks or callbacks
+              local current=currentCallbacks.options and currentCallbacks.options() or {}
+              local previous=current[row.key] or {}
+              local qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}
+              for _,name in ipairs(qualityKeys) do if type(previous.qualities)~="table" or previous.qualities[name]==nil then qualities[name]=true else qualities[name]=previous.qualities[name] end end
+              qualities[qualityKeys[q]]=not qualities[qualityKeys[q]]
+              local value={enabled=previous.enabled==true,scope=previous.scope or ((row.key=="excludeAbovePrice" or row.key=="includeBelowPrice") and "DESTROY" or "BOTH"),value=previous.value or 0,qualities=qualities}
+              local changed,reason=currentCallbacks.setOption and currentCallbacks.setOption(row.key,value)
+              self:Print(changed and (row.label.." quality updated.") or ("Option update failed: "..tostring(reason)))
+              self:ShowOptions(currentCallbacks,"profile")
+            end)
+            qualityButtons[quality]=button
+          end
+          optionsThresholdFields[index]={key=row.key,edit=edit,edits=edits,isPrice=isPrice,label=label,apply=apply,scopeChoices=scopeChoices,qualityButtons=qualityButtons,valueLabel=valueLabel,scopeLabel=scopeLabel,qualityLabel=qualityLabel}
+        end
+        optionsEquipmentTypeFields={}
+        local function readAuctionSubclasses(classId)
+          if type(api.GetAuctionItemClasses)~="function" or type(api.GetAuctionItemSubClasses)~="function" then return {} end
+          local ok,classes=pcall(function() return {api.GetAuctionItemClasses()} end)
+          if not ok or type(classes)~="table" or not classes[classId+1] then return {} end
+          local success,values=pcall(function() return {api.GetAuctionItemSubClasses(classId+1)} end)
+          if not success or type(values)~="table" then return {} end
+          local result={}
+          for index,name in ipairs(values) do if type(name)=="string" and name~="" then result[#result+1]={id=index-1,name=name} end end
+          return result
+        end
+        local function typeDefaults()
+          return {enabled=false,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false},armor={},weapons={}}
+        end
+        local function copyMap(value)
+          local result={}
+          if type(value)=="table" then for id,enabled in pairs(value) do if type(id)=="number" and type(enabled)=="boolean" then result[id]=enabled end end end
+          return result
+        end
+        local function createEquipmentTypeCard(key,titleText,top)
+          local field={key=key}
+          local toggle=createOptionCheck(titleText,24,top-8)
+          local function toggleEquipmentType()
+            local currentCallbacks=optionsCallbacks or callbacks
+            local current=currentCallbacks.options and currentCallbacks.options() or {}
+            local previous=current[key] or typeDefaults()
+            local value={enabled=not previous.enabled,scope=previous.scope or "BOTH",qualities=previous.qualities or typeDefaults().qualities,
+              armor=previous.armor or {},weapons=previous.weapons or {}}
+            local changed,reason=currentCallbacks.setOption and currentCallbacks.setOption(key,value)
+            self:Print(changed and (titleText.." updated.") or ("Option update failed: "..tostring(reason)))
+            self:ShowOptions(currentCallbacks,"profile")
+          end
+          toggle:SetScript("OnClick",toggleEquipmentType)
+          bindCardClick(key,toggleEquipmentType)
+          field.toggle=toggle
+          field.scopeChoices=addScopeChoices(key,110,top-264,98,typeDefaults())
+          local armorLabel=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+          armorLabel:SetPoint("TOPLEFT",24,top-64); armorLabel:SetText("Armor")
+          local weaponLabel=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+          weaponLabel:SetPoint("TOPLEFT",24,top-134); weaponLabel:SetText("Weapons")
+          field.labels={armorLabel,weaponLabel}
+          field.typeButtons={}
+          local function addTypeButtons(classId,property,y,width,step,columns)
+            local types=readAuctionSubclasses(classId)
+            if #types==0 then
+              local unavailable=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontDisableSmall")
+              unavailable:SetPoint("TOPLEFT",24,y); unavailable:SetText("Equipment type list unavailable")
+              field.labels[#field.labels+1]=unavailable
+              return
+            end
+            for index,itemType in ipairs(types) do
+              local position=index-1
+              local column=position%columns; local row=math.floor(position/columns)
+              local button=createOptionCheck(itemType.name,24+column*step,y-row*24)
+              button:SetScript("OnClick",function()
+                local currentCallbacks=optionsCallbacks or callbacks
+                local current=currentCallbacks.options and currentCallbacks.options() or {}
+                local previous=current[key] or typeDefaults()
+                local armor=copyMap(previous.armor); local weapons=copyMap(previous.weapons)
+                local selected=property=="armor" and armor or weapons
+                selected[itemType.id]=not selected[itemType.id]
+                local value={enabled=previous.enabled,scope=previous.scope,qualities=previous.qualities,armor=armor,weapons=weapons}
+                local changed,reason=currentCallbacks.setOption and currentCallbacks.setOption(key,value)
+                self:Print(changed and (itemType.name.." selection updated.") or ("Option update failed: "..tostring(reason)))
+                self:ShowOptions(currentCallbacks,"profile")
+              end)
+              field.typeButtons[#field.typeButtons+1]={button=button,item=itemType,property=property}
+            end
+          end
+          addTypeButtons(4,"armor",top-86,96,98,5)
+          addTypeButtons(2,"weapons",top-156,170,176,3)
+          local qualityLabel=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+          qualityLabel:SetPoint("TOPLEFT",24,top-290); qualityLabel:SetText("Qualities")
+          field.labels[#field.labels+1]=qualityLabel
+          field.qualityButtons={}
+          local qualityKeys={"poor","common","uncommon","rare","epic"}
+          for index,name in ipairs(qualityKeys) do
+            local button=createOptionCheck(name,110+(index-1)*82,top-290)
+            button.optionGroup=key; button.optionQuality=name
+            button:SetScript("OnClick",function()
+              local currentCallbacks=optionsCallbacks or callbacks
+              local current=currentCallbacks.options and currentCallbacks.options() or {}
+              local previous=current[key] or typeDefaults()
+              local qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}
+              for _,qualityName in ipairs(qualityKeys) do
+                if type(previous.qualities)=="table" and previous.qualities[qualityName]~=nil then qualities[qualityName]=previous.qualities[qualityName] end
+              end
+              qualities[name]=not qualities[name]
+              local value={enabled=previous.enabled,scope=previous.scope,qualities=qualities,armor=previous.armor,weapons=previous.weapons}
+              local changed,reason=currentCallbacks.setOption and currentCallbacks.setOption(key,value)
+              self:Print(changed and (titleText.." quality updated.") or ("Option update failed: "..tostring(reason)))
+              self:ShowOptions(currentCallbacks,"profile")
+            end)
+            field.qualityButtons[index]={button=button,name=name}
+          end
+          optionsEquipmentTypeFields[#optionsEquipmentTypeFields+1]=field
+        end
+        createEquipmentTypeCard("includeByEquipmentType","Include by equipment type",-650)
+        createEquipmentTypeCard("excludeByEquipmentType","Exclude by equipment type",-1338)
+        local globalRows={{key="safeSell",label="Safe Sell"},{key="safeDestroy",label="Safe Destroy"}}
+        for index,row in ipairs(globalRows) do
+          local button=api.CreateFrame("Button",nil,optionsContentFrame,"UIPanelButtonTemplate")
+          button:SetWidth(300); button:SetHeight(24); button:SetPoint("TOPLEFT",24,-48-(index-1)*38)
+          button:SetScript("OnClick",function()
+            local currentCallbacks=optionsCallbacks or callbacks
+            local opts=currentCallbacks.globalOptions and currentCallbacks.globalOptions() or {}
+            local changed,reason=currentCallbacks.setGlobalOption and currentCallbacks.setGlobalOption(row.key,not opts[row.key])
+            self:Print(changed and (row.label.." updated.") or ("Option update failed: "..tostring(reason)))
+            self:ShowOptions(currentCallbacks,optionsFrame.scope)
+          end)
+          optionsFields[#optionsFields+1]={key=row.key,button=button,label=row.label,global=true}
         end
         local back=api.CreateFrame("Button",nil,optionsFrame,"UIPanelButtonTemplate")
         back:SetWidth(110); back:SetHeight(24); back:SetPoint("BOTTOMRIGHT",optionsFrame,"BOTTOMRIGHT",-20,18); back:SetText("Back")
         back:SetScript("OnClick",function() optionsFrame:Hide(); self:ShowConfig(callbacks) end)
+        if mainContentFrame then back:Hide() end
       end
       local opts=callbacks.options and callbacks.options() or {}
-      local labels={"Poor","Common","Uncommon","Rare","Epic","Legendary","Artifact","Heirloom"}
-      for quality=0,7 do
-        local enabled=opts.quality and opts.quality[quality]
-        optionsQualityButtons[quality+1]:SetText(labels[quality+1]..": "..(enabled and "ON" or "OFF"))
+      optionsFrame.scope=scope
+      local activeProfile=callbacks.activeProfileName and callbacks.activeProfileName() or nil
+      optionsFrame.pageTitle:SetText(scope=="global" and "Dejunk | Global Options" or
+        ("Dejunk | Profile Options"..(activeProfile and (" ("..activeProfile..")") or "")))
+      if scope=="profile" then optionsFrame.pageDescription:Show() else optionsFrame.pageDescription:Hide() end
+      if scope=="global" then optionsFrame.qualityTitle:Hide() else optionsFrame.qualityTitle:Show() end
+      for _,entry in ipairs(optionsProfileDecorations or {}) do if scope=="profile" then entry:Show() else entry:Hide() end end
+      for _,entry in ipairs(optionsGlobalDecorations or {}) do if scope=="global" then entry:Show() else entry:Hide() end end
+      for _,entry in ipairs(optionsFields) do
+        if (entry.global==true)==(scope=="global") then entry.button:Show() else entry.button:Hide() end
       end
-      for _,entry in ipairs(optionsFields) do entry.input:SetText(tostring(opts[entry.key] or "off")) end
+      for _,button in ipairs(optionsQualityButtons) do
+        if scope=="profile" then button:Show() else button:Hide() end
+      end
+      for _,entry in ipairs(optionsThresholdFields) do
+        if scope=="profile" then entry.label:Show(); entry.apply:Show()
+        else entry.label:Hide(); entry.apply:Hide() end
+        for _,input in ipairs(entry.edits) do if scope=="profile" then input:Show() else input:Hide() end end
+        local option=opts[entry.key]
+        local thresholdLabel=entry.key=="includeBelowItemLevel" and "Include below item level" or
+          entry.key=="includeBelowPrice" and "Include below price" or
+          entry.key=="excludeAboveItemLevel" and "Exclude above item level" or "Exclude above price"
+        entry.label:SetChecked(type(option)=="table" and option.enabled==true)
+        entry.label:SetText(thresholdLabel)
+        entry.label.text=thresholdLabel
+        if type(option)=="table" and option.enabled then entry.apply:Enable()
+        else entry.apply:Disable() end
+        for _,input in ipairs(entry.edits) do
+          if type(option)=="table" and option.enabled then input:Enable() else input:Disable() end
+        end
+        local storedValue=type(option)=="table" and tonumber(option.value) or 0
+        if entry.isPrice then
+          local gold=math.floor(storedValue/10000)
+          local silver=math.floor((storedValue%10000)/100)
+          local copper=storedValue%100
+          entry.edits[1]:SetText(tostring(gold)); entry.edits[2]:SetText(tostring(silver)); entry.edits[3]:SetText(tostring(copper))
+        else
+          entry.edit:SetText(tostring(storedValue))
+        end
+        local optionScope=type(option)=="table" and option.scope or ((entry.key=="excludeAbovePrice" or entry.key=="includeBelowPrice") and "DESTROY" or "BOTH")
+        for _,control in ipairs(entry.scopeChoices) do
+          control:SetChecked(control.scopeValue==optionScope)
+          if scope=="profile" then control:Show() else control:Hide() end
+          if type(option)=="table" and option.enabled then control:Enable() else control:Disable() end
+        end
+        for quality,button in ipairs(entry.qualityButtons) do
+          local name=({"poor","common","uncommon","rare","epic"})[quality]
+          local enabled=type(option)~="table" or type(option.qualities)~="table" or option.qualities[name]~=false
+          button:SetChecked(enabled)
+          button:SetText(({"Poor","Com","Unc","Rare","Epic"})[quality])
+          button.text=({"Poor","Com","Unc","Rare","Epic"})[quality]
+          if scope=="profile" then button:Show() else button:Hide() end
+          if type(option)=="table" and option.enabled then button:Enable() else button:Disable() end
+        end
+      end
+      for _,entry in ipairs(optionsScopeFields) do
+        local option=opts[entry.key]
+        local selectedScope=type(option)=="table" and option.scope or "BOTH"
+        for _,control in ipairs(entry.choices) do
+          control:SetChecked(control.scopeValue==selectedScope)
+          if scope=="profile" then control:Show() else control:Hide() end
+          if entry.key=="includeByQuality" or (type(option)=="table" and option.enabled) then control:Enable()
+          else control:Disable() end
+        end
+      end
+      local qualityRule=opts.includeByQuality or {enabled=true}
+      optionsFrame.qualityTitle:SetChecked(qualityRule.enabled~=false)
+      local unbound=opts.excludeUnboundEquipment
+      if scope=="profile" then optionsUnboundQualityFields.title:Show() else optionsUnboundQualityFields.title:Hide() end
+      for quality,button in ipairs(optionsUnboundQualityFields) do
+        local name=({"poor","common","uncommon","rare","epic"})[quality]
+        local enabled=type(unbound)~="table" or type(unbound.qualities)~="table" or unbound.qualities[name]~=false
+        button:SetChecked(enabled)
+        button:SetText(({"Poor","Com","Unc","Rare","Epic"})[quality])
+        button.text=({"Poor","Com","Unc","Rare","Epic"})[quality]
+        if scope=="profile" then button:Show() else button:Hide() end
+        if type(unbound)=="table" and unbound.enabled then button:Enable() else button:Disable() end
+      end
+      for _,entry in ipairs(optionsEquipmentTypeFields or {}) do
+        local option=opts[entry.key] or {enabled=false,scope="BOTH",qualities={},armor={},weapons={}}
+        local label=entry.key=="includeByEquipmentType" and "Include by equipment type" or "Exclude by equipment type"
+          entry.toggle:SetChecked(option.enabled==true)
+          entry.toggle:SetText(label)
+          entry.toggle.text=label
+        if scope=="profile" then entry.toggle:Show() else entry.toggle:Hide() end
+        for _,control in ipairs(entry.scopeChoices) do
+          control:SetChecked(control.scopeValue==(option.scope or "BOTH"))
+          if scope=="profile" then control:Show() else control:Hide() end
+          if option.enabled then control:Enable() else control:Disable() end
+        end
+        for _,frame in ipairs(entry.labels) do if scope=="profile" then frame:Show() else frame:Hide() end end
+        for _,control in ipairs(entry.typeButtons) do
+          local selected=control.property=="armor" and option.armor or option.weapons
+          local enabled=type(selected)=="table" and selected[control.item.id]==true
+          control.button:SetChecked(enabled)
+          control.button:SetText(control.item.name)
+          control.button.text=control.item.name
+          if scope=="profile" then control.button:Show() else control.button:Hide() end
+          if option.enabled then control.button:Enable() else control.button:Disable() end
+        end
+        for _,control in ipairs(entry.qualityButtons) do
+          local enabled=type(option.qualities)~="table" or option.qualities[control.name]~=false
+          control.button:SetChecked(enabled)
+          control.button:SetText(control.name)
+          control.button.text=control.name
+          if scope=="profile" then control.button:Show() else control.button:Hide() end
+          if option.enabled then control.button:Enable() else control.button:Disable() end
+        end
+      end
+      local labels={"Poor","Common","Uncommon","Rare","Epic"}
+      for quality=0,4 do
+        local qualities=opts.includeByQuality and opts.includeByQuality.qualities or opts.quality or {}
+        local enabled=qualities[labels[quality+1]:lower()]
+        if enabled==nil then enabled=opts.quality and opts.quality[quality] end
+        optionsQualityButtons[quality+1]:SetChecked(enabled==true)
+        optionsQualityButtons[quality+1]:SetText(labels[quality+1])
+        optionsQualityButtons[quality+1].text=labels[quality+1]
+      end
+      local global=callbacks.globalOptions and callbacks.globalOptions() or {}
+      for _,entry in ipairs(optionsFields) do
+        local source=entry.global and global or opts; local value=source[entry.key]
+        local enabled=type(value)=="table" and value.enabled or value==true
+        if entry.global then entry.button:SetText(entry.label..": "..(enabled and "ON" or "OFF"))
+        else
+          entry.button:SetChecked(enabled==true)
+          entry.button:SetText(entry.label)
+          entry.button.text=entry.label
+        end
+      end
+      local activeProfile=callbacks.activeProfileName and callbacks.activeProfileName() or nil
+      optionsFrame.pageTitle:SetText(scope=="global" and "Dejunk | Global Options" or
+        ("Dejunk | Profile Options"..(activeProfile and (" ("..activeProfile..")") or "")))
+      if listFrame then listFrame:Hide() end
+      if profileFrame then profileFrame:Hide() end
       optionsFrame:Show()
     end)
     if not ok then self:Print("Options window unavailable; use /djw rules list and /djw rules quality|minlevel|maxlevel|maxprice.") end

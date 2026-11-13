@@ -90,9 +90,9 @@ test(function()
   local item,snapshot,intent,decision,context=fixture(); local service=assert(Addon.SimulationDestroyer.New(mock()))
   item.quality=5; local _,reason=request(service,item,snapshot,intent,decision,context); eq(reason,"SAFETY_PROTECTED")
   item.quality=0; item.equipLoc="INVTYPE_HEAD"; item.bound="unknown"
-  _,reason=request(service,item,snapshot,intent,decision,context); eq(reason,"SAFETY_PROTECTED")
-  item.equipLoc=""; item.inEquipmentSet="unknown"
-  _,reason=request(service,item,snapshot,intent,decision,context); eq(reason,"SAFETY_PROTECTED")
+  local popup=assert(request(service,item,snapshot,intent,decision,context)); service:Cancel(popup.token)
+  item.inEquipmentSet="unknown"; popup=assert(request(service,item,snapshot,intent,decision,context)); service:Cancel(popup.token)
+  item.quest=true; popup=assert(request(service,item,snapshot,intent,decision,context)); service:Cancel(popup.token)
 end)
 test(function()
   local item,snapshot,intent,decision,context=fixture(); local adapter=mock()

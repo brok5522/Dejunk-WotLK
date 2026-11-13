@@ -1,9 +1,9 @@
 ## Interface: 30300
-## Title: Dejunk-WotLK (Phase 6 Configuration Preview)
+## Title: Dejunk-WotLK (Compatibility Port - Development)
 ## SavedVariables: DejunkWotLKDB
-## Notes: Settings and inventory previews only. Transaction services are simulated.
+## Notes: Development port for original 3.3.5a. UI parity and live actions are incomplete.
 ## Author: Dejunk-WotLK contributors
-## Version: 0.16.2-dev
+## Version: 0.16.3-dev
 
 src\namespace.lua
 libs\Waffle.lua

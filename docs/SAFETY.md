@@ -11,10 +11,9 @@ live inventory.
 ## Mandatory gates before any sale or deletion
 - Restrict scope to carried bags 0..4; exclude bank, equipped inventory, keyring,
   mail, trade and auction containers. Reject invalid coordinates.
-- Require complete metadata, unlocked item, empty cursor and coherent snapshot.
-  Protect quest items, equipment-set items and uncertain safety classifications
-  before inclusion lists. Protect refundable items from both actions by default
-  (stricter than upstream, which blocks them only from sale).
+- Reproduce upstream eligibility and filter order. The legacy adapter must not
+  invent new user-visible protections or reorder list/filter outcomes. Preserve
+  upstream quest/equipment-set/unbound option behavior and refund handling.
 - Apply configured unbound-equipment and high-value/high-item-level protection;
   unknown data required by an enabled protection blocks the action. Legendary
   and heirloom items remain protected in v1; changing this needs a reviewed
@@ -29,14 +28,11 @@ live inventory.
   leave the cursor for the user. Never delete to recover from an error.
 
 ## Selling and repair
-State machine: IDLE → WAITING_FOR_STABLE_BAGS → REVALIDATING → ATTEMPTING →
-WAITING_FOR_EVIDENCE → IDLE or next candidate. At most one unacknowledged action.
-Bounded waits, no busy loop, no automatic retries on ambiguity. Cancel on merchant
-close/change, logout, combat, settings/profile change or API error. A timeout is
-reported as uncertain, not success. Auto-sell is opt-in, once per merchant session.
-Safe Sell defaults on and limits **attempted stacks** to 12 for the entire
-merchant session, including repeated manual starts; no bypass through single-row
-sales. The buyback window is not a guarantee against loss and must be explained.
+Port the upstream seller state and cancellation behavior using only 3.3.5a APIs.
+Auto-sell is off by default. Safe Sell is also off by default; when enabled it
+limits sale calls according to the upstream behavior. Preserve the original
+manual and automatic controls. Tests use mocks only until code review and
+separate authorization for any real-client action test.
 
 Auto-repair defaults off. Check CanMerchantRepair, current cost and personal
 funds at execution; repair once per valid merchant session. Guild repair is a
@@ -60,3 +56,10 @@ Always separate attempted calls from observed changes and ambiguous results.
 A move, split, stack merge or unrelated money delta cannot independently prove
 success. Prefer conservative cancellation over preserving throughput. See
 [testing](TESTING.md) for required adversarial scenarios and release gates.
+
+The upstream Lists screen has one narrow cursor interaction: clicking a list
+with an item deliberately held on the cursor adds the item ID and clears the
+cursor, matching `src/ui/components/item-list.lua` at the pinned revision. This
+is a list edit, not a sale or deletion. The compatibility UI only clears the
+cursor after its list callback reports success; it does not pick up or use an
+item. This legacy-client behavior still needs a consolidated in-client UI check.

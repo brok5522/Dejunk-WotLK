@@ -7,7 +7,8 @@ World of Warcraft **3.3.5a / build 12340 / Interface 30300 / Lua 5.1**.
 The upstream Poor-quality junk default is enabled automatically for new profiles; the rule editor is for additional custom conditions, not required setup.
 Earlier screenshots verified port-built configuration screens and read-only previews. They do not establish parity with the original Dejunk UI or actions. Seller, repair and destruction are not connected to live game actions yet.
 
-See the [Persian project guide](docs/PHASE1.fa.md). Older phase guides describe
+See the [Persian project guide](docs/USAGE.fa.md) and the
+[current completion report](docs/VALIDATION.md). Older phase guides describe
 development scaffolding, not a parity-complete release. The port is not yet
 ready for normal use.
 
@@ -16,7 +17,7 @@ ready for normal use.
 - [Phase 3 Persian install and preview guide](docs/PHASE3.fa.md)
 - [Phase 4 Persian simulation-only guide](docs/PHASE4.fa.md)
 - [Phase 5 Persian simulation-only guide](docs/PHASE5.fa.md)
-- [Current development status in Persian](docs/USAGE.fa.md)
+- [Current development status and client-test instructions in Persian](docs/USAGE.fa.md)
 - [Historical Phase 6 UI notes](docs/PHASE6.fa.md)
 - [Phase 2 design and validation](docs/PHASE2.md)
 - [Phase 1 implementation contracts](docs/PHASE1.md)
@@ -64,7 +65,9 @@ Development-only commands include `/djw rules` and `/djw preview sell|destroy`;
 the generalized ALL/ANY rule editor is out of scope for the upstream port.
 Existing diagnostics include `/djw status`, `/djw probe` (chat), `/djw report` (copy panel),
 `/djw slot <bag 0..4> <slot>` (explicit slot probe), `/djw help`.
-`/dejunkwotlk` is an alias. The original addon's `/dejunk` is not intercepted.
+`/dejunk` is the original command alias; no-argument and `options` open the
+configuration window. `/dejunk sell` and `/dejunk destroy` remain disconnected
+from inventory operations in this development build.
 
 ## Attribution
 Upstream Dejunk 3.5.1 was examined at commit

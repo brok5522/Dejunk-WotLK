@@ -31,7 +31,9 @@
         "libs/LibDataBroker-1.1.lua": "f3d4758f2060215492c9764b1d7dc2a336826d4cd253cd54ff9ff7c6d78f04e2",
         "libs/LibDBIcon-1.0.lua": "3df10b4728fb33781c144ee7fc118e825254d03a8a7eebe917a016c09cf9751c",
         "libs/Waffle.lua": "bd668fb59160f4f9bc4b2b13298c7ca93cbad9be017892b21eac089a3015d396",
-        "libs/Wux.lua": "87fc57d80574bdf0078191af07fc76f1997f2577f247dfba2cec8418197bf6e3"
+        "libs/Wux.lua": "87fc57d80574bdf0078191af07fc76f1997f2577f247dfba2cec8418197bf6e3",
+        "src/ui/components/item-list.lua": "34f4431e2212bd297d0b5012c97f081f09ebc47a5dd5d1fb142b49e462f39f7b",
+        "src/ui/components/list-panel.lua": "6ad3f564ae3a953ca141d6304887e0ea09fdb9ab28171d4cdfe0cbc8b1a96151"
       }
     },
     {
@@ -41,6 +43,7 @@
       "files": {
         "ContainerFrame.lua": "3ffd924449f569cbfc38b5c4af2d5e6f377d94a99c3e7ae97d751fdf8c1ed724",
         "ContainerFrame.xml": "8558be0a4561e6b2ce0e6479857a30aa64f9fa621ea6fedc5199d7f54063460d",
+        "Blizzard_AuctionUI/Blizzard_AuctionUI.lua": "e97c4de049587d8f196f5d880540dc2e953358bd0da421d3ae1c89e6bdc87647",
         "EquipmentManager.lua": "5a1db25ad10a3ec4777535b6bc565b53815543b164d3e342d8bbe2770c1e265c",
         "PaperDollFrame.lua": "924839471ca4780d2f9ad58418dab9805ea1663119218b32ff9edd667d54978e",
         "UIErrorsFrame.lua": "d4d1865b12b06b2abeab1b1e3ec588dbfa8930185801ecc6e7cc9f7336ab0e5b",

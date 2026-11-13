@@ -32,10 +32,15 @@ function Harness.New(options)
     for _, item in pairs(world.slots) do
       if item.link == link then
         if item.uncached then return nil end
-        return "Example", link, item.quality or 0, 10, 1, "Localized Class", "Localized Subclass",
-          20, "INVTYPE_HEAD", "texture", item.price
+        return "Example", link, item.quality or 0, 10, 1, item.itemType or "Localized Class", item.itemSubType or "Localized Subclass",
+          20, item.equipLoc or "INVTYPE_HEAD", "texture", item.price
       end
     end
+  end
+  env.GetAuctionItemClasses = function() return "Consumable","Container","Weapon","Gem","Armor" end
+  env.GetAuctionItemSubClasses = function(classIndex)
+    if classIndex==3 then return "One-Handed Axes","Two-Handed Axes","Bows","Guns","One-Handed Maces","Two-Handed Maces","Polearms","One-Handed Swords","Two-Handed Swords","Staves","Fishing Poles" end
+    if classIndex==5 then return "Miscellaneous","Cloth","Leather","Mail","Plate","Shields" end
   end
   env.GetContainerItemQuestInfo = function(bag, slot)
     local item = world.slots[bag .. ":" .. slot]

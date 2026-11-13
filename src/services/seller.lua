@@ -37,7 +37,7 @@ function Seller.New(adapter)
     if item.quest~=false or item.refundable~=false or item.inEquipmentSet~=false then return nil,"SAFETY_UNKNOWN" end
     if type(item.unitVendorPrice)~="number" or item.unitVendorPrice<=0 then return nil,"NO_VENDOR_VALUE" end
     local attempted=self.attempts[context.sessionId] or 0
-    if attempted>=CAP then return nil,"SESSION_CAP" end
+    if context.safeSell==true and attempted>=CAP then return nil,"SESSION_CAP" end
 
     self.attempts[context.sessionId]=attempted+1 -- count before adapter call, even if it fails
     self.nextToken=self.nextToken+1

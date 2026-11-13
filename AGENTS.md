@@ -15,7 +15,7 @@
 - Unknown item, lock, binding, quest, refund, price or equipment-set data must block the relevant unsafe action. Missing data is not equivalent to false or zero.
 - Re-read slot identity, full item link, count, lock, cursor, rule revision and relevant context immediately before a transaction and after confirmation. Cancel stale intents; never silently redirect them to another slot.
 - Destruction is one stack per deliberate user action, confirmation on by default, never automatic on bag updates or merchant opening. Never clear a pre-existing cursor item to make room.
-- Default auto-sell and auto-repair off. Proposed port default Safe Sell on (12 attempted stacks per merchant session); document differences from upstream. Safety policy has priority over inclusion lists.
+- Match upstream defaults exactly: Auto Sell off, Auto Repair off, Safe Sell off, Safe Destroy on, poor-quality inclusion on. Preserve upstream filter/list precedence; do not impose a new precedence policy or expose new safety settings.
 - Preserve SavedVariables; namespace DejunkWotLKDB, version schemas and migrate copies. Never execute imported text as Lua. No arbitrary user scripts for custom rules.
 - Pin every vendored library by revision and checksum, audit transitive dependencies, keep required license notices. No unpinned latest externals. Phase 0 vendors no libraries or upstream runtime/assets.
 - Evidence must include immutable source revisions and file/line references. Distinguish observed source behavior, proposed design and unverified client behavior.

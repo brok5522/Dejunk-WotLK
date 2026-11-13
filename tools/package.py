@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a reproducible read-only addon ZIP; does not publish or install it."""
+"""Build a reproducible development addon ZIP; does not publish or install it."""
 import argparse
 from pathlib import Path
 import zipfile
@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def build(destination):
     toc = ROOT / 'Dejunk-WotLK.toc'
+    version = next((line.split(':', 1)[1].strip() for line in toc.read_text().splitlines() if line.startswith('## Version:')), 'development')
     paths = [toc, ROOT / 'LICENSE']
     for line in toc.read_text().splitlines():
         if line.strip() and not line.lstrip().startswith('#'):
@@ -19,11 +20,11 @@ def build(destination):
     entries = {path.relative_to(ROOT).as_posix(): path.read_bytes() for path in paths}
     entries['libs/Waffle-LICENSE.txt'] = (ROOT / 'libs/Waffle-LICENSE.txt').read_bytes()
     entries['README.txt'] = (
-        'Dejunk-WotLK 0.16.2-dev - ORIGINAL UI FRAMEWORK PREVIEW\n'
+        f'Dejunk-WotLK {version} - COMPATIBILITY PORT DEVELOPMENT BUILD\n'
         'Original WoW 3.3.5a / build 12340 / Interface 30300 only.\n'
         'Original-client testing is pending; this is not the complete addon.\n'
         'Extract so Interface/AddOns/Dejunk-WotLK/Dejunk-WotLK.toc exists.\n'
-        '/djw status | /djw profiles list|create|switch | /djw lists | /djw rules | /djw preview sell|destroy | /djw report\n'
+        '/djw status | /djw profiles list|create|switch | /djw lists | /djw preview sell|destroy | /djw report\n'
         'The slot command reads only the chosen bag slot. The report can be copied.\n'
         'Seller/repair/destruction services are simulation-only. No game selling, repair, deletion or item use is connected.\n'
         'Disable in the AddOns menu or remove only this addon folder to uninstall.\n'

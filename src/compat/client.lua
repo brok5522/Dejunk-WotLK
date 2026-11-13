@@ -9,6 +9,7 @@ Client.Required = {
 Client.Optional = {
   "GetContainerItemID", "GetContainerItemQuestInfo", "GetContainerItemPurchaseInfo",
   "GetNumEquipmentSets", "GetEquipmentSetInfo", "GetEquipmentSetItemIDs",
+  "GetAuctionItemClasses", "GetAuctionItemSubClasses",
   "GetLocale", "GetAddOnMetadata", "CanMerchantRepair", "GetRepairAllCost",
   "GetMoney", "GetCursorInfo", "InCombatLockdown"
 }

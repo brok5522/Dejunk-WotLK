@@ -72,12 +72,21 @@ def main():
     if re.search(r'^## Version: (.+)$', text, re.M).group(1) not in (ROOT / 'src/namespace.lua').read_text():
         raise ValueError('TOC/code version mismatch')
 
-    forbidden = re.compile(r'\b(?:UseContainerItem|PickupContainerItem|DeleteCursorItem|ClearCursor|'
+    forbidden = re.compile(r'\b(?:UseContainerItem|PickupContainerItem|DeleteCursorItem|'
                            r'RepairAllItems|SplitContainerItem|EquipItemByName|PickupInventoryItem|'
                            r'PickupItem|UseItemByName|SellCursorItem|PutItemInBag|PutItemInBackpack|'
                            r'loadstring|dofile|loadfile|C_[A-Za-z0-9_]+|Enum)\b')
     for entry in load_order:
         source = (ROOT / entry).read_text()
+        if entry == 'src/compat/runtime.lua':
+            # Upstream ListItem clears a deliberately held cursor item after
+            # its ID is committed to a list. Keep this sole UI-only exception
+            # narrow; selling/deleting/picking up inventory remains forbidden.
+            if source.count('api.ClearCursor') != 2:
+                raise ValueError('Unexpected cursor-clear path in the compatibility UI')
+            source = source.replace('api.ClearCursor', '')
+        if 'ClearCursor' in source:
+            raise ValueError(f'Cursor clearing is outside the approved list-drop path: {entry}')
         if forbidden.search(source):
             raise ValueError(f'Forbidden runtime symbol in {entry}: {forbidden.search(source).group()}')
         if not entry.startswith('src/compat/'):

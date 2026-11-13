@@ -52,6 +52,32 @@ end
 -- Only injected legacy read functions are used; no mutating methods exist.
 function Legacy.New(api)
   local adapter = {}
+  local itemClasses, itemSubClasses = nil, {}
+  local function resolveItemType(itemType,itemSubType)
+    if type(itemType)~="string" or type(itemSubType)~="string" then return end
+    if not itemClasses then
+      local classes=read(api,"GetAuctionItemClasses")
+      if classes and classes.n>0 then itemClasses=classes end
+    end
+    if not itemClasses then return end
+    for classIndex=1,itemClasses.n do
+      if itemClasses[classIndex]==itemType then
+        local classId=classIndex-1
+        if classId~=2 and classId~=4 then return classId end
+        local subclasses=itemSubClasses[classIndex]
+        if subclasses==nil then
+          subclasses=read(api,"GetAuctionItemSubClasses",classIndex)
+          if subclasses then itemSubClasses[classIndex]=subclasses end
+        end
+        if subclasses then
+          for subclassIndex=1,subclasses.n do
+            if subclasses[subclassIndex]==itemSubType then return classId,subclassIndex-1 end
+          end
+        end
+        return classId
+      end
+    end
+  end
 
   function adapter:ReadBagSize(bag)
     if not integer(bag, 0, 4) then return nil end
@@ -122,6 +148,13 @@ function Legacy.New(api)
       item.metadata = "known"
       item.quality, item.itemLevel = metadata[3], metadata[4]
       item.itemType, item.itemSubType, item.equipLoc = metadata[6], metadata[7], metadata[9]
+      if integer(metadata[12],0,20) then item.classId=metadata[12] end
+      if integer(metadata[13],0,100) then item.subclassId=metadata[13] end
+      if item.classId==nil then
+        local classId,subclassId=resolveItemType(item.itemType,item.itemSubType)
+        if integer(classId,0,20) then item.classId=classId end
+        if integer(subclassId,0,100) then item.subclassId=subclassId end
+      end
       if integer(metadata[11], 0, 2147483647) then item.unitVendorPrice = metadata[11] end
     end
     local quest = read(api, "GetContainerItemQuestInfo", bag, slot)

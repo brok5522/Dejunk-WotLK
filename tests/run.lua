@@ -43,6 +43,18 @@ test("activation waits for own ADDON_LOADED and login exactly once", function()
   local generation = w.app.cache.generation
   w:Fire("PLAYER_LOGIN"); equal(w.app.cache.generation, generation)
 end)
+test("original Dejunk slash command opens configuration by default", function()
+  local w=H.New():Load()
+  equal(w.api.SLASH_DEJUNK1,"/dejunk")
+  assert(type(w.api.SlashCmdList.DEJUNK)=="function")
+  local opened
+  w.app.runtime.ShowConfig=function() opened="config" end
+  w.api.SlashCmdList.DEJUNK("")
+  equal(opened,"config")
+  w.api.SlashCmdList.DEJUNK("options")
+  equal(opened,"config")
+  equal(w.mutations,0)
+end)
 test("required event failure disables startup", function()
   local w = populated({ badEvent = "BAG_UPDATE" }):Ready()
   equal(w.app.client.reason, "EVENT_SETUP_FAILED"); equal(w.reads, 0)
@@ -57,8 +69,29 @@ test("tuple normalization and zero price stay numeric", function()
   equal(item.state, "OCCUPIED"); equal(item.itemId, 123); equal(item.count, 3)
   equal(item.locked, false); equal(item.metadata, "known"); equal(item.unitVendorPrice, 5)
   equal(item.itemType, "Localized Class"); equal(item.refundable, false)
+  equal(item.classId,nil); equal(item.subclassId,nil)
   w.slots["0:1"].price = 0
   equal(w.app.adapter:ReadSlot(0, 1).unitVendorPrice, 0)
+end)
+test("legacy item categories map through Auction class and subclass names", function()
+  local w=populated():Ready()
+  w.slots["0:1"].itemType="Armor"; w.slots["0:1"].itemSubType="Cloth"
+  local item=w.addon.Legacy.New(w.api):ReadSlot(0,1,{known=false,ids={}})
+  equal(item.classId,4); equal(item.subclassId,1)
+  w.slots["0:1"].itemType="Weapon"; w.slots["0:1"].itemSubType="Fishing Poles"
+  item=w.addon.Legacy.New(w.api):ReadSlot(0,1,{known=false,ids={}})
+  equal(item.classId,2); equal(item.subclassId,10)
+end)
+test("legacy category mapping stays unknown when Auction APIs are missing or labels do not match", function()
+  local w=populated():Ready()
+  w.slots["0:1"].itemType="Armor"; w.slots["0:1"].itemSubType="Unrecognized locale label"
+  local api={}; for key,value in pairs(w.api) do api[key]=value end
+  api.GetAuctionItemSubClasses=nil
+  local item=w.addon.Legacy.New(api):ReadSlot(0,1,{known=false,ids={}})
+  equal(item.classId,4); equal(item.subclassId,nil)
+  api.GetAuctionItemClasses=nil
+  item=w.addon.Legacy.New(api):ReadSlot(0,1,{known=false,ids={}})
+  equal(item.classId,nil); equal(item.subclassId,nil)
 end)
 test("empty slots are distinct from unknown occupied slots", function()
   local w = populated():Ready()
@@ -349,89 +382,85 @@ local function ruleItem(overrides)
   for key, value in pairs(overrides or {}) do item[key]=value end
   return item
 end
-test("rule safety gates keep mandatory protected and unknown data non-junk", function()
+test("rule filters follow upstream optional protection and action scope", function()
   local w=populated():Ready(); local rules=w.addon.Rules
-  equal(rules.Evaluate(ruleItem({quest=true}),"SELL",{}).reasonCode,"QUEST_ITEM")
-  equal(rules.Evaluate(ruleItem({inEquipmentSet="unknown"}),"SELL",{}).result,"UNKNOWN")
+  equal(rules.Evaluate(ruleItem({classId=nil,quest=true}),"SELL",{profile={options={excludeQuestItems=true}}}).reasonCode,"QUEST_ITEM")
+  equal(rules.Evaluate(ruleItem({classId=nil,quest="unknown"}),"SELL",{profile={options={excludeQuestItems=true}}}).reasonCode,"QUEST_UNKNOWN")
+  equal(rules.Evaluate(ruleItem({classId=12,quest=true}),"SELL",{profile={inclusions={[123]=true}}}).reasonCode,"PROFILE_INCLUSION")
+  equal(rules.Evaluate(ruleItem({inEquipmentSet="unknown"}),"SELL",{}).reasonCode,"NO_RULE_MATCH")
+  equal(rules.Evaluate(ruleItem({inEquipmentSet="unknown"}),"SELL",{profile={options={excludeEquipmentSets=true}}}).result,"UNKNOWN")
   equal(rules.Evaluate(ruleItem({locked="unknown"}),"DESTROY",{}).result,"UNKNOWN")
-  equal(rules.Evaluate(ruleItem({refundable=true}),"DESTROY",{}).reasonCode,"REFUNDABLE")
+  equal(rules.Evaluate(ruleItem({refundable=true}),"DESTROY",{}).reasonCode,"NO_RULE_MATCH")
+  equal(rules.Evaluate(ruleItem({refundable=true}),"SELL",{}).reasonCode,"NO_RULE_MATCH")
+  equal(rules.Evaluate(ruleItem({refundable=true}),"SELL",{profile={options={quality={[0]=true}}}}).reasonCode,"REFUNDABLE")
   equal(rules.Evaluate(ruleItem({quality=5}),"DESTROY",{}).reasonCode,"LEGENDARY_OR_HEIRLOOM")
-  equal(rules.Evaluate(ruleItem({equipLoc="INVTYPE_HEAD"}),"SELL",{}).reasonCode,"BINDING_UNKNOWN")
+  equal(rules.Evaluate(ruleItem({equipLoc="INVTYPE_HEAD",bound=false}),"SELL",{}).reasonCode,"NO_RULE_MATCH")
+  equal(rules.Evaluate(ruleItem({equipLoc="INVTYPE_HEAD",bound=false}),"SELL",{profile={options={excludeUnboundEquipment=true}}}).reasonCode,"UNBOUND_EQUIPMENT")
+  local unbound={enabled=true,scope="DESTROY",qualities={poor=true}}
+  equal(rules.Evaluate(ruleItem({equipLoc="INVTYPE_HEAD",bound=false}),"DESTROY",{profile={options={excludeUnboundEquipment=unbound}}}).reasonCode,"UNBOUND_EQUIPMENT")
+  equal(rules.Evaluate(ruleItem({equipLoc="INVTYPE_HEAD",bound=false}),"SELL",{profile={options={excludeUnboundEquipment=unbound}}}).reasonCode,"NO_RULE_MATCH")
+  equal(rules.Evaluate(ruleItem({classId=12,quest=true,equipLoc="INVTYPE_HEAD",bound=false}),"SELL",
+    {profile={options={excludeUnboundEquipment=true,excludeQuestItems=true}}}).reasonCode,"UNBOUND_EQUIPMENT")
 end)
-test("rule precedence keeps exclusions before custom rules and inclusions", function()
+test("rule precedence matches upstream profile and global list order", function()
   local rules=populated():Ready().addon.Rules
   local item=ruleItem()
   local global={exclusions={[123]=true},inclusions={}}
   local result=rules.Evaluate(item,"SELL",{profile={exclusions={[123]=true},inclusions={[123]=true}},global=global})
   equal(result.reasonCode,"PROFILE_EXCLUSION"); equal(result.result,"KEEP")
   result=rules.Evaluate(item,"SELL",{profile={exclusions={},inclusions={[123]=true}},global=global})
-  equal(result.reasonCode,"GLOBAL_EXCLUSION"); equal(result.result,"KEEP")
+  equal(result.reasonCode,"PROFILE_INCLUSION"); equal(result.result,"JUNK")
   result=rules.Evaluate(item,"SELL",{profile={exclusions={},inclusions={[123]=true}},global={exclusions={},inclusions={}}})
   equal(result.reasonCode,"PROFILE_INCLUSION"); equal(result.result,"JUNK")
 end)
 test("rule thresholds use whole-stack copper with strict comparison", function()
-  local rules=populated():Ready().addon.Rules; local item=ruleItem()
+  local rules=populated():Ready().addon.Rules; local item=ruleItem({equipLoc="INVTYPE_HEAD",classId=4,subclassId=1})
   equal(rules.Evaluate(item,"SELL",{maxStackVendorPrice=10}).result,"KEEP")
   equal(rules.Evaluate(item,"SELL",{maxStackVendorPrice=9}).reasonCode,"ABOVE_MAX_STACK_PRICE")
   equal(rules.Evaluate(item,"SELL",{minItemLevel=11}).reasonCode,"BELOW_MIN_ITEM_LEVEL")
   equal(rules.Evaluate(ruleItem({unitVendorPrice=0}),"SELL",{profile={inclusions={[123]=true}}}).reasonCode,"NO_VENDOR_VALUE")
 end)
-test("custom rule groups are ordered, scoped and data-only", function()
+test("upstream scoped level and price filters honor selected qualities", function()
+  local rules=populated():Ready().addon.Rules
+  local item=ruleItem({equipLoc="INVTYPE_HEAD",itemLevel=20,unitVendorPrice=10,count=2})
+  local profile={options={excludeAboveItemLevel={enabled=true,scope="SELL",value=10,qualities={poor=true}},
+    excludeAbovePrice={enabled=true,scope="SELL",value=15,qualities={poor=true}}}}
+  equal(rules.Evaluate(item,"SELL",{profile=profile}).reasonCode,"ABOVE_MAX_ITEM_LEVEL")
+  profile.options.excludeAboveItemLevel.qualities.poor=false
+  equal(rules.Evaluate(item,"SELL",{profile=profile}).reasonCode,"ABOVE_MAX_STACK_PRICE")
+  equal(rules.Evaluate(item,"DESTROY",{profile=profile}).reasonCode,"NO_RULE_MATCH")
+  profile.options.excludeAbovePrice.scope="DESTROY"
+  equal(rules.Evaluate(item,"DESTROY",{profile=profile}).reasonCode,"ABOVE_MAX_STACK_PRICE")
+  profile.options.excludeAbovePrice.value=20
+  equal(rules.Evaluate(item,"DESTROY",{profile=profile}).reasonCode,"NO_RULE_MATCH")
+  profile.options.includeBelowPrice={enabled=true,scope="DESTROY",value=25,qualities={poor=true}}
+  item.quality=0
+  equal(rules.Evaluate(item,"DESTROY",{profile=profile}).reasonCode,"BELOW_MIN_STACK_PRICE")
+end)
+test("upstream equipment type filters use numeric legacy class IDs", function()
+  local rules=populated():Ready().addon.Rules
+  local item=ruleItem({equipLoc="INVTYPE_HEAD",classId=4,subclassId=1,quality=2})
+  local profile={options={excludeByEquipmentType={enabled=true,scope="BOTH",qualities={uncommon=true},armor={[1]=true},weapons={}}}}
+  equal(rules.Evaluate(item,"DESTROY",{profile=profile}).reasonCode,"EXCLUDED_EQUIPMENT_TYPE")
+  profile.options.excludeByEquipmentType.qualities.uncommon=false
+  equal(rules.Evaluate(item,"DESTROY",{profile=profile}).reasonCode,"NO_RULE_MATCH")
+  profile.options={includeByEquipmentType={enabled=true,scope="SELL",qualities={uncommon=true},armor={[1]=true},weapons={}}}
+  equal(rules.Evaluate(item,"SELL",{profile=profile}).reasonCode,"INCLUDED_EQUIPMENT_TYPE")
+  local noLegacyIds=ruleItem({equipLoc="INVTYPE_HEAD",classId=nil,subclassId=nil,quality=2})
+  equal(rules.Evaluate(noLegacyIds,"SELL",{profile=profile}).reasonCode,"EQUIPMENT_TYPE_UNKNOWN")
+end)
+test("legacy custom rule data cannot override upstream decisions", function()
   local rules=populated():Ready().addon.Rules; local item=ruleItem()
-  local groups={{id="g1",scope="DESTROY",result="JUNK",match="ALL",predicates={{field="quality",op="EQ",value=0}}},
-    {id="g2",scope="BOTH",result="JUNK",match="ALL",predicates={{field="itemLevel",op="LT",value=20}}}}
-  local settings={profile={rules=groups}}
-  equal(rules.Evaluate(item,"SELL",settings).ruleId,"g2")
-  equal(rules.Evaluate(item,"DESTROY",settings).ruleId,"g1")
-  groups[1].predicates[1].field="unknownField"
-  equal(rules.Evaluate(item,"DESTROY",settings).reasonCode,"RULE_DATA_UNKNOWN")
+  local settings={profile={rules={{id="old",scope="BOTH",result="KEEP",match="ANY",predicates={{field="itemId",op="EQ",value=123}}}},options={quality={[0]=true}}}}
+  equal(rules.Evaluate(item,"SELL",settings).reasonCode,"QUALITY")
 end)
-test("custom ALL and ANY rules handle multiple predicates and uncertainty", function()
-  local world=populated():Ready(); local rules=world.addon.Rules; local item=ruleItem()
-  local all={id="all",scope="SELL",result="KEEP",match="ALL",predicates={
-    {field="quality",op="EQ",value=0},{field="itemLevel",op="LT",value=11}}}
-  local settings={profile={rules={all},options={quality={[0]=true}}}}
-  local result=rules.Evaluate(item,"SELL",settings)
-  equal(result.reasonCode,"CUSTOM_RULE"); equal(result.ruleId,"all")
-  all.predicates[2].value=10
-  result=rules.Evaluate(item,"SELL",settings)
-  equal(result.reasonCode,"QUALITY")
-  local any={id="any",scope="SELL",result="KEEP",match="ANY",predicates={
-    {field="itemId",op="EQ",value=999},{field="quality",op="EQ",value=0}}}
-  settings.profile.rules={any}
-  result=rules.Evaluate(item,"SELL",settings)
-  equal(result.reasonCode,"CUSTOM_RULE"); equal(result.ruleId,"any")
-  any.predicates[2].value=1; item.itemLevel=world.addon.UNKNOWN
-  any.predicates[1]={field="itemLevel",op="LT",value=20}
-  result=rules.Evaluate(item,"SELL",settings)
-  equal(result.result,"UNKNOWN"); equal(result.reasonCode,"RULE_DATA_UNKNOWN")
+test("legacy custom-rule command is ignored", function()
+  local w=populated():Ready(); w:Command("rules add x BOTH KEEP ANY quality EQ 0")
+  equal(#w.app.store:GetActiveProfile().rules,0)
+  local found=false; for _,line in ipairs(w.messages) do if line:find("Custom rule added",1,true) then found=true end end
+  assert(not found)
 end)
-test("help documents multi-condition rules and chat listing shows every predicate", function()
-  local w=populated():Ready()
-  assert(w.app.store:AddRule({id="help-rule",scope="BOTH",result="KEEP",match="ALL",predicates={
-    {field="itemId",op="EQ",value=123},{field="quality",op="EQ",value=0}}}))
-  w:Command("rules list")
-  local found=false
-  for _,line in ipairs(w.messages) do
-    if line:find("help-rule BOTH KEEP ALL itemId EQ 123 AND quality EQ 0",1,true) then found=true end
-  end
-  assert(found)
-  w:Command("help")
-  found=false
-  for _,line in ipairs(w.messages) do if line:find("<field> <operator> <number> ...",1,true) then found=true end end
-  assert(found)
-  w:Command("rules add cli-rule BOTH KEEP ANY itemId EQ 123 quality EQ 0")
-  equal(#w.app.store:GetActiveProfile().rules,2)
-  w:Command("rules list")
-  found=false
-  for _,line in ipairs(w.messages) do
-    if line:find("cli-rule BOTH KEEP ANY itemId EQ 123 OR quality EQ 0",1,true) then found=true end
-  end
-  assert(found)
-  w:Command("rules add incomplete BOTH KEEP ALL itemId EQ")
-  equal(#w.app.store:GetActiveProfile().rules,2)
-end)
-test("chat ANY rule preview keeps each independently matching item read-only", function()
+test("legacy chat custom rule cannot alter read-only classification", function()
   local w=H.New(); w:AddItem(0,1,{id=6948,price=5,link="|cffffffff|Hitem:6948:0:0:0:0:0:0:0|h[Hearthstone]|h|r"})
   w:AddItem(0,2,{id=777,price=5,link="|cffffffff|Hitem:777:0:0:0:0:0:0:0|h[Example]|h|r"})
   w.api.GetItemInfo=function(link)
@@ -439,18 +468,11 @@ test("chat ANY rule preview keeps each independently matching item read-only", f
       if item.link==link then return "Example",link,item.id==6948 and 1 or 0,10,1,"Misc","Junk",20,"","texture",item.price end
     end
   end
-  w:Load():Ready()
-  w:Command("rules add demo BOTH KEEP ANY itemId EQ 6948 quality EQ 0")
-  w:Command("preview sell")
-  local rows={}
+  w:Load():Ready(); w:Command("rules add demo BOTH KEEP ANY itemId EQ 6948 quality EQ 0"); w:Command("preview sell")
   local snapshot=w.app.cache:GetSnapshot(); local profile=w.app.store:GetActiveProfile(); local state=w.app.store:GetState()
-  rows=w.addon.Preview.EvaluateSnapshot(snapshot,{profile=profile,global=state.global,
-    minItemLevel=profile.options.minItemLevel,maxItemLevel=profile.options.maxItemLevel,
-    maxStackVendorPrice=profile.options.maxStackVendorPrice,protectUnboundEquipment=true},"SELL")
-  equal(#rows,2)
-  equal(rows[1].result,"KEEP"); equal(rows[1].ruleId,"demo")
-  equal(rows[2].result,"KEEP"); equal(rows[2].ruleId,"demo")
-  equal(w.mutations,0)
+  local rows=w.addon.Preview.EvaluateSnapshot(snapshot,{profile=profile,global=state.global},"SELL")
+  equal(#rows,2); equal(rows[1].result,"KEEP"); equal(rows[1].ruleId,nil)
+  equal(rows[2].result,"JUNK"); equal(rows[2].ruleId,nil); equal(w.mutations,0)
 end)
 test("preview command reports read-only rows and invalidated snapshots fail closed", function()
   local w=H.New(); w:AddItem(0,1)
@@ -459,9 +481,9 @@ test("preview command reports read-only rows and invalidated snapshots fail clos
   w:Command("rules quality 0 on")
   equal(w.app.store:GetActiveProfile().options.quality[0],true)
   w:Command("rules add sample SELL JUNK ALL quality EQ 0")
-  equal(#w.app.store:GetActiveProfile().rules,1)
+  equal(#w.app.store:GetActiveProfile().rules,0)
   w:Command("preview sell")
-  local found=false; for _,line in ipairs(w.messages) do if line:find("CUSTOM_RULE",1,true) then found=true end end
+  local found=false; for _,line in ipairs(w.messages) do if line:find("GLOBAL_INCLUSION",1,true) then found=true end end
   assert(found); equal(w.mutations,0)
   w:Fire("BAG_UPDATE",0)
   local rows,reason=w.app:Preview("SELL"); equal(#rows,0); equal(reason,"SNAPSHOT_INVALID")
@@ -478,19 +500,40 @@ test("bootstrap supplies rules, preview and config model when standalone modules
   assert(report:find("READ-ONLY SELL PREVIEW",1,true)); equal(counts.JUNK,1)
   assert(w.addon.Config.EditItem(w.app.store,"global","inclusions",6948,true))
   equal(w.addon.Config.ListItems(w.app.store,"global","inclusions"),"123\n6948")
-  assert(w.addon.Config.AddRule(w.app.store,{id="fallback",scope="SELL",result="JUNK",match="ALL",predicates={{field="quality",op="EQ",value=0}}}))
-  equal(#w.addon.Config.ListRules(w.app.store),1)
-  assert(w.addon.Config.RemoveRule(w.app.store,"fallback"))
-  assert(w.addon.Config.SetOption(w.app.store,"minItemLevel",10))
-  equal(w.addon.Config.GetOptions(w.app.store).minItemLevel,10)
+    assert(w.addon.Config.SetOption(w.app.store,"minItemLevel",10))
+  equal(w.addon.Config.GetOptions(w.app.store).includeBelowItemLevel.value,10)
   local copy=w.addon.Config.DuplicateProfile(w.app.store,"Fallback Copy")
   assert(copy)
   local filtered=w.addon.Config.FilterItemIds("123\n6948","94")
   equal(#filtered,1); equal(filtered[1].id,"6948")
+  filtered=w.addon.Config.FilterItemIds("6948\n6948\n123","[")
+  equal(#filtered,0)
+  local sorted=w.addon.Config.SortListItems({{id="9",name="Zulu",quality=1},
+    {id="7",name="Beta",quality=0},{id="8",name="Alpha",quality=1},{id="7"}})
+  equal(#sorted,3); equal(sorted[1].id,"7"); equal(sorted[2].id,"8"); equal(sorted[3].id,"9")
   local preview=w.addon.Config.PreviewListImport(w.app.store,"global","inclusions","123, 6948, 55")
   equal(#preview.existing,2); equal(#preview.add,1)
   assert(w.addon.Config.CommitListImport(w.app.store,preview))
   equal(w.mutations,0)
+end)
+
+test("bootstrap evaluator fallback matches canonical filter decisions", function()
+  local canonical=populated():Ready().addon.Rules
+  local fallback=H.New({skipFiles={["src/rules/evaluator.lua"]=true}}):Load():Ready().addon.Rules
+  local scenarios={}
+  scenarios[#scenarios+1]={ruleItem({classId=nil,quest=true}),"SELL",
+    {profile={options={excludeQuestItems={enabled=true,scope="BOTH"}}}}}
+  scenarios[#scenarios+1]={ruleItem({equipLoc="INVTYPE_HEAD",bound=false}),"DESTROY",
+    {profile={options={excludeUnboundEquipment={enabled=true,scope="DESTROY",qualities={poor=true}}}}}}
+  scenarios[#scenarios+1]={ruleItem({refundable=true}),"SELL",{profile={options={quality={[0]=true}}}}}
+  scenarios[#scenarios+1]={ruleItem({refundable=true}),"SELL",{}}
+  scenarios[#scenarios+1]={ruleItem({unitVendorPrice=9,count=2}),"DESTROY",
+    {profile={options={excludeAbovePrice={enabled=true,scope="DESTROY",value=10,qualities={poor=true}}}}}}
+  for _,scenario in ipairs(scenarios) do
+    local expected=canonical.Evaluate(scenario[1],scenario[2],scenario[3])
+    local actual=fallback.Evaluate(scenario[1],scenario[2],scenario[3])
+    equal(actual.result,expected.result); equal(actual.reasonCode,expected.reasonCode)
+  end
 end)
 
 test("bootstrap restores preview formatter for partially updated installs", function()

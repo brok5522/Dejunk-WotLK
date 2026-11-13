@@ -5,6 +5,9 @@ local Addon=world.addon
 local uiFrames={}
 local ui={UIParent={}}
 setmetatable(ui,{__index=world.api})
+local cursorItemId
+ui.GetCursorInfo=function() if cursorItemId then return "item",cursorItemId end end
+ui.ClearCursor=function() cursorItemId=nil end
 
 local function object(kind,name,parent,template)
   local frame={kind=kind,name=name,parent=parent,template=template,scripts={},children={},enabled=true,text=""}
@@ -39,10 +42,13 @@ local function object(kind,name,parent,template)
   function frame:SetFocus() self.focused=true end
   function frame:SetVerticalScroll(value) self.verticalScroll=value end
   function frame:SetScript(event,callback) self.scripts[event]=callback end
+  function frame:RegisterForClicks(...) self.registeredClicks={...} end
   function frame:SetText(value)
     self.text=value
     if self.kind=="EditBox" and self.scripts.OnTextChanged then self.scripts.OnTextChanged(self) end
   end
+  function frame:SetChecked(value) self.checked=value end
+  function frame:GetChecked() return self.checked end
   function frame:GetText() return self.text end
   function frame:GetWidth() return self.width end
   function frame:Enable() self.enabled=true end
@@ -63,15 +69,18 @@ local function object(kind,name,parent,template)
     child.layer=layer; self.children[#self.children+1]=child; return child
   end
   function frame:SetTexture(value) self.texture=value end
-  function frame:Click()
+  function frame:Click(button)
     assert(self.enabled~=false,"clicked disabled control")
     assert(self.scripts.OnClick,"control has no click handler")
-    self.scripts.OnClick(self)
+    self.scripts.OnClick(self,button or "LeftButton")
   end
   uiFrames[#uiFrames+1]=frame
   return frame
 end
 ui.CreateFrame=function(kind,name,parent,template) return object(kind,name,parent,template) end
+ui.IsShiftKeyDown=function() return ui.shiftDown==true end
+ui.IsControlKeyDown=function() return ui.controlDown==true end
+ui.IsAltKeyDown=function() return ui.altDown==true end
 
 local activeId="profile-1"
 local activeName="Test"
@@ -185,17 +194,35 @@ local listCallbacks={
   previewListImport=function(scope,kind,text) return listStore:ImportPreview(scope,kind,text) end,
   commitListImport=function(preview) return listStore:CommitImport(preview) end
 }
-runtime:ShowLists(listCallbacks)
-assert(namedFrame("DejunkWotLKLists"),"lists window did not use the Waffle window factory")
-local listFrame
-for _,frame in ipairs(uiFrames) do if frame.kind=="Frame" and frame.width==720 then listFrame=frame end end
-assert(listFrame and listFrame.shown)
+runtime:ShowConfig(listCallbacks)
+control("Button","Lists"):Click()
+assert(namedFrame("DejunkWotLKLists"),"Lists page frame was not created")
+local listFrame=namedFrame("DejunkWotLKLists")
+local mainWindow=namedFrame("DejunkWotLK_MainWindow")
+assert(listFrame and listFrame.width==540 and listFrame.shown)
+assert(listFrame.backdrop==nil,"Lists page retained the extra nested window frame")
+local ancestor=listFrame
+while ancestor and ancestor~=mainWindow do ancestor=ancestor.parent end
+assert(ancestor==mainWindow,"Lists screen was not embedded in the main Waffle window")
+local inclusionRow
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="Button" and frame.listScope=="global" and frame.listKind=="inclusions" then inclusionRow=frame; break end
+end
+assert(inclusionRow and inclusionRow.scripts.OnMouseDown,"list item rows do not accept cursor items")
+cursorItemId=6949
+inclusionRow.scripts.OnMouseDown(inclusionRow)
+assert(listStore:GetState().global.inclusions[6949]==true,"cursor item was not added to the list")
+assert(cursorItemId==nil,"successful list drop did not clear the cursor item")
+control("Button","Profile Options"):Click()
+assert(mainWindow.shown and listFrame.shown==false,"Profile Options navigation did not leave Lists")
+control("Button","Lists"):Click()
+assert(mainWindow.shown and listFrame.shown,"Lists navigation did not restore the embedded screen")
 control("Button","Export"):Click()
 local report=uiFrames[#uiFrames]
 while report and report.name~="DejunkWotLKReadOnlyReport" do report=report.parent end
 assert(report and report.shown and listFrame.shown==false)
 assert(namedFrame("DejunkWotLKReadOnlyReport"),"report window did not use the Waffle window factory")
-local exported=lastControl("EditBox","6948")
+local exported=lastControl("EditBox","6948\n6949")
 assert(exported.focused and exported.highlighted)
 lastControl("Button",nil,"UIPanelCloseButton"):Click()
 assert(listFrame.shown==true)
@@ -211,7 +238,26 @@ control("Button","Review"):Click()
 assert(lastControl("FontString","Ready: 2 new IDs; 0 already present."))
 lastControl("Button","Import"):Click()
 assert(listFrame.shown==true)
-assert(listStore:ExportList("global","inclusions")=="123\n456\n6948")
+assert(listStore:ExportList("global","inclusions")=="123\n456\n6948\n6949")
+
+local function listRow(scope,kind,id)
+  for _,frame in ipairs(uiFrames) do
+    if frame.kind=="Button" and frame.itemId==tostring(id) and frame.listScope==scope and frame.listKind==kind then return frame end
+  end
+  error("missing list row "..scope.."/"..kind.."/"..id)
+end
+local globalInclusionRow=listRow("global","inclusions",6948)
+ui.shiftDown=true; globalInclusionRow:Click("RightButton"); ui.shiftDown=false
+assert(listStore:ExportList("global","exclusions")=="6948")
+ui.controlDown=true; listRow("global","inclusions",6948):Click("RightButton"); ui.controlDown=false
+assert(listStore:ExportList("profile","exclusions")=="6948")
+ui.altDown=true; listRow("global","inclusions",6948):Click("RightButton"); ui.altDown=false
+assert(listStore:ExportList("profile","inclusions")=="6948")
+listRow("global","inclusions",6948):Click("RightButton")
+assert(listStore:ExportList("global","inclusions")=="123\n456\n6949")
+assert(listStore:EditList("global","exclusions",6948,false))
+assert(listStore:EditList("profile","exclusions",6948,false))
+assert(listStore:EditList("profile","inclusions",6948,false))
 
 runtime:ShowConfig({
   summary=function() return "Active profile: Test" end,
@@ -229,8 +275,190 @@ assert(configFrame.shown==false)
 lastChild(report,"Button","UIPanelCloseButton"):Click()
 assert(configFrame.shown==true)
 runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function() return "default" end})
-assert(namedFrame("DejunkWotLKProfiles"),"profiles window did not use the Waffle window factory")
-runtime:ShowOptions({options=function() return {quality={}} end})
-assert(namedFrame("DejunkWotLKOptions"),"options window did not use the Waffle window factory")
+local profilesPage=namedFrame("DejunkWotLKProfiles")
+assert(profilesPage,"profiles page was not created")
+assert(profilesPage.parent==namedFrame("DejunkWotLKLists").parent,"Profiles page is outside the main configuration content")
+assert(profilesPage.backdrop==nil,"Profiles page retained its own dialog backdrop")
+assert(profilesPage.shown,"Profiles page was not visible when selected")
+control("Button","Lists"):Click()
+assert(profilesPage.shown==false and namedFrame("DejunkWotLKLists").shown,"Lists navigation left the Profiles page visible")
+runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function() return "default" end})
+local optionState={quality={[0]=true},includeByQuality={enabled=true,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},includeBelowItemLevel={enabled=false,scope="BOTH",value=0,qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},includeBelowPrice={enabled=false,scope="SELL",value=0,qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},excludeAboveItemLevel={enabled=false,scope="BOTH",value=0,qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},excludeAbovePrice={enabled=false,scope="DESTROY",value=0,qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},includeByEquipmentType={enabled=false,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false},armor={},weapons={}},excludeByEquipmentType={enabled=false,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true},armor={},weapons={}},autoSell=false,autoRepair=false,excludeEquipmentSets={enabled=true,scope="BOTH"},excludeUnboundEquipment={enabled=false,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},excludeQuestItems={enabled=true,scope="BOTH"}}
+local globalOptionState={safeSell=false,safeDestroy=true}
+local optionCallbacks={options=function() return optionState end,globalOptions=function() return globalOptionState end,
+  setOption=function(key,value)
+    if key=="quality" then
+      local qualityNames={[0]="poor",[1]="common",[2]="uncommon",[3]="rare",[4]="epic"}
+      optionState.quality[value.quality]=value.enabled; optionState.includeByQuality.qualities[qualityNames[value.quality]]=value.enabled
+    elseif key=="includeByQuality" then optionState.includeByQuality=value
+    elseif key=="excludeEquipmentSets" and type(value)=="boolean" then optionState[key]={enabled=value,scope="BOTH"}
+    elseif key=="excludeUnboundEquipment" and type(value)=="boolean" then optionState[key].enabled=value
+    else optionState[key]=value end
+    return true
+  end,
+  setGlobalOption=function(key,value) globalOptionState[key]=value; return true end,
+  activeProfileName=function() return "Test" end}
+runtime:ShowOptions(optionCallbacks,"profile")
+local optionsPage=namedFrame("DejunkWotLKOptions")
+assert(optionsPage,"options page was not created")
+assert(optionsPage.parent==profilesPage.parent,"Options page is outside the main configuration content")
+assert(optionsPage.backdrop==nil,"Options page retained its own dialog backdrop")
+assert(optionsPage.scrollFrame and optionsPage.scrollFrame.template=="UIPanelScrollFrameTemplate","Profile options must use the legacy scroll-panel pattern")
+assert(optionsPage.contentFrame and optionsPage.contentFrame.height>=2040,"Profile option groups must fit in the scroll content")
+local sectionOrder={}
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="FontString" and frame.parent==optionsPage.contentFrame and
+    (frame.text=="General" or frame.text=="Include" or frame.text=="Exclude") then sectionOrder[#sectionOrder+1]=frame.text end
+end
+assert(table.concat(sectionOrder,",")=="General,Include,Exclude","Profile settings are not grouped in upstream section order")
+assert(optionsPage.pageTitle.text=="Dejunk | Profile Options (Test)","profile options heading did not identify the active profile")
+assert(optionsPage.pageDescription.text=="These options only apply to characters using the active profile.","upstream profile-options panel description is missing")
+local cards={}
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="Frame" and frame.optionCard==true and frame.parent==optionsPage.contentFrame and frame.height and frame.point and frame.point[5] then
+    if frame.shown~=false then cards[#cards+1]=frame end
+  end
+end
+table.sort(cards,function(a,b) return -a.point[5] < -b.point[5] end)
+for i=1,#cards-1 do
+  assert(-cards[i].point[5]+cards[i].height<=-cards[i+1].point[5],"profile option cards overlap vertically")
+end
+assert(profilesPage.shown==false,"Profiles page remained visible while Options was selected")
+assert(control("CheckButton","Auto Sell").shown,"profile options were hidden on the Profile Options page")
+assert(control("Button","Safe Sell: OFF").shown==false,"global options leaked into Profile Options")
+local enableMinimum
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionLabel=="Include below item level" then enableMinimum=frame; break end
+end
+assert(enableMinimum,"threshold option card toggle was not created")
+enableMinimum:Click()
+local thresholdEdit
+for _,frame in ipairs(uiFrames) do if frame.kind=="EditBox" and frame.parent==optionsPage.contentFrame and frame.thresholdKey=="includeBelowItemLevel" then thresholdEdit=frame; break end end
+assert(thresholdEdit,"profile threshold editor was not created")
+thresholdEdit:SetText("60")
+local applyThreshold,afterEditor
+for _,frame in ipairs(uiFrames) do
+  if frame==thresholdEdit then afterEditor=true
+  elseif afterEditor and frame.kind=="Button" and frame.text=="Apply" and frame.parent==optionsPage.contentFrame then applyThreshold=frame; break end
+end
+assert(applyThreshold,"profile threshold Apply control was not created")
+applyThreshold:Click()
+assert(optionState.includeBelowItemLevel.enabled and optionState.includeBelowItemLevel.value==60,"minimum item level did not persist through the UI")
+local minimumScope,afterApply
+for _,frame in ipairs(uiFrames) do
+  if frame==applyThreshold then afterApply=true
+  elseif afterApply and frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.scopeKey=="includeBelowItemLevel" and frame.scopeValue=="SELL" then minimumScope=frame; break end
+end
+assert(minimumScope,"threshold scope control was not created")
+minimumScope:Click()
+assert(optionState.includeBelowItemLevel.scope=="SELL","threshold action scope did not update through the UI")
+local minimumPoor
+for _,frame in ipairs(uiFrames) do if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionGroup=="includeBelowItemLevel" and frame.optionQuality=="poor" then minimumPoor=frame end end
+assert(minimumPoor,"threshold quality control was not created")
+assert(minimumPoor.width==24,"threshold quality chip is not using the legacy checkbox control")
+local minScopeWidth
+for _,frame in ipairs(uiFrames) do if frame==minimumScope then minScopeWidth=frame.width end end
+assert(minScopeWidth==24,"threshold scope choice is not using the upstream check-chip control")
+local minQualityRow={}
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionGroup=="includeBelowItemLevel" and frame.optionQuality then minQualityRow[#minQualityRow+1]=frame end
+end
+table.sort(minQualityRow,function(a,b) return a.point[2]<b.point[2] end)
+assert(#minQualityRow==5,"minimum item level should have five quality controls")
+for i=1,#minQualityRow-1 do
+  assert(minQualityRow[i+1].point[2]-minQualityRow[i].point[2]>=56,"threshold quality chips overlap horizontally")
+end
+minimumPoor:Click()
+assert(optionState.includeBelowItemLevel.qualities.poor==false,"threshold quality selection did not update through the UI")
+local setScope
+for _,frame in ipairs(uiFrames) do if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.scopeKey=="excludeEquipmentSets" and frame.scopeValue=="SELL" then setScope=frame end end
+assert(setScope,"equipment set scope control was not created")
+setScope:Click()
+assert(optionState.excludeEquipmentSets.scope=="SELL","equipment set scope did not update through the UI")
+local unboundPoor
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionLabel=="Exclude unbound equipment" then frame:Click(); break end
+end
+assert(optionState.excludeUnboundEquipment.enabled,"unbound equipment option card did not enable")
+for _,frame in ipairs(uiFrames) do if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionGroup=="excludeUnboundEquipment" and frame.optionLabel=="Poor" then unboundPoor=frame end end
+assert(unboundPoor,"unbound equipment quality control was not created")
+unboundPoor:Click()
+assert(optionState.excludeUnboundEquipment.qualities.poor==false,"unbound equipment quality did not update through the UI")
+local priceEdit
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="EditBox" and frame.parent==optionsPage.contentFrame and frame.thresholdKey=="includeBelowPrice" and frame.thresholdPart==3 then priceEdit=frame; break end
+end
+assert(priceEdit,"minimum stack price editor was not created")
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionLabel=="Include below price" then frame:Click(); break end
+end
+priceEdit:SetText("3")
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="EditBox" and frame.parent==optionsPage.contentFrame and frame.thresholdKey=="includeBelowPrice" and frame.thresholdPart==1 then frame:SetText("1") end
+  if frame.kind=="EditBox" and frame.parent==optionsPage.contentFrame and frame.thresholdKey=="includeBelowPrice" and frame.thresholdPart==2 then frame:SetText("2") end
+end
+local applyPrice,afterPriceEdit
+for _,frame in ipairs(uiFrames) do
+  if frame==priceEdit then afterPriceEdit=true
+  elseif afterPriceEdit and frame.kind=="Button" and frame.text=="Apply" and frame.parent==optionsPage.contentFrame then applyPrice=frame; break end
+end
+assert(applyPrice,"minimum stack price Apply control was not created")
+applyPrice:Click()
+assert(optionState.includeBelowPrice.enabled and optionState.includeBelowPrice.value==10203,"minimum stack price did not persist through UI")
+local includeTypes
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionLabel=="Include by equipment type" then includeTypes=frame; break end
+end
+assert(includeTypes,"include equipment type option card was not created")
+includeTypes:Click()
+assert(optionState.includeByEquipmentType.enabled,"include equipment type option did not enable")
+local clothType
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionLabel=="Cloth" then clothType=frame; break end
+end
+assert(clothType,"localized Armor subclass controls were not built from the 3.3.5 API")
+clothType:Click()
+assert(optionState.includeByEquipmentType.armor[1]==true,"Armor subclass selection did not persist")
+local fishingPoles
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionLabel=="Fishing Poles" then fishingPoles=frame; break end
+end
+assert(fishingPoles,"localized weapon subclass controls were not built from the 3.3.5 API")
+fishingPoles:Click()
+assert(optionState.includeByEquipmentType.weapons[10]==true,"weapon subclass selection did not persist")
+control("CheckButton","Include by quality"):Click()
+assert(optionState.includeByQuality.enabled==false and optionState.includeByQuality.qualities.poor==true,"quality rule toggle did not preserve the quality selection")
+control("CheckButton","Include by quality"):Click()
+assert(optionState.includeByQuality.enabled==true,"quality rule could not be re-enabled")
+local qualityCard
+for _,frame in ipairs(cards) do if frame.point and frame.point[5]==-208 then qualityCard=frame; break end end
+assert(qualityCard and qualityCard.scripts.OnMouseDown,"upstream option card click behavior was not provided")
+qualityCard.scripts.OnMouseDown(qualityCard)
+assert(optionState.includeByQuality.enabled==false,"clicking the option card did not toggle its setting")
+qualityCard.scripts.OnMouseDown(qualityCard)
+assert(optionState.includeByQuality.enabled==true,"option card did not toggle back on")
+control("CheckButton","Auto Sell"):Click(); assert(optionState.autoSell==true)
+runtime:ShowOptions(optionCallbacks,"global")
+assert(control("Button","Safe Sell: OFF").shown,"global options were hidden on the Global Options page")
+assert(control("CheckButton","Auto Sell").shown==false,"profile options leaked into Global Options")
+control("Button","Safe Sell: OFF"):Click(); assert(globalOptionState.safeSell==true)
+runtime:ShowOptions(optionCallbacks,"profile")
+control("CheckButton","Poor"):Click(); assert(optionState.includeByQuality.qualities.poor==false)
+control("CheckButton","Exclude unbound equipment"):Click(); assert(optionState.excludeUnboundEquipment.enabled==false)
 
-print("UI INTERACTION RESULT: rules, list import/export and report return flows passed")
+local ids={}; for id=1001,1030 do ids[#ids+1]=tostring(id) end
+local queries=0
+ui.GetItemInfo=function() queries=queries+1; return nil end
+runtime:ShowLists({listItems=function(scope,kind)
+  return scope=="global" and kind=="inclusions" and table.concat(ids,"\n") or ""
+end})
+local listsWindow=namedFrame("DejunkWotLKLists")
+assert(listsWindow and listsWindow.scripts.OnUpdate)
+assert(profilesPage.shown==false,"Profiles page remained visible while Lists was selected")
+assert(queries==25,"metadata query batch exceeded 25 items")
+listsWindow.scripts.OnUpdate(listsWindow,0.1)
+assert(queries==50,"next metadata tick did not advance the bounded queue")
+listsWindow.scripts.OnUpdate(listsWindow,29.9)
+assert(listsWindow.scripts.OnUpdate==nil,"uncached item metadata polling did not time out")
+
+print("UI INTERACTION RESULT: options, list transport, metadata polling and report navigation passed")
