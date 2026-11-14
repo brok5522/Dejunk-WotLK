@@ -170,16 +170,16 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for current working tree `0.16.45-dev`:
+Results for current working tree `0.16.46-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 41 source digests and 153 legacy API references).
-- `check.py`: PASS (20 ordered runtime files; Lua 5.1 syntax for 27 files;
+- `check.py`: PASS (21 ordered runtime files; Lua 5.1 syntax for 29 files;
   runtime 64/64, store 21/21, services 8/8, destroyer 11/11, UI model 62/62;
-  UI interaction fixtures passed, including injected seller/destroyer mock
-  dispatch, slash-command routing, keybinding capture/overrides, merchant-button
-  visibility/clicks/position persistence and transport-window position; the
-  deterministic 32-entry ZIP verified).
+  transaction adapter fake-API tests and UI interaction fixtures passed,
+  including seller/destroyer dispatch, slash-command routing, keybinding
+  capture/overrides, merchant-button behavior and transport positioning; the
+  deterministic 33-entry ZIP verified).
 - `git diff --check`: PASS.
 - Original 3.3.5a client rendering/input check: NOT RUN in this environment.
 
@@ -233,12 +233,11 @@ The Junk and Lootable windows now use their upstream 350×400 and 250×250
 dimensions. Junk has candidate counts, a stack-value summary, a Profile Options
 shortcut, item-row coin/exclude/trash icons, and bottom action buttons. The
 exclude control updates the selected profile list (Shift selects global).
-Coin, trash, selling and destruction controls stay disabled because live
-inventory actions require the separate owner review in `AGENTS.md`. Lootable
-has an item count and eye-slash control; ignoring an item hides that item ID for
-the current session. Item use stays disconnected. Lua fixtures cover sizes,
-assets/states, stack value, session ignore and disabled actions. Merchant button
-and live transaction/chat integrations remain absent.
+Coin, trash and merchant controls dispatch through registered action handlers.
+The lootable row opens the item on left click; eye-slash ignores the item ID for
+the current session. Live calls use `src/compat/transactions.lua`; fake API
+fixtures cover sale, repair, loot, cursor safety and destroy dispatch. Original
+client acceptance and exact upstream transaction/chat parity remain pending.
 
 The original 3.3.5a client visual check was not run. The main window still uses
 port-built native screens and some list/profile/action widgets are development
@@ -280,10 +279,9 @@ filter is disabled. Numeric inputs explicitly take mouse and keyboard focus.
    presentation, merchant button, third-party bag adapters, parser
    progress/messaging, and several
    command and state-migration details.
-2. Port and review seller, repair and one-stack destroy behavior. Current
-   services are simulation-only. `AGENTS.md` requires review plus separate
-   owner authorization before connecting any inventory mutation to the live
-   client; no destructive test is needed for the next UI check.
+2. Review seller, repair, loot and one-stack destroy parity against upstream.
+   These handlers now use the isolated transaction adapter; no destructive test
+   is needed or permitted for development verification.
 3. Run one consolidated, non-destructive UI and compatibility smoke check in
    the original build-12340 client. Current automated checks cannot prove the
    client's rendering, focus behavior or API behavior.

@@ -3,9 +3,9 @@
 Compatibility port of [Dejunk](https://github.com/moody/Dejunk) for the original
 World of Warcraft **3.3.5a / build 12340 / Interface 30300 / Lua 5.1**.
 
-**Goal: preserve the pinned upstream Dejunk behavior on WoW 3.3.5a.** This is a compatibility port, not a redesign or feature expansion. The pinned upstream Waffle layout engine is loaded, but the original screens and core actions are not yet fully ported.
+**Goal: preserve the pinned upstream Dejunk behavior on WoW 3.3.5a.** This is a compatibility port, not a redesign or feature expansion. The UI and transaction behaviors remain under parity review.
 The upstream Poor-quality junk default is enabled automatically for new profiles; the rule editor is for additional custom conditions, not required setup.
-Earlier screenshots verified port-built configuration screens and read-only previews. They do not establish parity with the original Dejunk UI or actions. Seller, repair and destruction are not connected to live game actions yet.
+Earlier screenshots verified port-built configuration screens and read-only previews. Sale, repair, loot and confirmed destroy now use a guarded legacy API adapter, but original-client acceptance is still pending. Offline tests do not establish live behavior or exact UI parity.
 
 See the [Persian project guide](docs/USAGE.fa.md) and the
 [current completion report](docs/VALIDATION.md). Older phase guides describe
@@ -57,7 +57,7 @@ git diff --check
 ```
 Use Python 3.9+ and **lua5.1 / luac5.1**. If binaries are elsewhere, pass
 `--lua /path/to/lua5.1 --luac /path/to/luac5.1` to `tools/check.py`.
-The check verifies TOC/load order, the read-only source boundary, Lua 5.1 syntax,
+The check verifies TOC/load order, the isolated transaction API boundary, Lua 5.1 syntax,
 research/docs and the behavioral suite. `tools/check_phase0.py` retains research
 checks; its historical no-runtime gate was replaced after Phase 1 approval.
 The package command refuses to overwrite existing files, creates a deterministic
@@ -69,8 +69,9 @@ Existing diagnostics include `/djw status`, `/djw probe` (chat), `/djw report` (
 `/djw slot <bag 0..4> <slot>` (explicit slot probe), `/djw help`.
 `/dejunk` is the original command alias; no-argument and `options` toggle the
 configuration window, `profiles` opens Profiles, and `junk` / `loot` show the
-read-only item windows. `/dejunk sell` and `/dejunk destroy` remain disconnected
-from inventory operations in this development build.
+item windows. Selling and looting use fresh slot checks; destroy always requires
+confirmation. Original-client acceptance remains pending, and development
+verification never runs real deletion.
 
 ## Attribution
 Upstream Dejunk 3.5.1 was examined at commit

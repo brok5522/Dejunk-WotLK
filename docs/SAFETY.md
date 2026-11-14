@@ -1,12 +1,11 @@
 # Inventory safety contract
 
-Phase 0 shipped no runtime. Phase 1 ships only a read-only adapter, snapshots
-and diagnostics; there are no inventory-mutating functions or SavedVariables.
-The transaction requirements below apply to future phases. Phases 4 and 5 add
-simulation-only seller, repair and destruction state machines. They require a
-fake adapter marked `simulation=true`; the runtime has no production transaction
-adapter and does not invoke them. This does not authorize testing on the owner's
-live inventory.
+The read-only legacy adapter remains separate from `src/compat/transactions.lua`,
+which is the only runtime boundary allowed to invoke inventory-mutating 3.3.5a
+APIs. UI handlers re-read item data and rule eligibility immediately before
+dispatch. Sale, repair, loot and destroy integrations are connected but still
+require acceptance testing in the original client; offline fakes do not prove
+live-client behavior.
 
 ## Mandatory gates before any sale or deletion
 - Restrict scope to carried bags 0..4; exclude bank, equipped inventory, keyring,
@@ -31,8 +30,9 @@ live inventory.
 Port the upstream seller state and cancellation behavior using only 3.3.5a APIs.
 Auto-sell is off by default. Safe Sell is also off by default; when enabled it
 limits sale calls according to the upstream behavior. Preserve the original
-manual and automatic controls. Tests use mocks only until code review and
-separate authorization for any real-client action test.
+manual and automatic controls. Tests use mocks only. Real repair/sale/loot can
+be accepted with harmless inventory; never use real deletion in development or
+verification.
 
 Auto-repair defaults off. Check CanMerchantRepair, current cost and personal
 funds at execution; repair once per valid merchant session. Guild repair is a

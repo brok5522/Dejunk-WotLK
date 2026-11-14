@@ -55,7 +55,7 @@ def main():
         raise ValueError('Duplicate TOC entry')
     expected = [
         'src/namespace.lua', 'libs/Waffle.lua', 'src/compat/client.lua', 'src/compat/legacy.lua',
-        'src/compat/runtime.lua', 'src/core/events.lua', 'src/core/scheduler.lua',
+        'src/compat/transactions.lua', 'src/compat/runtime.lua', 'src/core/events.lua', 'src/core/scheduler.lua',
         'src/core/bag-cache.lua', 'src/core/diagnostics.lua', 'src/store/store.lua',
         'src/rules/evaluator.lua', 'src/services/preview.lua', 'src/services/junk-items.lua',
         'src/services/lootable-items.lua', 'src/services/seller.lua',
@@ -86,6 +86,12 @@ def main():
             if source.count('api.ClearCursor') != 2:
                 raise ValueError('Unexpected cursor-clear path in the compatibility UI')
             source = source.replace('api.ClearCursor', '')
+        if entry == 'src/compat/transactions.lua':
+            # Live item APIs are confined to this exact compatibility adapter.
+            # Calls must remain dynamic through the injected API table.
+            if re.search(r'(?<![\w.:"])\b(?:UseContainerItem|PickupContainerItem|DeleteCursorItem|RepairAllItems)\s*\(', source):
+                raise ValueError('Live inventory API must be called through the injected API adapter')
+            source = re.sub(r'\b(?:UseContainerItem|PickupContainerItem|DeleteCursorItem|RepairAllItems)\b', 'TX_API', source)
         if 'ClearCursor' in source:
             raise ValueError(f'Cursor clearing is outside the approved list-drop path: {entry}')
         if forbidden.search(source):
@@ -94,7 +100,7 @@ def main():
             if re.search(r'\b(?:_G|CreateFrame|SlashCmdList|GetBuildInfo|GetContainer\w+|GetItemInfo|'
                          r'GetNumEquipmentSets|GetEquipmentSet\w+|DEFAULT_CHAT_FRAME|GameTooltip)\b', source):
                 raise ValueError(f'Game access outside compat: {entry}')
-    print(f'PASS: Interface 30300, {len(load_order)} ordered runtime files and read-only API boundary', flush=True)
+    print(f'PASS: Interface 30300, {len(load_order)} ordered runtime files and isolated transaction API boundary', flush=True)
     lua_files = sorted((ROOT / 'src').rglob('*.lua')) + sorted((ROOT / 'tests').rglob('*.lua')) + [ROOT / 'libs/Waffle.lua']
     for path in lua_files:
         run([args.luac, '-p', str(path)])
@@ -104,6 +110,7 @@ def main():
     run([args.lua, 'tests/store-tests.lua'])
     run([args.lua, 'tests/service-tests.lua'])
     run([args.lua, 'tests/destroyer-tests.lua'])
+    run([args.lua, 'tests/transaction-tests.lua'])
     run([args.lua, 'tests/ui-tests.lua'])
     run([args.lua, 'tests/ui-interaction-tests.lua'])
     with tempfile.TemporaryDirectory(prefix='dejunk-wotlk-check-') as directory:

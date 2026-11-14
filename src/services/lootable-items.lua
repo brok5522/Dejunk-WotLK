@@ -1,7 +1,7 @@
 local _, Addon = ...
 
--- Read-only view of legacy bag tuples marked lootable. Opening a stack remains
--- a deliberate action in the player's normal bag UI; this module never uses it.
+-- Projection only: legacy bag tuples marked lootable. The UI delegates a
+-- deliberate row click to the guarded compatibility transaction adapter.
 local LootableItems = {}
 Addon.LootableItems = LootableItems
 

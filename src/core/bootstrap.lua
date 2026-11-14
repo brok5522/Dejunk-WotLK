@@ -321,6 +321,7 @@ function Addon.NewApplication(runtime)
         function() app:OpenConfig() end,
         function() return Addon.Config.GetGlobalOptions(app.store) end)
       app.cache:Start()
+      if app.attachActions then app:attachActions() end
       runtime:RegisterBagTooltips(function(bag,slot) return app:GetSlotDecisions(bag,slot) end)
       runtime:RegisterBagIcons(function(bag,slot)
         local item=app:ProbeSlot(bag,slot)
@@ -372,7 +373,7 @@ function Addon.NewApplication(runtime)
           event == "EQUIPMENT_SETS_CHANGED" or event == "PLAYER_EQUIPMENT_CHANGED" then
         self.cache:Invalidate(event)
       end
-      -- Merchant and error events are evidence only, never action triggers.
+      -- Forward merchant and game error events to stateful controllers.
       self.bus:Emit(event, ...)
     end
   end
@@ -594,7 +595,7 @@ function Addon.NewApplication(runtime)
       runtime:Print("/dejunk or /dejunk options — open settings; /dejunk profiles — open Profiles.")
       runtime:Print("/dejunk sell — start selling; /dejunk destroy — destroy next item.")
       runtime:Print("/dejunk junk — toggle Junk Items; /dejunk loot — toggle Lootable Items.")
-      runtime:Print("Seller, destroyer, repair and loot actions are not connected in this development build.")
+      runtime:Print("Sale, repair, loot and destroy actions use guarded legacy APIs; client acceptance is pending.")
       runtime:Print("Development diagnostics: /djw status | /djw preview sell|destroy | /djw slot <bag> <slot> | /djw report.")
     elseif command == "report" then
       runtime:ShowReport(self.diagnostics:Report(self))
@@ -649,6 +650,89 @@ function Addon.NewApplication(runtime)
     runtime:UpdateJunkFrame(items)
   end
   local atMerchant,junkFrameAutoShown=false,false
+  local merchantSession=0
+  function app:attachActions()
+    if self.actionsAttached then return end
+    self.actionsAttached=true
+    self.transactions=runtime:NewTransactionAdapter(self.adapter,function() return self.store:GetRevision() end)
+    local function readCurrent(item)
+      local current=self.transactions:ReadItem(item.bag,item.slot)
+      if current and current.state=="OCCUPIED" then current.bagGeneration=self.cache.generation end
+      return current
+    end
+    local function sell(item)
+      if not atMerchant then return false,"MERCHANT_UNAVAILABLE" end
+      local current=readCurrent(item)
+      if not current or current.itemId~=item.itemId or current.link~=item.link or current.count~=item.count then return false,"STALE_ITEM" end
+      current.settingsRevision=self.store:GetRevision()
+      local decision=Addon.Rules.Evaluate(current,"SELL",{profile=self.store:GetActiveProfile(),global=self.store:GetState().global})
+      if decision.result~="JUNK" then return false,"NOT_ELIGIBLE" end
+      local ok,reason=self.transactions:AttemptSale({intent=current,sessionId="merchant-"..tostring(merchantSession)})
+      if ok then self.cache:Invalidate("SELL_ATTEMPT") end
+      return ok,reason
+    end
+    local function destroy(item)
+      local function perform()
+        local current=readCurrent(item)
+        if not current or current.itemId~=item.itemId or current.link~=item.link or current.count~=item.count then runtime:Print("Destroy cancelled: item changed."); return false end
+        current.settingsRevision=self.store:GetRevision()
+        local decision=Addon.Rules.Evaluate(current,"DESTROY",{profile=self.store:GetActiveProfile(),global=self.store:GetState().global})
+        if decision.result~="JUNK" then runtime:Print("Destroy cancelled: item is no longer eligible."); return false end
+        local context=self.transactions:ReadContext(nil,current.settingsRevision)
+        if not context.safeContext or context.inCombat or not context.cursorEmpty then runtime:Print("Destroy cancelled: unsafe context."); return false end
+        local ok,reason=self.transactions:AttemptDestroy(current)
+        runtime:Print(ok and "Destroy attempted." or (reason=="CURSOR_MISMATCH_ITEM_LEFT_UNTOUCHED" and
+          "Unexpected cursor item left untouched; move it manually." or "Destroy failed; cursor item left untouched."))
+        return ok,reason
+      end
+      if self.store:GetState().global.safeDestroy~=true then return perform() end
+      local dialogs=runtime.api and runtime.api.StaticPopupDialogs
+      if not dialogs or type(runtime.api.StaticPopup_Show)~="function" then return false,"CONFIRMATION_UNAVAILABLE" end
+      local id="DEJUNK_WOTLK_CONFIRM_DESTROY"
+      local value=type(item.unitVendorPrice)=="number" and item.unitVendorPrice*(item.count or 1) or 0
+      local valueText=tostring(value).." copper"
+      if type(runtime.api.GetCoinTextureString)=="function" then
+        local ok,result=pcall(runtime.api.GetCoinTextureString,value)
+        if ok and type(result)=="string" then valueText=result end
+      end
+      local label=item.link or item.name or ("Item #"..tostring(item.itemId))
+      local reason=item.destroy and item.destroy.reasonCode or "Eligible by current rules"
+      dialogs[id]={text="Destroy "..label.." x"..tostring(item.count or 1).."?\nVendor value: "..valueText.."\nRule: "..tostring(reason).."\nThis cannot be undone.",button1=YES or "Yes",button2=NO or "No",
+        timeout=0,whileDead=1,hideOnEscape=1,showAlert=1,OnAccept=function() perform() end}
+      runtime.api.StaticPopup_Show(id)
+      return true
+    end
+    self.destroyItemAction=destroy
+    runtime:SetItemActionHandlers({sellItem=sell,destroyItem=destroy,
+      startSelling=function()
+        if not atMerchant then return false,"MERCHANT_UNAVAILABLE" end
+        if self.saleTimer then self.saleTimer:Cancel(); self.saleTimer=nil end
+        local attempts,seen=0,{}
+        local function nextSale()
+          self.saleTimer=nil
+          if not atMerchant then return end
+          if (self.store:GetState().global.safeSell and attempts>=12) then runtime:Print("Safe Sell stopped after 12 attempts."); return end
+          local built=self:GetJunkItems(); local target
+          for i=#(built and built.items or {}),1,-1 do local it=built.items[i]; local k=it.bag..":"..it.slot..":"..it.itemId; if not seen[k] then target=it; seen[k]=true; break end end
+          if not target then return end
+          attempts=attempts+1; sell(target)
+          self.saleTimer=self.scheduler:After(self.transactions:Latency(),nextSale)
+        end
+        self.saleTimer=self.scheduler:After(0.1,nextSale); return true
+      end,
+      destroyNext=function()
+        local built=self:GetJunkItems(); local target=built and built.items and built.items[1]
+        return target and destroy(target) or false,"NO_JUNK_ITEMS"
+      end,
+      lootItem=function(item)
+        local current=readCurrent(item)
+        if not current or current.itemId~=item.itemId or current.link~=item.link or current.count~=item.count then return false,"STALE_ITEM" end
+        current.settingsRevision=self.store:GetRevision()
+        local ok,reason=self.transactions:UseLootableItem(current)
+        if ok then self.cache:Invalidate("LOOT_ATTEMPT") end
+        return ok,reason
+      end})
+  end
   local function refreshMerchantButton()
     local global=app.store and app.store:GetState().global or {}
     local junk=app.state=="READY" and app:GetJunkItems() or nil
@@ -677,15 +761,36 @@ function Addon.NewApplication(runtime)
   app.bus:On("StateUpdated",function() updateAutoJunkFrame(app.cache:GetSnapshot()) end)
   app.bus:On("MERCHANT_SHOW",function()
     atMerchant=true
+    merchantSession=merchantSession+1
     updateAutoJunkFrame(app.cache:GetSnapshot())
     refreshMerchantButton()
+    local profile=app.store and app.store:GetActiveProfile() or {}
+    local global=app.store and app.store:GetState().global or {}
+    if app.transactions and profile.autoRepair then
+      app.scheduler:After(0.1,function()
+        local context=app.transactions:ReadRepairContext("merchant-"..merchantSession,app.store:GetRevision())
+        if context.canRepair and context.cost and context.cost>0 and context.money and context.money>=context.cost then
+          local ok=app.transactions:AttemptRepair(context)
+          if ok then runtime:Print("Auto Repair attempted.") end
+        end
+      end)
+    end
+    if profile.autoSell then runtime:RequestItemAction("startSelling") end
   end)
   app.bus:On("MERCHANT_CLOSED",function()
     atMerchant=false
+    if app.saleTimer then app.saleTimer:Cancel(); app.saleTimer=nil end
     local global=app.store and app.store:GetState().global or {}
     if global.autoJunkFrame then runtime:HideJunkFrame() end
     junkFrameAutoShown=false
     refreshMerchantButton()
+  end)
+  app.bus:On("UI_ERROR_MESSAGE",function(message)
+    local vendorRefusal=runtime.api and runtime.api.ERR_VENDOR_DOESNT_BUY
+    if vendorRefusal and message==vendorRefusal and app.saleTimer then
+      app.saleTimer:Cancel(); app.saleTimer=nil
+      runtime:Print("Selling stopped: the merchant cannot buy this item.")
+    end
   end)
   local function refreshLootableFrame(snapshot)
     if app.state~="READY" then return end

@@ -1,14 +1,15 @@
 ## Interface: 30300
 ## Title: Dejunk-WotLK (Compatibility Port - Development)
 ## SavedVariables: DejunkWotLKDB
-## Notes: Development port for original 3.3.5a. UI parity and live actions are incomplete.
+## Notes: Development compatibility port for original 3.3.5a. Live actions require in-client acceptance testing.
 ## Author: Dejunk-WotLK contributors
-## Version: 0.16.45-dev
+## Version: 0.16.46-dev
 
 src\namespace.lua
 libs\Waffle.lua
 src\compat\client.lua
 src\compat\legacy.lua
+src\compat\transactions.lua
 src\compat\runtime.lua
 src\core\events.lua
 src\core\scheduler.lua

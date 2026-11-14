@@ -10,16 +10,16 @@ behavior. No row marked partial or missing should be read as complete parity.
 ## Status summary
 
 - **Offline foundation present:** client/build gate, conservative legacy reads,
-  schema-backed profiles/lists/options, rule evaluation, read-only previews,
-  and isolated seller/repair/destroy simulation kernels.
+  schema-backed profiles/lists/options, rule evaluation, previews, and
+  transaction safety fixtures for the isolated legacy API adapter.
 - **UI partially ported:** the Waffle-hosted shell now includes all five main
   pages, saved profile/options controls, list transport, keybindings and
   read-only item windows. Several controls still use native port-built widgets;
   visual/input parity is not accepted until current-build client review.
-- **Missing from the usable addon:** actual merchant/item actions and exact
-  upstream command behavior. The merchant-frame button now has a safe display,
-  drag/reset positioning and Junk-frame shortcut, but selling/destroying remain
-  disconnected. The read-only public API and
+- **Connected, awaiting original-client acceptance:** manual/automatic sale,
+  repair, deliberate loot opening and confirmed one-stack destroy now dispatch
+  through guarded API calls. The merchant-frame button now has a safe display,
+  drag/reset positioning and Junk-frame shortcut. The read-only public API and
   AddOns category are implemented. Bag overlays, tooltips, transport and item
   windows have read-only implementations with client verification pending.
 - **Intentionally not applicable on 3.3.5a:** artifact relic handling, warband
@@ -39,14 +39,14 @@ behavior. No row marked partial or missing should be read as complete parity.
 | Four item lists | `src/lists/lists.lua`, `src/lists/list-item-parser.lua` | `src/store/store.lua`, `src/compat/runtime.lua:ShowLists` | **Read-only list UI implemented; exact parity partial.** Four persisted lists, name/ID search, cursor-item addition, right-click removal/transfers, reviewed import and export transport exist. The screen uses the upstream 2×2 global/profile include/exclude panels, colored headings, quality-tinted item rows and per-panel transport icons. Async parser progress, exact item selection/tooltip flow and target-client verification remain. |
 | Profile lifecycle | `src/ui/screens/main-window/options/profiles.lua`, `src/ui/components/profile-card.lua` | `src/compat/runtime.lua:ShowProfiles`, `src/store/store.lua` | **Core actions implemented; UI partial.** Activate/create/duplicate/rename/reset/delete target individual profiles; default protection and confirmation exist. Text action buttons and custom modal differ from upstream icon buttons/tooltips; current layout/input still need client acceptance. |
 | Main window navigation and overview | `src/ui/screens/main-window/main-window.lua` | `src/compat/runtime.lua:ShowConfig` | **Main shell implemented; overview partial.** All five sibling destinations work in UI fixtures; `/dejunk` toggles it, drag position persists, and the footer shows profile/junk/loot counts. The overview still contains port-only read-only preview controls and does not match all upstream content. Current client rendering/input remains unverified. |
-| Keybindings | `src/input/keybindings.lua`, `src/ui/components/keybinding-card.lua` | `src/compat/runtime.lua`, `src/store/store.lua`, `src/core/bootstrap.lua` | **Implemented offline; client unverified.** Sidebar page has nine upstream actions, key/mouse-wheel capture, Escape cancel, right-click clear, modifier chords, addon-key conflict resolution, game-binding conflict notice, SavedVariables persistence and owner-scoped `SetOverrideBindingClick`. List actions use the item currently shown by `GameTooltip`, matching upstream; cursor contents are left alone. Overrides refresh out of combat; capture stops on combat entry/page hide. Seller/destroy bindings dispatch through injectable handlers, none registered by the live app. Original-client input focus, event behavior and layout still need verification. |
-| Slash commands | `src/input/commands.lua` | `src/compat/runtime.lua:RegisterCommands`, `src/core/bootstrap.lua:app:Command` | **Partial.** `/dejunk` toggles the main window; `profiles` opens Profiles; `junk`/`loot` open read-only lists; `help` lists a safety-specific subset. `sell`/`destroy` remain disconnected. `/djw` exposes additional development commands; exact upstream argument/error semantics and seller/destroyer behavior remain. |
-| Seller and safe sell | `src/services/seller.lua` | `src/services/seller.lua` (simulation only) | **Simulation only.** Attempt validation, stale-slot/session checks, observation and 12-item Safe Sell fixture exist. No live `UseContainerItem`, merchant open/close session, sale outcome UI/messages, auto-sell or seller controller. This is blocked from live wiring until code review and separate owner authorization under `AGENTS.md`. |
-| Repair | Merchant handler in upstream service/event modules; `CanMerchantRepair`, `GetRepairAllCost`, `GetMoney`, `RepairAllItems` | `src/services/repair.lua` (simulation only) | **Simulation only.** Funds/cost/session checks are tested, but no merchant subscription/UI, automatic repair or live repair call. Same separate review/authorization gate applies. |
-| Destroy, confirmer and Safe Destroy | `src/services/destroyer.lua`, `src/services/confirmer.lua` | `src/services/destroyer.lua` (simulation only) | **Simulation only.** One-stack intent, confirmation token, expiry and stale-state mock checks exist. No junk-frame button or live `PickupContainerItem`/`DeleteCursorItem` path. The live action must revalidate exact slot/link/count/cursor immediately before deletion; separate owner review/authorization is required. |
-| Junk frame | `src/ui/screens/junk-frame.lua` | `runtime:ToggleJunkFrame`, `runtime:UpdateJunkFrame` | **Read-only display partial.** `/dejunk junk` shows upstream-sized item cards, candidate counts, stack vendor value, settings shortcut and per-row coin/exclude/trash icons. Exclude adds the item to profile exclusions (Shift selects global); coin/trash and bottom controls now dispatch through an injectable action-handler interface, with eligibility and tooltips, but the application registers no live seller/destroyer handler. Bag invalidation clears stale rows and positions persist. Transaction status and live actions remain absent. |
-| Lootable frame | `src/ui/screens/lootable-frame.lua` | `src/services/lootable-items.lua`, `runtime:ShowLootableFrame` | **Read-only display partial.** `/dejunk loot` lists positively marked lootable stacks with upstream-sized item cards; saved auto-open option shows/hides the window. Ignore hides every stack with that item ID for the current session. Drag position persists. Clicking a stack to loot remains disconnected because legacy `UseContainerItem` can consume/equip. |
-| Merchant button and merchant behavior | `src/ui/screens/merchant-button.lua` plus upstream service listeners | `runtime:UpdateMerchantButton`, merchant events in bootstrap | **Partial.** Saved option shows/hides a button on `MerchantFrame`; it displays junk count, persists drag position, supports Shift-right-click reset, and right-click opens the Junk frame. Left-click selling and Alt-right-click destroy dispatch only if injected handlers exist; the application currently registers none. Merchant-frame rendering/input still requires 3.3.5a client verification. |
+| Keybindings | `src/input/keybindings.lua`, `src/ui/components/keybinding-card.lua` | `src/compat/runtime.lua`, `src/store/store.lua`, `src/core/bootstrap.lua` | **Implemented offline; client unverified.** Sidebar page has nine upstream actions, key/mouse-wheel capture, Escape cancel, right-click clear, modifier chords, addon-key conflict resolution, game-binding conflict notice, SavedVariables persistence and owner-scoped `SetOverrideBindingClick`. List actions use the item currently shown by `GameTooltip`, matching upstream; cursor contents are left alone. Overrides refresh out of combat; capture stops on combat entry/page hide. Seller/destroy handlers are registered; original-client input focus, event behavior and layout still need verification. |
+| Slash commands | `src/input/commands.lua` | `src/compat/runtime.lua:RegisterCommands`, `src/core/bootstrap.lua:app:Command` | **Partial.** `/dejunk` toggles the main window; `profiles` opens Profiles; `junk`/`loot` open item lists; `sell`/`destroy` dispatch actions. `/djw` exposes additional development commands; exact upstream argument/error semantics remain. |
+| Seller and safe sell | `src/services/seller.lua` | `src/core/bootstrap.lua`, `src/compat/transactions.lua` | **Connected, parity partial.** Single-stack and sequential merchant sales re-read slot/rules and require empty cursor, valid merchant, safe context and unchanged settings. Safe Sell limits one run to 12 attempts. Outcome observation, upstream cancellation/message parity and original-client acceptance remain open. |
+| Repair | Merchant handler in upstream service/event modules; `CanMerchantRepair`, `GetRepairAllCost`, `GetMoney`, `RepairAllItems` | `src/core/bootstrap.lua`, `src/compat/transactions.lua` | **Connected, parity partial.** Auto Repair stays opt-in and checks merchant, funds, current cost, cursor and safety immediately before repair. Original-client acceptance and upstream chat/session parity remain open. |
+| Destroy, confirmer and Safe Destroy | `src/services/destroyer.lua`, `src/services/confirmer.lua` | `src/core/bootstrap.lua`, `src/compat/transactions.lua` | **Connected, acceptance pending.** Explicit destroy opens confirmation, revalidates current eligibility/settings/slot and verifies cursor type/item ID plus emptied source slot. It never clears a cursor and never auto-destroys. Deletion is not exercised in development. WotLK cursor API exposes only type and item ID, not full link/count after pickup. |
+| Junk frame | `src/ui/screens/junk-frame.lua` | `runtime:ToggleJunkFrame`, `runtime:UpdateJunkFrame` | **Functional core, parity partial.** `/dejunk junk` shows item cards, counts, stack vendor value, settings shortcut and per-row coin/exclude/trash icons. Exclude updates lists; item and bottom controls dispatch to live handlers with eligibility checks. Progress/status and chat parity remain open. |
+| Lootable frame | `src/ui/screens/lootable-frame.lua` | `src/services/lootable-items.lua`, `runtime:ShowLootableFrame` | **Functional core, parity partial.** Positively marked lootable stacks are listed; row click opens the item and eye-slash ignores its ID for the session. Saved auto-open and drag position work. Original-client acceptance remains pending. |
+| Merchant button and merchant behavior | `src/ui/screens/merchant-button.lua` plus upstream service listeners | `runtime:UpdateMerchantButton`, merchant events in bootstrap | **Partial.** Saved option shows/hides a button on `MerchantFrame`; it displays junk count, persists drag position, supports Shift-right-click reset, right-click opens Junk, left-click sells, and Alt-right-click requests confirmed destroy. Client behavior and exact upstream controls remain unverified. |
 | Minimap icon | `src/ui/minimap-icon.lua` | `runtime:UpdateMinimapIcon`, `src/store/store.lua` | **Implemented offline, client unverified.** Native WotLK minimap button opens the configuration, right-click toggles visibility, drag stores a validated angle and the global setting controls visibility. Uses a built-in icon; client anchoring and drag feel still need review. Retail addon-compartment behavior is N/A. |
 | Bag item icons and tooltips | `src/ui/item-icons.lua`, `src/ui/item-tooltip.lua`, `src/ui/tooltip.lua` | `runtime:RegisterBagTooltips`, `runtime:RegisterBagIcons`, `runtime:RefreshBagIcons` | **Partial.** Default `GameTooltip:SetBagItem` adds SELL/DESTROY reasons using fresh legacy slot reads. Read-only icon overlays support stock visible ContainerFrames and SMALL/LARGE style, and clear stale overlays on bag/item updates. Tooltip localization and third-party bag adapters remain missing. |
 | Transport/import/export window | `src/ui/screens/transport-frame.lua`, `src/lists/list-item-parser.lua` | `runtime:ShowListImport` in import/export modes | **Partial.** Export opens the shared transport window, fills comma-separated IDs and provides Select all for copying; import validates a preview before committing. List routing follows the selected list. Window drag position now persists; upstream parser progress, exact layout and messaging remain different. |
@@ -66,13 +66,13 @@ game integration works.
 
 | Upstream setting | Store/UI state | Runtime behavior |
 |---|---|---|
-| Safe Destroy (default on) | Persisted and rendered | No live destruction path; not enforced against a game action. |
-| Safe Sell (default off, 12-item session cap) | Persisted and rendered | Cap exists in simulation tests only; live seller is absent. |
-| Merchant Button and saved position | Setting persisted/rendered | Button appears during merchant sessions, updates candidate count, saves drag position and resets with Shift-right-click. Selling/destroy shortcuts remain disconnected. |
+| Safe Destroy (default on) | Persisted and rendered | Destroy action always requires confirmation; option parity still needs review. |
+| Safe Sell (default off, 12-item session cap) | Persisted and rendered | A sale run stops after 12 attempts when enabled. |
+| Merchant Button and saved position | Setting persisted/rendered | Button appears during merchant sessions, updates candidate count, saves drag position and resets with Shift-right-click. Selling and confirmed destroy are wired; client parity remains unverified. |
 | Minimap Icon | Setting persisted/rendered | Minimap icon is connected: click opens settings, right-click hides/shows it, dragging saves its angle. Target-client behavior still needs verification. |
-| Auto Junk Frame | Setting persisted/rendered | Automatically shows the read-only Junk window when a merchant opens and candidates exist; hides it at merchant close or when an auto-shown list becomes empty. No sale action is triggered. |
-| Auto Lootable Frame | Setting persisted/rendered | Automatically shows/hides the read-only lootable list on bag updates; opening items is manual. |
-| Chat Messages (enabled, Reduced/Verbose) | Values persisted/rendered | No sale/repair/destroy/loot message integration. |
+| Auto Junk Frame | Setting persisted/rendered | Automatically shows the Junk window when a merchant opens and candidates exist; hides it at merchant close or when an auto-shown list becomes empty. |
+| Auto Lootable Frame | Setting persisted/rendered | Automatically shows/hides the lootable list on bag updates; row click opens items. |
+| Chat Messages (enabled, Reduced/Verbose) | Values persisted/rendered | Transaction messages are minimal and not yet matched to upstream verbosity. |
 | Bag Item Tooltips | Setting persisted/rendered | Legacy `GameTooltip:SetBagItem` hook adds live SELL/DESTROY status and evaluator reason lines when enabled. Client layout/localization remains unverified. |
 | Bag Item Icons and Small/Large size | Values persisted/rendered | Read-only overlays are connected to visible stock ContainerFrames; SMALL/LARGE sizes are applied. Third-party bag adapters and client rendering remain unverified. |
 
@@ -80,8 +80,8 @@ game integration works.
 
 | Upstream setting | Store/UI state | Runtime behavior |
 |---|---|---|
-| Auto Repair (default off) | Persisted/rendered | No merchant repair integration. |
-| Auto Sell (default off) | Persisted/rendered | No merchant seller integration. |
+| Auto Repair (default off) | Persisted/rendered | Merchant handler checks cost/funds and invokes guarded repair once on open. |
+| Auto Sell (default off) | Persisted/rendered | Merchant handler starts a sequential guarded sale run. |
 | Include by Quality (Poor on by default; per quality and action scope) | Persisted/rendered | Used by read-only evaluator/previews only. |
 | Include below item level (per quality/action scope) | Persisted/rendered | Used by evaluator/previews only. |
 | Include below stack vendor price (copper/silver/gold; per quality/action scope) | Persisted/rendered | Used by evaluator/previews only. |
@@ -103,14 +103,14 @@ warband and artifact-relic settings do not belong in the 3.3.5a port.
 |---|---|---|
 | `/dejunk` or `/dejunk options` | Toggle the main window | Toggles the main settings window. |
 | `/dejunk profiles` | Open main window on Profiles | Opens the main window on Profiles; the separate `/djw profiles` command retains development list behavior. |
-| `/dejunk junk` | Toggle junk-items frame | Toggles the read-only candidate display; no sales or destruction controls. |
-| `/dejunk loot` | Toggle lootable-items frame | Toggles the read-only lootable list, with no item-opening action. |
-| `/dejunk sell` | Start manual seller | Routes through an injected action handler; the live app registers none, so it remains disabled safely. |
-| `/dejunk destroy` | Request one destroy action | Routes through an injected action handler; the live app registers none, so it remains disabled safely. |
+| `/dejunk junk` | Toggle junk-items frame | Toggles candidate display with sale and destroy controls. |
+| `/dejunk loot` | Toggle lootable-items frame | Toggles lootable list; clicking a row requests a guarded item open. |
+| `/dejunk sell` | Start manual seller | Starts a sequential sale run at a merchant. |
+| `/dejunk destroy` | Request one destroy action | Requests confirmation for one eligible item. |
 | `/dejunk help` | List upstream commands | Lists upstream command names and notes which live actions remain unavailable; unknown suffix falls back to help. |
 | Main window: Lists, Profiles, Global Options, Profile Options, Keybindings | Switch sibling content screens | All five navigation destinations exist as sibling pages; Keybindings has offline capture/override support. Exact upstream card styling and target-client behavior remain unverified. |
 | Transport frame | Import/export list text using upstream flow | Shared import/export window exists with persistent drag position; actions/copy are close but layout, parser progress and messages differ. |
-| Junk frame / Lootable frame | Show item cards, counts, controls and progress | Read-only scrollable item cards and saved positions exist; item actions and seller/loot progress/status remain absent. |
+| Junk frame / Lootable frame | Show item cards, counts, controls and progress | Scrollable item cards and saved positions exist; progress/status treatment still differs from upstream. |
 
 ## Review notes
 
@@ -121,14 +121,14 @@ recorded in `docs/research/UPSTREAM.md`; API-level compatibility risks are in
 `docs/research/COMPATIBILITY.md`. The code must still be inspected against the
 source before each parity row is moved to complete.
 
-## Upstream functions intentionally not connected
+## Transaction parity and remaining evidence
 
-The source contains simulation-only seller, repair and destroyer modules, but
-`src/core/bootstrap.lua` does not construct them or connect inventory mutation
-globals. This is intentional under the project's permanent instruction: the
-owner must review transaction code and separately authorize a real-client
-operation test before those services can be connected. It is not a missing
-offline test; it is a distinct review/authorization gate.
+The application now registers sale, repair, loot and confirmed destroy
+handlers. The only code that resolves mutation APIs is
+`src/compat/transactions.lua`; the handlers re-read the slot and eligibility
+before acting. Offline tests use fake APIs. The original 3.3.5a client was not
+available for live acceptance, so behavior and UI remain unverified there.
+Never run actual deletion in development verification.
 
 ## Completion gates
 
@@ -138,9 +138,9 @@ offline test; it is a distinct review/authorization gate.
 2. Close source/API compatibility gaps with immutable 3.3.5 evidence and offline
    tests; do one consolidated non-destructive client check only where rendering
    or input cannot be established offline.
-3. Review the seller/repair/destroyer code against the exact legacy APIs and
-   safety invariants. Only after owner review and separate authorization may
-   they be wired and exercised in-client; never use valuable items.
+3. Review seller/repair/loot/destroy parity against the pinned upstream source
+   and exact legacy APIs. Exercise only harmless sale/repair/loot behavior in
+   client acceptance; never use real deletion during development.
 4. Re-run migrations/recovery, complete a parity-by-parity client acceptance
    pass, audit licenses, and package a release candidate. The current ZIPs are
    development builds, not a finished addon.

@@ -5,7 +5,7 @@ Addon.Runtime = Runtime
 -- All interaction with WoW globals, frames and commands stays in this module.
 function Runtime.New(environment)
   local api = environment or _G
-  local runtime = { registration = {}, itemActionHandlers = {} }
+  local runtime = { registration = {}, itemActionHandlers = {}, api = api }
   local junkDataSource
   local function addonAssetPath(file)
     -- WoW's texture resolver expects the same extensionless asset path used by
@@ -67,9 +67,23 @@ function Runtime.New(environment)
     refresh(false)
     return button
   end
-  local function createReadOnlyItemCard(parent,width,height,y,actions)
+  local function createReadOnlyItemCard(parent,width,height,y,actions,onClick)
     local card=api.CreateFrame("Frame",nil,parent)
     card:SetWidth(width); card:SetHeight(height); card:SetPoint("TOPLEFT",10,-y)
+    if type(onClick)=="function" then
+      if type(card.EnableMouse)=="function" then card:EnableMouse(true) end
+      card:SetScript("OnMouseUp",function(_,button) if button=="LeftButton" and card.item then onClick(card.item) end end)
+      card:SetScript("OnEnter",function(self)
+        local tooltip=api.GameTooltip
+        if tooltip and type(tooltip.SetOwner)=="function" then
+          tooltip:SetOwner(self,"ANCHOR_RIGHT")
+          if card.item and type(tooltip.SetBagItem)=="function" then tooltip:SetBagItem(card.item.bag,card.item.slot)
+          else tooltip:SetText(card.item and card.item.name or "Lootable item") end
+          tooltip:AddLine("Left click to loot",1,0.82,0)
+        end
+      end)
+      card:SetScript("OnLeave",function() if api.GameTooltip and type(api.GameTooltip.Hide)=="function" then api.GameTooltip:Hide() end end)
+    end
     card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); card:SetBackdropColor(1,1,1,0.035)
     local accent=card:CreateTexture(nil,"ARTWORK")
     accent:SetTexture("Interface\\Buttons\\WHITE8x8"); accent:SetWidth(3); accent:SetPoint("TOPLEFT"); accent:SetPoint("BOTTOMLEFT")
@@ -242,6 +256,9 @@ function Runtime.New(environment)
     end
     return Addon.Legacy.New(reads)
   end
+  function runtime:NewTransactionAdapter(readAdapter,getSettingsRevision)
+    return Addon.Transactions.New(api,readAdapter,getSettingsRevision)
+  end
   function runtime:RegisterCommands(callback)
     api.SlashCmdList = api.SlashCmdList or {}
     api.SLASH_DEJUNKWOTLK1 = "/dejunkwotlk"
@@ -290,7 +307,7 @@ function Runtime.New(environment)
   end
   function runtime:SetItemActionHandlers(handlers)
     local accepted={}
-    for _,name in ipairs({"sellItem","destroyItem","startSelling","destroyNext"}) do
+    for _,name in ipairs({"sellItem","destroyItem","startSelling","destroyNext","lootItem"}) do
       if type(handlers)=="table" and type(handlers[name])=="function" then accepted[name]=handlers[name] end
     end
     self.itemActionHandlers=accepted
@@ -301,7 +318,7 @@ function Runtime.New(environment)
     local handler=self.itemActionHandlers and self.itemActionHandlers[name]
     if type(handler)~="function" then
       self:Print((name=="sellItem" or name=="startSelling") and
-        "Selling is unavailable in this development build." or "Destroy action is unavailable in this development build.")
+        "Selling is unavailable." or "Item action is unavailable.")
       return false,"ACTION_UNAVAILABLE"
     end
     local ok,result,reason=pcall(handler,item)
@@ -2918,7 +2935,9 @@ function Runtime.New(environment)
           runtime:Print("Ignored this item type for the current session.")
           runtime:UpdateLootableFrame(lootableSourceData)
         end}}
-        card=createReadOnlyItemCard(lootableRowsContent,210,34,(index-1)*40+4,actions)
+        card=createReadOnlyItemCard(lootableRowsContent,210,34,(index-1)*40+4,actions,function(target)
+          runtime:RequestItemAction("lootItem",target)
+        end)
         lootableRows[index]=card
       end
       card.item=item
@@ -2930,7 +2949,7 @@ function Runtime.New(environment)
           card.accent:SetVertexColor(r,g,b,1)
         end
       end
-      card.detail:SetText("Bag "..tostring(item.bag).." / Slot "..tostring(item.slot))
+      card.detail:SetText("Bag "..tostring(item.bag).." / Slot "..tostring(item.slot).."  •  Click to loot")
       card:Show()
     end
     lootableRowsContent:SetHeight(math.max(32,#visibleItems*40))

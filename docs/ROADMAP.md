@@ -6,13 +6,12 @@ build 12340, Interface 30300 and Lua 5.1. The target is upstream behavior and UI
 parity, with legacy API substitutions only. New settings, generalized rule
 languages, alternate screen flows and other redesigns are out of scope.
 
-The current branch is **not release-ready**. It has a read-only compatibility
-foundation, storage/evaluation scaffolding and user-observed previews. The five
-main navigation pages now exist, including offline keybinding capture and
-override support, but they still need original-client acceptance and several
-upstream integrations remain absent. The Waffle engine alone does not
-constitute the original UI port. Live transaction calls remain behind the
-review/authorization gate in `AGENTS.md`.
+The current branch is **not release-ready**. It has a compatibility foundation,
+storage/evaluation, port-built settings/list screens and user-observed previews.
+Seller, repair, loot and confirmed destroy now route through an isolated legacy
+transaction adapter, with mocked safety coverage. The original client is not
+available in this environment, so live acceptance and visual parity remain
+unverified; the Waffle engine alone does not constitute the original UI port.
 
 The detailed source comparison is maintained in [PARITY.md](PARITY.md). That
 matrix is the current acceptance checklist; do not treat a saved option or a
@@ -24,8 +23,8 @@ passing simulation as an implemented in-game integration.
 | 1 — Legacy compatibility | Original API tuples, build guard, events, scheduler and item data | Tests against build 12340 FrameXML behavior; UNKNOWN for unproven data |
 | 2 — Upstream behavior model | Match upstream store, profiles, options, lists, defaults and filter precedence | Fixtures match upstream cases; saved settings migrate without loss |
 | 3 — Item presentation | Original tooltips, bag icons, item categories and list interactions | Original 3.3.5a UI evidence for each adapted API |
-| 4 — Seller and repair | Port upstream manual/automatic selling, Safe Sell, merchant button, messages, cancellation and repair | Mock parity tests; separate review and authorization before live-action testing |
-| 5 — Destroy and loot | Port upstream one-item destroy, confirmation, junk frame and lootable frame | Mock parity tests and 3.3.5a UI review; no unintended cursor or item use |
+| 4 — Seller and repair | Port upstream manual/automatic selling, Safe Sell, merchant button, messages, cancellation and repair | Mock parity tests plus harmless live sale/repair acceptance |
+| 5 — Destroy and loot | Port upstream one-item destroy, confirmation, junk frame and lootable frame | Mock parity tests and 3.3.5a UI review; destructive calls are never used for development verification |
 | 6 — Original UI and input | Adapt upstream main window, profile/global options, lists, profiles, keybindings, minimap and merchant controls | Upstream screens/interactions preserved; client screenshots and command checks |
 | 7 — Release candidate | Regression, saved-variable recovery, package, licenses and install guide | Original-client parity evidence and owner approval before public release |
 
