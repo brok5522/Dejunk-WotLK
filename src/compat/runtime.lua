@@ -7,7 +7,9 @@ function Runtime.New(environment)
   local api = environment or _G
   local runtime = { registration = {} }
   local function addonAssetPath(file)
-    return "Interface\\AddOns\\"..tostring(Addon.name or "Dejunk-WotLK").."\\assets\\"..file..".tga"
+    -- WoW's texture resolver expects the same extensionless asset path used by
+    -- the original addon, even though the packaged source files are TGA.
+    return "Interface\\AddOns\\"..tostring(Addon.name or "Dejunk-WotLK").."\\assets\\"..file
   end
   local theme={backdrop={18/255,18/255,18/255},blue={79/255,175/255,227/255},grey={157/255,157/255,157/255},white={1,1,1},dark={30/255,30/255,30/255},gold={1,209/255,0},black={0,0,0},red={227/255,79/255,79/255},green={79/255,227/255,79/255},quality={{157/255,157/255,157/255},{1,1,1},{30/255,1,0},{0,112/255,221/255},{163/255,53/255,238/255}}}
   local function setTextColor(region,color)

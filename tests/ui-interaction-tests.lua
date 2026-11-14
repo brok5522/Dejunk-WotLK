@@ -273,9 +273,9 @@ for _,frame in ipairs(uiFrames) do
 end
 assert(junkIcon and qualityAccent,"Junk card omitted item icon or quality accent")
 local expectedActionIcons={
-  ["Interface\\AddOns\\Dejunk-WotLK\\assets\\coins-icon.tga"]=false,
-  ["Interface\\AddOns\\Dejunk-WotLK\\assets\\ban-icon.tga"]=true,
-  ["Interface\\AddOns\\Dejunk-WotLK\\assets\\trash-icon.tga"]=false
+  ["Interface\\AddOns\\Dejunk-WotLK\\assets\\coins-icon"]=false,
+  ["Interface\\AddOns\\Dejunk-WotLK\\assets\\ban-icon"]=true,
+  ["Interface\\AddOns\\Dejunk-WotLK\\assets\\trash-icon"]=false
 }
 for texture,expectedEnabled in pairs(expectedActionIcons) do
   local found=false
@@ -305,7 +305,7 @@ assert(lootableWindow and lootableWindow.shown and runtime:IsLootableFrameVisibl
 assert(lootableWindow.width==250 and lootableWindow.height==250,"Lootable frame does not use the upstream dimensions")
 local ignoreIcon
 for _,frame in ipairs(uiFrames) do
-  if frame.kind=="Texture" and frame.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\eye-slash-icon.tga" then ignoreIcon=frame end
+  if frame.kind=="Texture" and frame.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\eye-slash-icon" then ignoreIcon=frame end
 end
 assert(ignoreIcon and ignoreIcon.parent.parent.enabled==true,"Lootable row ignore control is missing")
 ignoreIcon.parent.scripts.OnClick(ignoreIcon.parent)
@@ -449,7 +449,7 @@ for _,frame in ipairs(uiFrames) do
     for _,child in ipairs(frame.transportButton.children or {}) do
       if child.kind=="Texture" then transportIcon=child; break end
     end
-    assert(transportIcon and transportIcon.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\transport-icon.tga" and
+    assert(transportIcon and transportIcon.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\transport-icon" and
       transportIcon.width==14 and transportIcon.height==14 and transportIcon.layer=="OVERLAY" and transportIcon.shown==true,
       "list transport control is missing the upstream-sized visible export/import icon")
     assert(frame.scrollFrame and frame.scrollFrame.template==nil and frame.scrollTrack,
