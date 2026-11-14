@@ -1,0 +1,74 @@
+[
+  {
+    "branch": "downloads/dejunk-wotlk-layout-test-v11-2026-11-13",
+    "sha": "4dc01f427d52295057cd8d9e19244ad5ea8ebab2"
+  },
+  {
+    "branch": "downloads/dejunk-wotlk-list-drop-v7-2026-11-13",
+    "sha": "f6aa7c3d583d18289d2fbe90dd36879f6038b2b9"
+  },
+  {
+    "branch": "downloads/dejunk-wotlk-lists-main-window-2026-11-13",
+    "sha": "ad6b8886fca0f4acbf6c9cb4ac8a43e7bee6e41f"
+  },
+  {
+    "branch": "downloads/dejunk-wotlk-lists-main-window-v2-2026-11-13",
+    "sha": "fca841a5033774741e5f4d80a4b68307fa4a68a7"
+  },
+  {
+    "branch": "downloads/dejunk-wotlk-main-window-v3-2026-11-13",
+    "sha": "01996dad596a74cd7580156f41a382c919ee8d1f"
+  },
+  {
+    "branch": "downloads/dejunk-wotlk-main-window-v4-2026-11-13",
+    "sha": "5fdff01f42c10f62e9aa0264157245a7b5652fcb"
+  },
+  {
+    "branch": "downloads/dejunk-wotlk-main-window-v5-2026-11-13",
+    "sha": "04898bbcbcc40c906b5e70a1b13b656fbb1581b2"
+  },
+  {
+    "branch": "downloads/dejunk-wotlk-options-v8-2026-11-13",
+    "sha": "cf4e4cc3990fbcc7db0fafbf2255f509f446dc71"
+  },
+  {
+    "branch": "downloads/dejunk-wotlk-options-v9-2026-11-13",
+    "sha": "a406532e6ae7e6c75adcd94ac400f7cf4334f20e"
+  },
+  {
+    "branch": "downloads/dejunk-wotlk-profile-options-v12-2026-11-13",
+    "sha": "d378987557d785c9225fa73d0ccd863f5cf7ff69"
+  },
+  {
+    "branch": "downloads/dejunk-wotlk-profile-options-v13-2026-11-13",
+    "sha": "86fcd84cbc22093d7c33e82a329de8b52779c89d"
+  },
+  {
+    "branch": "downloads/dejunk-wotlk-profile-options-v14-2026-11-13",
+    "sha": "87bb59bbf55665054f878b91d8adcfb45b81de03"
+  },
+  {
+    "branch": "downloads/dejunk-wotlk-test-v10-2026-11-13",
+    "sha": "d1dcf391dd5271792d67b954f6779b0b00daef78"
+  },
+  {
+    "branch": "downloads/dejunk-wotlk-upstream-navigation-v6-2026-11-13",
+    "sha": "db32a27525398d362d35eaea37fc3d6529b35fdc"
+  },
+  {
+    "branch": "fixes/dejunk-wotlk-options-page-switch-2026-11-13",
+    "sha": "caf97fc44627a710ac11676bafaaaafb839f2206"
+  },
+  {
+    "branch": "test/0.16.54-dev",
+    "sha": "2bae6c101df156cdcba3f914f047a1b79c044425"
+  },
+  {
+    "branch": "test/0.16.55-dev",
+    "sha": "3198b6a44b684905f7116a0391876914df382950"
+  },
+  {
+    "branch": "test/0.16.59-dev",
+    "sha": "cee291daa37f99f00e3518d8b527ce4199ba94d7"
+  }
+]

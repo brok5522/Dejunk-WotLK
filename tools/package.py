@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""Build a reproducible development addon ZIP; does not publish or install it."""
+import argparse
+from pathlib import Path
+import zipfile
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def build(destination):
+    toc = ROOT / 'Dejunk-WotLK.toc'
+    version = next((line.split(':', 1)[1].strip() for line in toc.read_text().splitlines() if line.startswith('## Version:')), 'development')
+    paths = [toc, ROOT / 'LICENSE', ROOT / 'README.md', ROOT / 'README.fa.md',
+             ROOT / 'THIRD_PARTY_NOTICES.md']
+    for line in toc.read_text().splitlines():
+        if line.strip() and not line.lstrip().startswith('#'):
+            path = (ROOT / line.strip().replace('\\', '/')).resolve()
+            if not path.is_relative_to(ROOT) or not path.is_file() or path.suffix != '.lua':
+                raise ValueError(f'Invalid TOC file: {line}')
+            paths.append(path)
+    asset_paths = sorted((ROOT / 'assets').glob('*'))
+    for path in asset_paths:
+        if path.is_file():
+            paths.append(path)
+    entries = {path.relative_to(ROOT).as_posix(): path.read_bytes() for path in paths}
+    entries['libs/Waffle-LICENSE.txt'] = (ROOT / 'libs/Waffle-LICENSE.txt').read_bytes()
+    entries['README.txt'] = (
+        f'Dejunk-WotLK {version} - ORIGINAL WOTLK COMMUNITY BETA\n'
+        'Original WoW 3.3.5a / build 12340 / Interface 30300 only.\n'
+        'Main UI/merchant checks have owner reports; full client parity is not yet accepted.\n'
+        'Extract so Interface/AddOns/Dejunk-WotLK/Dejunk-WotLK.toc exists.\n'
+        '/djw status | /djw profiles list|create|switch | /djw lists | /djw preview sell|destroy | /djw report\n'
+        'The slot command reads only the chosen bag slot. The report can be copied.\n'
+        'Merchant sell, auto repair, loot and confirmed destroy actions use a guarded legacy API adapter.\n'
+        'Original-client acceptance testing is pending; never test deletion with valuable inventory.\n'
+        'Disable in the AddOns menu or remove only this addon folder to uninstall.\n'
+        'Code is independently written; upstream design reference: moody/Dejunk\n'
+        'commit 04bafd5e411441ef5b51bb8ed10d208f2d7758f5 (MIT).\n'
+        'Waffle is bundled under MIT. Cash/Lorc and Font Awesome artwork uses CC BY 3.0/4.0.\n'
+        'See THIRD_PARTY_NOTICES.md, assets/LICENSE.txt and libs/Waffle-LICENSE.txt.\n'
+        'No Blizzard FrameXML or game client is bundled.\n'
+    ).encode('utf-8')
+    destination = destination.resolve()
+    if destination.exists():
+        raise ValueError(f'Refusing to overwrite existing output: {destination}')
+    if destination.suffix.lower() != '.zip' or destination.is_relative_to(ROOT / 'src'):
+        raise ValueError('Choose a .zip output outside src')
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(destination, 'x', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+        for name, data in sorted(entries.items()):
+            entry = zipfile.ZipInfo('Dejunk-WotLK/' + name, date_time=(2026, 1, 1, 0, 0, 0))
+            entry.create_system = 3
+            entry.external_attr = 0o100644 << 16
+            entry.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(entry, data, compresslevel=9)
+    print(f'Built {destination} ({len(entries)} entries); not installed or published')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('output', type=Path)
+    build(parser.parse_args().output)

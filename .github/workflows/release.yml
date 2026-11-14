@@ -1,0 +1,84 @@
+name: Validate and publish addon
+on:
+  push:
+    branches: [main]
+    paths: ['.github/release.json']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dejunk-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Install Lua 5.1
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1
+      - name: Verify source and tests
+        run: |
+          python3 tools/check_phase0.py
+          python3 tools/check.py --lua lua5.1 --luac luac5.1
+          git diff --check
+      - name: Read release metadata
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          meta = json.loads(Path('.github/release.json').read_text())
+          toc = Path('Dejunk-WotLK.toc').read_text()
+          assert f"## Version: {meta['version']}\n" in toc
+          assert meta['tag'] == 'v' + meta['version']
+          with open(os.environ['GITHUB_ENV'], 'a') as out:
+              for key in ('tag', 'version', 'title'):
+                  assert '\n' not in meta[key]
+                  out.write('RELEASE_' + key.upper() + '=' + meta[key] + '\n')
+          PY
+      - name: Build addon and checksum
+        run: |
+          mkdir -p dist
+          python3 tools/package.py "dist/Dejunk-WotLK-${RELEASE_VERSION}.zip"
+          cd dist
+          sha256sum "Dejunk-WotLK-${RELEASE_VERSION}.zip" > SHA256SUMS.txt
+      - name: Publish community beta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            "dist/Dejunk-WotLK-${RELEASE_VERSION}.zip" dist/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "$RELEASE_TITLE" --notes-file docs/RELEASE-0.16.60.md --prerelease
+  cleanup:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Remove superseded download branches after release succeeds
+        run: |
+          python3 - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          for entry in json.loads(Path('.github/legacy-download-branches.json').read_text()):
+              branch, expected = entry['branch'], entry['sha']
+              assert branch.startswith(('downloads/', 'test/')) or branch == 'fixes/dejunk-wotlk-options-page-switch-2026-11-13'
+              ref = 'refs/heads/' + branch
+              found = subprocess.check_output(['git', 'ls-remote', '--heads', 'origin', ref], text=True).strip()
+              if not found:
+                  print('Already absent:', branch)
+                  continue
+              actual = found.split()[0]
+              if actual != expected:
+                  raise SystemExit('Branch changed; retained for review: ' + branch)
+              subprocess.run(['git', 'push', '--force-with-lease=' + ref + ':' + expected,
+                              'origin', ':' + ref], check=True)
+              print('Removed superseded download branch:', branch)
+          PY

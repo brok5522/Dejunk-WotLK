@@ -1,0 +1,10 @@
+# Local research and generated artifacts
+/work/
+/output/
+__pycache__/
+*.py[cod]
+*.zip
+*.log
+# Never commit personal game data
+/WTF/
+/SavedVariables/
