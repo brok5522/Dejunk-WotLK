@@ -67,12 +67,12 @@ game integration works.
 | Safe Destroy (default on) | Persisted and rendered | No live destruction path; not enforced against a game action. |
 | Safe Sell (default off, 12-item session cap) | Persisted and rendered | Cap exists in simulation tests only; live seller is absent. |
 | Merchant Button and saved position | Setting persisted/rendered | No button or drag/reset-position handling. |
-| Minimap Icon | Setting persisted/rendered | No minimap icon. |
+| Minimap Icon | Setting persisted/rendered | Minimap icon is connected: click opens settings, right-click hides/shows it, dragging saves its angle. Target-client behavior still needs verification. |
 | Auto Junk Frame | Setting persisted/rendered | Automatically shows the read-only Junk window when a merchant opens and candidates exist; hides it at merchant close or when an auto-shown list becomes empty. No sale action is triggered. |
 | Auto Lootable Frame | Setting persisted/rendered | Automatically shows/hides the read-only lootable list on bag updates; opening items is manual. |
 | Chat Messages (enabled, Reduced/Verbose) | Values persisted/rendered | No sale/repair/destroy/loot message integration. |
 | Bag Item Tooltips | Setting persisted/rendered | Legacy `GameTooltip:SetBagItem` hook adds live SELL/DESTROY status and evaluator reason lines when enabled. Client layout/localization remains unverified. |
-| Bag Item Icons and Small/Large size | Values persisted/rendered | No bag button overlay or sizing integration. |
+| Bag Item Icons and Small/Large size | Values persisted/rendered | Read-only overlays are connected to visible stock ContainerFrames; SMALL/LARGE sizes are applied. Third-party bag adapters and client rendering remain unverified. |
 
 ### Profile settings
 
