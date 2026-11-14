@@ -45,3 +45,8 @@ ok=tx:DeletePickedUpItem(destroy); eq(ok,true); eq(api.delete,1)
 revision=revision+1
 ok=tx:UseLootableItem(loot); eq(ok,false); eq(api.sale,2)
 print("PASS: transaction adapter fake-API safety and action checks")
+local missing=H.New({skipFiles={ ["src/compat/transactions.lua"]=true }}):Load()
+local runtime=missing.addon.Runtime.New(missing.api)
+local adapter,reason=runtime:NewTransactionAdapter({},function() return 1 end)
+eq(adapter,nil); eq(reason,"TRANSACTION_MODULE_NOT_LOADED")
+print("PASS: missing transaction module fails safely with a diagnostic")

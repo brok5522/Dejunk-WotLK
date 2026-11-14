@@ -257,6 +257,9 @@ function Runtime.New(environment)
     return Addon.Legacy.New(reads)
   end
   function runtime:NewTransactionAdapter(readAdapter,getSettingsRevision)
+    if type(Addon.Transactions)~="table" or type(Addon.Transactions.New)~="function" then
+      return nil,"TRANSACTION_MODULE_NOT_LOADED"
+    end
     return Addon.Transactions.New(api,readAdapter,getSettingsRevision)
   end
   function runtime:RegisterCommands(callback)

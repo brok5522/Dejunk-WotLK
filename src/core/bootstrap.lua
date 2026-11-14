@@ -653,8 +653,13 @@ function Addon.NewApplication(runtime)
   local merchantSession=0
   function app:attachActions()
     if self.actionsAttached then return end
+    local transactionAdapter,adapterReason=runtime:NewTransactionAdapter(self.adapter,function() return self.store:GetRevision() end)
+    if not transactionAdapter then
+      runtime:Print("Item actions unavailable: transaction module missing ("..tostring(adapterReason).."). Reinstall the complete Dejunk-WotLK folder.")
+      return false,adapterReason
+    end
     self.actionsAttached=true
-    self.transactions=runtime:NewTransactionAdapter(self.adapter,function() return self.store:GetRevision() end)
+    self.transactions=transactionAdapter
     local function readCurrent(item)
       local current=self.transactions:ReadItem(item.bag,item.slot)
       if current and current.state=="OCCUPIED" then current.bagGeneration=self.cache.generation end

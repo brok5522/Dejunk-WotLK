@@ -172,7 +172,7 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for current working tree `0.16.46-dev`:
+Results for current working tree `0.16.47-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 41 source digests and 153 legacy API references).
