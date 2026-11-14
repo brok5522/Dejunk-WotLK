@@ -358,6 +358,17 @@ assert(lastControl("Button","Scope: global").template==nil,"list scope still use
 assert(lastControl("Button","Export").template==nil,"list export still uses a red Blizzard template")
 local listFrame=namedFrame("DejunkWotLKLists")
 local mainWindow=namedFrame("DejunkWotLK_MainWindow")
+local navOrder={}
+for _,candidate in ipairs(uiFrames) do
+  if candidate.kind=="Button" and
+    (candidate.text=="Lists" or candidate.text=="Global Options" or candidate.text=="Profile Options" or candidate.text=="Profiles") then
+    local ancestor=candidate.parent
+    while ancestor and ancestor~=mainWindow do ancestor=ancestor.parent end
+    if ancestor==mainWindow then navOrder[#navOrder+1]=candidate.text end
+  end
+end
+assert(table.concat(navOrder,",")=="Lists,Global Options,Profile Options,Profiles",
+  "main navigation order does not match the upstream screen order")
 assert(listFrame and listFrame.width and listFrame.width>0 and listFrame.height and listFrame.height>0 and listFrame.shown,
   "Lists was not sized by the main Waffle layout")
 assert(listFrame.alpha~=0,"Lists was made transparent by the legacy page visibility path")
@@ -495,6 +506,19 @@ assert(profilesPage.alpha~=0,"Profiles page was made transparent by the legacy p
 assert(profilesPage.backdrop==nil,"Profiles page retained its own dialog backdrop")
 assert(profilesPage.shown,"Profiles page was not visible when selected")
 assert(profilesPage.pageTitle.text=="Dejunk | Profiles (Default)","Profiles panel title did not show the active profile")
+local expectedQualityColors={
+  poor={157/255,157/255,157/255}, common={1,1,1}, uncommon={30/255,1,0},
+  rare={0,112/255,221/255}, epic={163/255,53/255,238/255}
+}
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="CheckButton" and frame.qualityRow==true and frame.optionQuality then
+    local expected=expectedQualityColors[frame.optionQuality]
+    local border=frame.optionVisual and frame.optionVisual.box.borderColor
+    assert(expected and border and math.abs(border[1]-expected[1])<0.00001 and
+      math.abs(border[2]-expected[2])<0.00001 and math.abs(border[3]-expected[3])<0.00001,
+      "quality checkbox did not use its upstream quality color: "..tostring(frame.optionQuality))
+  end
+end
 assert(lastControl("Button","New Profile").template==nil,"New Profile still uses a red Blizzard template")
 assert(lastControl("Button","Rename").template==nil and lastControl("Button","Duplicate").template==nil and
   lastControl("Button","Reset").template==nil and lastControl("Button","Delete").template==nil,
@@ -509,6 +533,12 @@ assert(protectedDelete and protectedDelete.enabled==false,"default profile delet
 local testProfileCard
 for _,frame in ipairs(uiFrames) do if frame.kind=="Button" and frame.parent and frame.parent.kind=="Frame" and frame.profileId=="profile-1" and frame.height==48 then testProfileCard=frame end end
 assert(testProfileCard,"profile selection card was not created")
+local testProfileSummary
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="FontString" and frame.parent==testProfileCard and frame.text:find("Inclusions:",1,true) then testProfileSummary=frame; break end
+end
+assert(testProfileSummary and testProfileSummary.point and testProfileSummary.point[2]==-280,
+  "profile summary does not leave clear space for its action buttons")
 testProfileCard:Click()
 assert(selectedProfile=="profile-1","profile card did not activate the profile represented by that card")
 local function profileAction(action,id)

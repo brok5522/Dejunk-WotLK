@@ -142,7 +142,7 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for revision `0.16.40-dev`:
+Results for revision `0.16.41-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 39 source digests and 153 legacy API references).
@@ -170,8 +170,10 @@ checkbox border and checked mark now use the standard Poor/Common/Uncommon/Rare/
 Epic quality colors instead of a single blue, and all five quality names are
 written in full. Main option-card checkboxes now use their 18px layout size
 (chips remain 12px), major option labels stay white when unchecked, and section
-headings are white like the pinned upstream Option Builder. Lua 5.1 and UI
-fixtures pass; a client screenshot is still needed to confirm WoW 3.3.5 rendering.
+headings are white like the pinned upstream Option Builder. The main navigation
+now follows upstream order: Lists, Global Options, Profile Options, Profiles.
+Lua 5.1 and UI fixtures pass; a client screenshot is still needed to confirm
+WoW 3.3.5 rendering.
 
 The original 3.3.5a client visual check was not run. The main window still uses
 port-built native screens and some list/profile/action widgets are development
