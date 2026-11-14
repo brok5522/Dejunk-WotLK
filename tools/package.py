@@ -10,7 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 def build(destination):
     toc = ROOT / 'Dejunk-WotLK.toc'
     version = next((line.split(':', 1)[1].strip() for line in toc.read_text().splitlines() if line.startswith('## Version:')), 'development')
-    paths = [toc, ROOT / 'LICENSE']
+    paths = [toc, ROOT / 'LICENSE', ROOT / 'README.md', ROOT / 'README.fa.md',
+             ROOT / 'THIRD_PARTY_NOTICES.md']
     for line in toc.read_text().splitlines():
         if line.strip() and not line.lstrip().startswith('#'):
             path = (ROOT / line.strip().replace('\\', '/')).resolve()
@@ -24,9 +25,9 @@ def build(destination):
     entries = {path.relative_to(ROOT).as_posix(): path.read_bytes() for path in paths}
     entries['libs/Waffle-LICENSE.txt'] = (ROOT / 'libs/Waffle-LICENSE.txt').read_bytes()
     entries['README.txt'] = (
-        f'Dejunk-WotLK {version} - COMPATIBILITY PORT DEVELOPMENT BUILD\n'
+        f'Dejunk-WotLK {version} - ORIGINAL WOTLK COMMUNITY BETA\n'
         'Original WoW 3.3.5a / build 12340 / Interface 30300 only.\n'
-        'Original-client testing is pending; this is not the complete addon.\n'
+        'Main UI/merchant checks have owner reports; full client parity is not yet accepted.\n'
         'Extract so Interface/AddOns/Dejunk-WotLK/Dejunk-WotLK.toc exists.\n'
         '/djw status | /djw profiles list|create|switch | /djw lists | /djw preview sell|destroy | /djw report\n'
         'The slot command reads only the chosen bag slot. The report can be copied.\n'
@@ -35,8 +36,9 @@ def build(destination):
         'Disable in the AddOns menu or remove only this addon folder to uninstall.\n'
         'Code is independently written; upstream design reference: moody/Dejunk\n'
         'commit 04bafd5e411441ef5b51bb8ed10d208f2d7758f5 (MIT).\n'
-        'Dejunk UI icons are upstream artwork, copyright moody, under the MIT License in assets/LICENSE.txt.\n'
-        'No upstream code or Blizzard FrameXML is bundled.\n'
+        'Waffle is bundled under MIT. Cash/Lorc and Font Awesome artwork uses CC BY 3.0/4.0.\n'
+        'See THIRD_PARTY_NOTICES.md, assets/LICENSE.txt and libs/Waffle-LICENSE.txt.\n'
+        'No Blizzard FrameXML or game client is bundled.\n'
     ).encode('utf-8')
     destination = destination.resolve()
     if destination.exists():

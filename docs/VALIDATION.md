@@ -1,5 +1,33 @@
 # Validation and completion report
 
+## Publication candidate 0.16.60-beta.1
+
+Runtime behavior is unchanged from the owner-tested 0.16.59 candidate; only
+release metadata changes. Root English and Persian README files, third-party
+notices and artwork license links now ship in the addon ZIP. The package has
+41 entries. Source ZIP artifacts are removed from tracking; downloads move to
+GitHub Releases. The release workflow validates Lua 5.1, builds the artifact,
+attaches SHA256SUMS.txt, and only then removes the explicitly inventoried old
+download/test branches, using ref leases to preserve changed branches.
+
+Local checks passed with Lua 5.1: runtime 64, store 21, services 8, destroyer 11,
+UI model 62, action lifecycle/transaction and UI interaction fixtures;
+reproducible ZIP/source/license/CRC checks passed. Native-client visual/lootable
+acceptance and exact upstream parity still have the limitations in PARITY.md.
+The release is a community beta, not a stable-parity claim.
+
+
+## Merchant portrait avoidance: 0.16.59-dev
+
+The owner's screenshot showed the button still covering the portrait/name.
+Stock build-12340 MerchantFrame.xml places the portrait in the upper left,
+the name at y=-17 and the first item row at y=-80. The 108×28 button now uses
+TOPLEFT (210,-44), in the free band below the title and above the first item row.
+Old default positions (60,-28) and (60,-44) are migrated when displayed;
+custom dragged positions are preserved. New defaults and both reset paths use
+the same new anchor. Offline UI coverage includes a legacy saved position.
+In-game visual confirmation remains pending.
+
 ## Source audit and regression candidate: 0.16.58-dev
 
 Reference checkout was verified again at immutable upstream commit

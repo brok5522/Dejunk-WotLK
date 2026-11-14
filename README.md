@@ -1,83 +1,158 @@
+<div align="center">
+
 # Dejunk-WotLK
 
-Compatibility port of [Dejunk](https://github.com/moody/Dejunk) for the original
-World of Warcraft **3.3.5a / build 12340 / Interface 30300 / Lua 5.1**.
+**A cleaner inventory for original World of Warcraft 3.3.5a.**
 
-**Goal: preserve the pinned upstream Dejunk behavior on WoW 3.3.5a.** This is a compatibility port, not a redesign or feature expansion. The UI and transaction behaviors remain under parity review.
-The upstream Poor-quality junk default is enabled automatically for new profiles; the rule editor is for additional custom conditions, not required setup.
-Earlier screenshots verified port-built configuration screens and read-only previews. Sale, repair, loot and confirmed destroy now use a guarded legacy API adapter, but original-client acceptance is still pending. Offline tests do not establish live behavior or exact UI parity.
+[![Client](https://img.shields.io/badge/WoW-3.3.5a%20%2812340%29-4fafe3)](#compatibility)
+[![Status](https://img.shields.io/badge/status-community%20beta-dd75dd)](#release-status)
+[![Code license](https://img.shields.io/badge/code-MIT-green)](LICENSE)
 
-See the [Persian project guide](docs/USAGE.fa.md) and the
-[current completion report](docs/VALIDATION.md). Older phase guides describe
-development scaffolding, not a parity-complete release. See the exhaustive
-[upstream parity audit](docs/PARITY.md) for a checked feature-by-feature list of
-what is implemented, simulated, missing or not applicable. The port is not yet
-ready for normal use.
+[Download](https://github.com/brok5522/Dejunk-WotLK/releases) · [فارسی](README.fa.md) · [Report an issue](https://github.com/brok5522/Dejunk-WotLK/issues)
 
-## Documentation
-- [Comprehensive client test for 0.16.58-dev (Persian)](docs/CLIENT-TEST-0.16.58.fa.md)
-- [Phase 2 Persian install and test guide](docs/PHASE2.fa.md)
-- [Phase 3 Persian install and preview guide](docs/PHASE3.fa.md)
-- [Phase 4 Persian simulation-only guide](docs/PHASE4.fa.md)
-- [Phase 5 Persian simulation-only guide](docs/PHASE5.fa.md)
-- [Current development status and client-test instructions in Persian](docs/USAGE.fa.md)
-- [Historical Phase 6 UI notes](docs/PHASE6.fa.md)
-- [Phase 2 design and validation](docs/PHASE2.md)
-- [Phase 1 implementation contracts](docs/PHASE1.md)
-- [Historical Phase 0 Persian report](docs/PHASE0.fa.md)
-- [Upstream analysis](docs/research/UPSTREAM.md)
-- [API compatibility and alternatives](docs/research/COMPATIBILITY.md)
-- [Dependency decisions](docs/research/DEPENDENCIES.md)
-- [Evidence and immutable sources](docs/research/SOURCES.md)
-- [Architecture and data contracts](docs/ARCHITECTURE.md)
-- [Safety policy](docs/SAFETY.md)
-- [Feature parity and roadmap](docs/ROADMAP.md)
-- [Testing strategy](docs/TESTING.md) and [actual validation](docs/VALIDATION.md)
-- [GitHub review and merge guide](docs/REVIEW.fa.md)
-- [Permanent agent instructions](AGENTS.md)
+</div>
 
-## Phase 2 commands
+A compatibility port inspired by [Dejunk by moody](https://github.com/moody/Dejunk).
+Classify bag items with shared or character-specific profiles, inspect the result,
+and sell junk at a merchant through a familiar interface.
 
-- `/djw profiles list`, `create <name>`, `switch <id>`; in `/djw config`, open Profiles to create or activate a profile.
-- `/djw profile list`, `create <name>`, `switch <id>`, `rename <id> <name>`, `reset <id>`, `delete <id>`
-- `/djw lists show <global|profile> <inclusions|exclusions>`
-- `/djw lists add|remove <global|profile> <inclusions|exclusions> <itemID>`
-- `/djw lists import <global|profile> <inclusions|exclusions> <IDs>`
+## Features
 
-These commands document the current development scaffold and are not a claim
-of parity with upstream Dejunk's commands or screens. The final port must use
-the upstream interface and behavior. Saved settings live in the account-level
-`DejunkWotLKDB` variable; back it up with the game's WTF account folder before
-manual edits or addon removal.
+- **Four item lists:** global and profile Inclusions / Exclusions, with search,
+  item drops, modifier-click transfers, and text import/export.
+- **Profiles:** create, activate, rename, duplicate, reset and delete profiles.
+- **Junk Items window:** item icons, quality colors, stack values and individual
+  sell, exclude and destroy controls.
+- **Merchant tools:** manual selling, optional Auto Sell / Auto Repair, and a
+  movable icon-and-count merchant button.
+- **Lootable Items window:** open supported bag items and ignore an item type
+  for the current session.
+- **Interface controls:** minimap icon, keybindings, explanatory bag tooltips,
+  and small/large bag overlays.
+- **Action checks:** current slot identity, cursor and merchant checks, a
+  twelve-attempt Safe Sell limit, and Safe Destroy confirmation by default.
 
-## Local checks and packaging
-```sh
-python3 tools/check.py
-python3 tools/package.py work/Dejunk-WotLK-phase1.zip
-git diff --check
+## Compatibility
+
+| Requirement | Supported target |
+|---|---|
+| Game client | Original WoW **3.3.5a** |
+| Build | **12340** |
+| Interface | **30300** |
+| Lua | **5.1** |
+| External addon dependencies | None; Waffle is bundled |
+
+Retail and Wrath Classic are different clients and are not supported targets.
+The `3.3.5` label in the window identifies the target client; the addon version
+is listed in the AddOns menu and the release.
+
+## Install
+
+1. Download **`Dejunk-WotLK-0.16.60-beta.1.zip`** from
+   [Releases](https://github.com/brok5522/Dejunk-WotLK/releases).
+2. Close WoW. If upgrading, back up your `WTF` SavedVariables and replace the
+   old `Dejunk-WotLK` folder rather than mixing files from multiple versions.
+3. Extract the ZIP into `World of Warcraft/Interface/AddOns/`.
+4. Confirm this exact layout:
+
+```text
+Interface/
+└── AddOns/
+    └── Dejunk-WotLK/
+        ├── Dejunk-WotLK.toc
+        ├── src/
+        ├── libs/
+        └── assets/
 ```
-Use Python 3.9+ and **lua5.1 / luac5.1**. If binaries are elsewhere, pass
-`--lua /path/to/lua5.1 --luac /path/to/luac5.1` to `tools/check.py`.
-The check verifies TOC/load order, the embedded transaction API boundary, Lua 5.1 syntax,
-research/docs and the behavioral suite. `tools/check_phase0.py` retains research
-checks; its historical no-runtime gate was replaced after Phase 1 approval.
-The package command refuses to overwrite existing files, creates a deterministic
-single-folder ZIP and never installs or publishes it.
 
-Development-only commands include `/djw rules` and `/djw preview sell|destroy`;
-the generalized ALL/ANY rule editor is out of scope for the upstream port.
-Existing diagnostics include `/djw status`, `/djw probe` (chat), `/djw report` (copy panel),
-`/djw slot <bag 0..4> <slot>` (explicit slot probe), `/djw help`.
-`/dejunk` is the original command alias; no-argument and `options` toggle the
-configuration window, `profiles` opens Profiles, and `junk` / `loot` show the
-item windows. Selling and looting use fresh slot checks; destroy always requires
-confirmation. Original-client acceptance remains pending, and development
-verification never runs real deletion.
+5. Enable **Dejunk-WotLK** on the character-selection AddOns screen, then enter
+   the game and type `/dejunk`.
 
-## Attribution
-Upstream Dejunk 3.5.1 was examined at commit
-`04bafd5e411441ef5b51bb8ed10d208f2d7758f5`, under MIT (copyright 2017–2026 moody).
-The independently written port code is licensed under [MIT](LICENSE).
-No upstream runtime code is distributed here. The listed upstream UI artwork is
-included under its MIT notice in `assets/LICENSE.txt`. See
-[dependency policy](docs/research/DEPENDENCIES.md).
+Use the attached addon ZIP. GitHub's automatic **Source code** archives are for
+contributors and have an extra repository directory.
+
+## First use
+
+New profiles include **Poor-quality items** by default. **Auto Sell**, **Auto
+Repair** and **Safe Sell** start off; **Safe Destroy** starts on.
+
+Open `/dejunk junk` to inspect candidates before selling. Add an item to an
+Exclusions list to keep it. At a merchant, use the coins icon for a single stack
+or **Start Selling** for a run. Enable automatic behavior only after checking
+that your profile selects the intended items.
+
+**Import/Export copies text, not files:** Export fills the field with comma-separated
+item IDs and selects them. Press **Ctrl+C** to copy. Paste IDs and press Import
+to add them to the selected list.
+
+| Control | Action |
+|---|---|
+| Minimap left-click | Toggle the main window |
+| Minimap right-click | Toggle Junk Items |
+| Merchant left-click | Start selling |
+| Merchant right-click | Toggle Junk Items |
+| Alt + right-click on minimap/merchant button | Request Destroy Next |
+| Shift + right-click on merchant button | Reset its position |
+| Active profile / item counts in the footer | Open Profiles / toggle the corresponding window |
+
+## Commands
+
+| Command | Action |
+|---|---|
+| `/dejunk` | Toggle settings |
+| `/dejunk profiles` | Toggle Profiles |
+| `/dejunk junk` | Toggle Junk Items |
+| `/dejunk loot` | Toggle Lootable Items |
+| `/dejunk sell` | Start selling at a merchant |
+| `/dejunk destroy` | Request one destroy action |
+| `/dejunk help` | Show commands |
+| `/djw status` · `/djw report` | Compatibility status / copyable diagnostics |
+
+## Release status
+
+**0.16.60-beta.1 is a complete installation package and a community beta.**
+The owner has reported successful testing of the main UI and merchant-button
+placement. Automated checks use actual Lua 5.1 and cover runtime, store, services,
+UI interaction, action lifecycle and reproducible packaging.
+
+This does **not** establish exact upstream parity or full original-client
+acceptance. Lootable-item acceptance, localization, third-party bag integrations,
+filter edge cases and exact upstream transaction messages/outcome observation
+remain under review. See [the parity matrix](docs/PARITY.md),
+[validation evidence](docs/VALIDATION.md) and
+[the client-test guide](docs/CLIENT-TEST-0.16.58.fa.md).
+
+## Troubleshooting
+
+Enable Lua errors with `/console scriptErrors 1`, then `/reload`. When reporting
+an issue, include your addon version, client build, the exact error, the action
+that triggered it, `/djw report`, and a screenshot when layout is involved.
+Never include account credentials or personal SavedVariables in public reports.
+
+## Development
+
+```sh
+python3 tools/check_phase0.py
+python3 tools/check.py --lua lua5.1 --luac luac5.1
+python3 tools/package.py /tmp/Dejunk-WotLK.zip
+```
+
+The release workflow runs the checks, builds the installable ZIP and publishes
+its SHA-256 checksum. Generated ZIPs belong in release assets, not the source tree.
+Historical design notes remain in `docs/` for provenance.
+
+## Credits and licenses
+
+- Compatibility-port code: **MIT**, [LICENSE](LICENSE).
+- Original design/reference: **moody / Dejunk**, pinned to
+  [`04bafd5`](https://github.com/moody/Dejunk/tree/04bafd5e411441ef5b51bb8ed10d208f2d7758f5).
+- Bundled **Waffle 0.12.2**: moody, MIT; its copyright notice is retained.
+- **Cash / Dejunk logo:** [Lorc](https://game-icons.net/1x1/lorc/cash.html),
+  [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+- **UI action icons:** [Font Awesome](https://fontawesome.com/),
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+See [third-party notices](THIRD_PARTY_NOTICES.md) and
+[artwork attribution](assets/LICENSE.txt). The artwork is redistributed unchanged
+from the pinned upstream snapshot. This is an independent port, not an official
+Dejunk release or a Blizzard product; no endorsement is implied.

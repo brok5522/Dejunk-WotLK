@@ -619,12 +619,14 @@ function Runtime.New(environment)
     target:ClearAllPoints()
     if type(point)=="table" then
       local relative=point.relativeTo and api[point.relativeTo] or api.UIParent
-      local y=point.offsetY or 0
+      local x,y=point.offsetX or 0,point.offsetY or 0
+      -- Old port defaults cover the portrait. Migrate only those defaults;
+      -- preserve positions deliberately dragged elsewhere by the player.
       if key=="merchantButton" and point.point=="TOPLEFT" and point.relativePoint=="TOPLEFT" and
-          point.offsetX==60 and y==-28 then y=-44 end
-      target:SetPoint(point.point or "CENTER",relative,point.relativePoint or "CENTER",point.offsetX or 0,y)
+          x==60 and (y==-28 or y==-44) then x,y=210,-44 end
+      target:SetPoint(point.point or "CENTER",relative,point.relativePoint or "CENTER",x,y)
     elseif key=="merchantButton" and api.MerchantFrame then
-      target:SetPoint("TOPLEFT",api.MerchantFrame,"TOPLEFT",60,-44)
+      target:SetPoint("TOPLEFT",api.MerchantFrame,"TOPLEFT",210,-44)
     else target:SetPoint("CENTER",api.UIParent,"CENTER",0,0) end
   end
   local function saveCurrentPoint(target,key)
@@ -740,7 +742,7 @@ function Runtime.New(environment)
       button:SetScript("OnClick",function(_,mouseButton)
         if mouseButton=="RightButton" and type(api.IsShiftKeyDown)=="function" and api.IsShiftKeyDown() then
           local saved,reason=type(saveWindowPoint)=="function" and saveWindowPoint("merchantButton",{
-            point="TOPLEFT",relativeTo="MerchantFrame",relativePoint="TOPLEFT",offsetX=60,offsetY=-44})
+            point="TOPLEFT",relativeTo="MerchantFrame",relativePoint="TOPLEFT",offsetX=210,offsetY=-44})
           if saved then setSavedPoint(button,"merchantButton") else runtime:Print("Merchant button position was not reset: "..tostring(reason or "UNAVAILABLE")) end
         elseif mouseButton=="RightButton" and type(api.IsAltKeyDown)=="function" and api.IsAltKeyDown() then
           runtime:RequestItemAction("destroyNext")
@@ -2951,7 +2953,7 @@ function Runtime.New(environment)
         addGlobalToggle("merchantButton","Merchant Button","Enable a button on the merchant frame.",-200,64,globalEnabled("merchantButton"))
         local function resetMerchantPoint()
           local saved,reason=type(saveWindowPoint)=="function" and saveWindowPoint("merchantButton",{
-            point="TOPLEFT",relativeTo="MerchantFrame",relativePoint="TOPLEFT",offsetX=60,offsetY=-44})
+            point="TOPLEFT",relativeTo="MerchantFrame",relativePoint="TOPLEFT",offsetX=210,offsetY=-44})
           if saved and merchantButton then setSavedPoint(merchantButton,"merchantButton")
           elseif not saved then runtime:Print("Merchant button position was not reset: "..tostring(reason or "UNAVAILABLE")) end
         end

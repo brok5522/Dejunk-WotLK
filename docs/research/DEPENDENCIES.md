@@ -34,3 +34,12 @@ The read-only foundation is independently written, has no library dependencies,
 and uses legacy native frames. Its code is under the root MIT LICENSE (copyright
 2026 Dejunk-WotLK contributors). No upstream runtime or art was copied. The future
 vendor/notice policy above still applies if external code is introduced.
+
+## Publication update (0.16.60-beta.1)
+
+Waffle 0.12.2 and thirteen upstream TGA files are now bundled. The Waffle MIT
+notice and checksum are recorded in THIRD_PARTY_NOTICES.md and the source
+manifest. The pinned upstream README separately attributes Cash/Lorc (CC BY 3.0)
+and Font Awesome (CC BY 4.0); artwork attribution and license links are included
+in assets/LICENSE.txt. Earlier Phase 0/1 statements above describe historical
+versions, not the current distribution. No other upstream libraries are bundled.

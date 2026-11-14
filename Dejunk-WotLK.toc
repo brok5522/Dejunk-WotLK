@@ -1,9 +1,9 @@
 ## Interface: 30300
-## Title: Dejunk-WotLK (Compatibility Port - Development)
+## Title: Dejunk-WotLK
 ## SavedVariables: DejunkWotLKDB
-## Notes: Development compatibility port for original 3.3.5a. Live actions require in-client acceptance testing.
+## Notes: Inventory cleanup for original WoW 3.3.5a (build 12340). Community beta.
 ## Author: Dejunk-WotLK contributors
-## Version: 0.16.58-dev
+## Version: 0.16.60-beta.1
 
 src\namespace.lua
 libs\Waffle.lua

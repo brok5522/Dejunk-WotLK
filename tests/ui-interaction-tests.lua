@@ -339,11 +339,13 @@ assert(runtime:ToggleJunkFrame({sellable=0,destroyable=0,items={}}) and junkWind
   "Junk frame toggle did not hide the existing window")
 local merchantItems={sellable=1,destroyable=1,items={{itemId=777,name="Merchant test",quality=0,count=1,bag=0,slot=1,
   sell={result="JUNK",reasonCode="QUALITY"},destroy={result="JUNK",reasonCode="QUALITY"}}}}
-local savedMerchantPoint
+local savedMerchantPoint={point="TOPLEFT",relativeTo="MerchantFrame",relativePoint="TOPLEFT",offsetX=60,offsetY=-28}
 runtime:SetWindowPointHandlers(function(key) return key=="merchantButton" and savedMerchantPoint end,
   function(key,value) if key=="merchantButton" then savedMerchantPoint=value; return true end return false end)
 assert(runtime:UpdateMerchantButton({merchantButton=true},merchantItems,true),"merchant button did not initialize")
 local merchantButton=namedFrame("DejunkWotLKMerchantButton")
+assert(merchantButton.point[4]==210 and merchantButton.point[5]==-44,
+  "legacy merchant position was not moved out of the portrait area")
 assert(merchantButton and merchantButton.parent==ui.MerchantFrame and merchantButton.shown,
   "enabled merchant button did not appear on the open merchant frame")
 assert(merchantButton.width==108 and merchantButton.height==28 and
@@ -361,7 +363,7 @@ assert(savedMerchantPoint and savedMerchantPoint.point=="BOTTOM" and savedMercha
   savedMerchantPoint.offsetX==25 and savedMerchantPoint.offsetY==18,"merchant button drag position did not persist")
 ui.shiftDown=true; merchantButton:Click("RightButton"); ui.shiftDown=false
 assert(savedMerchantPoint.point=="TOPLEFT" and savedMerchantPoint.relativeTo=="MerchantFrame" and
-  savedMerchantPoint.offsetX==60 and savedMerchantPoint.offsetY==-44,"merchant button reset did not restore upstream default position")
+  savedMerchantPoint.offsetX==210 and savedMerchantPoint.offsetY==-44,"merchant button reset did not restore upstream default position")
 merchantButton:Click("RightButton")
 assert(junkWindow.shown,"merchant button right-click did not toggle the Junk frame")
 merchantButton:Click("RightButton")
@@ -1263,7 +1265,7 @@ runtime:SetWindowPointHandlers(function() end,function(key,value)
   return false
 end)
 control("CheckButton","Merchant Button").labelHit:Click("RightButton")
-assert(resetPoint and resetPoint.offsetX==60 and resetPoint.offsetY==-44 and globalOptionState.merchantButton==false,
+assert(resetPoint and resetPoint.offsetX==210 and resetPoint.offsetY==-44 and globalOptionState.merchantButton==false,
   "right-clicking Merchant Button options did not reset its position without toggling it")
 control("CheckButton","Verbose").labelHit:Click()
 assert(globalOptionState.chatMessages.detail=="VERBOSE","chat detail choice did not persist")

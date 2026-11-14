@@ -1,4 +1,4 @@
-name: WotLK read-only foundation
+name: Lua 5.1 validation
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

@@ -120,6 +120,8 @@ def main():
         with zipfile.ZipFile(first) as archive:
             expected_entries = {'Dejunk-WotLK/' + entry for entry in load_order}
             expected_entries.update({'Dejunk-WotLK/Dejunk-WotLK.toc',
+                                     'Dejunk-WotLK/README.md', 'Dejunk-WotLK/README.fa.md',
+                                     'Dejunk-WotLK/THIRD_PARTY_NOTICES.md',
                                      'Dejunk-WotLK/LICENSE', 'Dejunk-WotLK/README.txt',
                                      'Dejunk-WotLK/libs/Waffle-LICENSE.txt',
                                      'Dejunk-WotLK/assets/LICENSE.txt',
@@ -138,7 +140,8 @@ def main():
                                      'Dejunk-WotLK/assets/x-icon.tga'})
             if set(archive.namelist()) != expected_entries or archive.testzip() is not None:
                 raise ValueError('ZIP content/layout/CRC check failed')
-            for entry in load_order + ['Dejunk-WotLK.toc', 'LICENSE', 'libs/Waffle-LICENSE.txt',
+            for entry in load_order + ['Dejunk-WotLK.toc', 'LICENSE', 'README.md', 'README.fa.md',
+                                       'THIRD_PARTY_NOTICES.md', 'libs/Waffle-LICENSE.txt',
                                        'assets/LICENSE.txt', 'assets/dejunk-icon.tga', 'assets/transport-icon.tga',
                                        'assets/gear-icon.tga', 'assets/coins-icon.tga', 'assets/ban-icon.tga',
                                        'assets/trash-icon.tga', 'assets/eye-slash-icon.tga',
