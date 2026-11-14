@@ -55,9 +55,11 @@ current UI has not been exercised in the original client at this revision.
    the source data for the missing item window, but is not an action service.
 10. **Read-only Junk window:** `/dejunk junk` toggles a scrollable candidate list
    showing sell/destroy counts and reasons. Bag invalidation clears displayed
-   rows; bag and saved-state updates refresh them. No action buttons are
-   connected. UI fixtures check opening/toggling, reasons, and stale-row
-   removal; target-client rendering still needs a consolidated check.
+   rows; bag and saved-state updates refresh them. The exclude control updates
+   profile/global exclusions; coin/trash and bottom controls dispatch through
+   injectable handlers but remain unregistered in the live app. UI fixtures
+   check handler dispatch with mocks, opening/toggling, reasons, icons, and
+   stale-row removal; target-client rendering still needs a consolidated check.
 11. **Read-only Lootable window and command routing:** `/dejunk loot` shows
    positively flagged slots and `/dejunk profiles` opens Profiles. The saved
    Auto Lootable Frame option controls display on bag updates; it never opens
@@ -67,13 +69,19 @@ current UI has not been exercised in the original client at this revision.
 12. **Auto Junk display:** during a merchant session the saved option can show
    the read-only candidate window; it closes at merchant close and when its
    auto-shown list becomes empty. Mock event fixtures assert no item mutation.
+20. **Merchant button shell:** the saved setting now shows a draggable button
+   during merchant sessions, updates its candidate count, and supports the
+   upstream Junk-frame shortcut and position reset. Start Selling and Destroy
+   Next dispatch through injected handlers; the live app registers no handlers
+   pending the end-of-task authorization.
 13. **Bag item tooltip reasons:** a single `GameTooltip:SetBagItem` post-hook
    reads the slot again and displays separate SELL/DESTROY decisions and reason
    codes when item tooltips are enabled. The hook skips the hidden binding scan
    tooltip and is registered once. Mock tooltip coverage is offline only.
-14. **Transport export flow:** Export and Import now share the transport window;
-   export fills a comma-separated list and selects the text for manual copying,
-   while import keeps the review-before-commit path. UI fixtures cover both.
+14. **Transport export flow:** Export and Import now share a draggable,
+   position-persistent transport window; export fills a comma-separated list and
+   selects the text for manual copying, while import keeps the
+   review-before-commit path. UI fixtures cover both and verify saved position.
 15. **Item card presentation:** Junk and Lootable windows now reuse scrollable
    cards with bag icon textures, quality accent on Junk items, quantity and
    action/location detail. UI fixtures assert icon and quality accent rendering.
@@ -162,14 +170,15 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for current working tree `0.16.43-dev`:
+Results for current working tree `0.16.44-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 41 source digests and 153 legacy API references).
 - `check.py`: PASS (20 ordered runtime files; Lua 5.1 syntax for 27 files;
   runtime 64/64, store 21/21, services 8/8, destroyer 11/11, UI model 62/62;
-  UI interaction fixtures passed, including keybinding capture/overrides;
-  deterministic 27-entry ZIP verified).
+  UI interaction fixtures passed, including keybinding capture/overrides and
+  merchant-button visibility, clicks and position persistence; deterministic
+  32-entry ZIP verified).
 - `git diff --check`: PASS.
 - Original 3.3.5a client rendering/input check: NOT RUN in this environment.
 

@@ -57,6 +57,14 @@ test("original Dejunk slash command opens configuration by default", function()
   w.app.runtime.ShowProfiles=function(self,callbacks) equal(callbacks,self.configCallbacks); opened="profiles" end
   w.api.SlashCmdList.DEJUNK("profiles")
   equal(opened,"profiles")
+  local before=#w.messages
+  w.api.SlashCmdList.DEJUNK("unknown-suffix")
+  assert(#w.messages>before and table.concat(w.messages," "):find("Dejunk commands:",1,true),
+    "unknown original slash suffix did not fall back to upstream help")
+  local mutationCount=w.mutations
+  w.api.SlashCmdList.DEJUNK("sell")
+  w.api.SlashCmdList.DEJUNK("destroy")
+  equal(w.mutations,mutationCount,"unconnected original action commands mutated inventory")
   equal(w.mutations,0)
 end)
 test("required event failure disables startup", function()

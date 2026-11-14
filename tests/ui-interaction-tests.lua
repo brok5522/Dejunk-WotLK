@@ -117,6 +117,7 @@ local function object(kind,name,parent,template)
   return frame
 end
 ui.CreateFrame=function(kind,name,parent,template) return object(kind,name,parent,template) end
+ui.MerchantFrame=object("Frame","MerchantFrame",ui); ui.MerchantFrame:Show()
 ui.NUM_CONTAINER_FRAMES=1
 ui.MAX_CONTAINER_ITEMS=36
 ui.GetContainerNumSlots=function(bag) return bag==0 and 1 or 0 end
@@ -297,6 +298,56 @@ for _,frame in ipairs(uiFrames) do if frame.kind=="FontString" and frame.text=="
 assert(junkEmpty,"empty Junk frame state was not shown")
 assert(runtime:ToggleJunkFrame({sellable=0,destroyable=0,items={}}) and junkWindow.shown==false,
   "Junk frame toggle did not hide the existing window")
+local merchantItems={sellable=1,destroyable=1,items={{itemId=777,name="Merchant test",quality=0,count=1,
+  sell={reasonCode="QUALITY"},destroy={reasonCode="QUALITY"}}}}
+local savedMerchantPoint
+runtime:SetWindowPointHandlers(function(key) return key=="merchantButton" and savedMerchantPoint end,
+  function(key,value) if key=="merchantButton" then savedMerchantPoint=value; return true end return false end)
+assert(runtime:UpdateMerchantButton({merchantButton=true},merchantItems,true),"merchant button did not initialize")
+local merchantButton=namedFrame("DejunkWotLKMerchantButton")
+assert(merchantButton and merchantButton.parent==ui.MerchantFrame and merchantButton.shown,
+  "enabled merchant button did not appear on the open merchant frame")
+assert(merchantButton.children[2].text=="Dejunk (1)","merchant button did not show the current junk count")
+merchantButton:SetPoint("BOTTOM",ui.MerchantFrame,"BOTTOM",25,18)
+merchantButton.scripts.OnDragStop(merchantButton)
+assert(savedMerchantPoint and savedMerchantPoint.point=="BOTTOM" and savedMerchantPoint.relativeTo=="MerchantFrame" and
+  savedMerchantPoint.offsetX==25 and savedMerchantPoint.offsetY==18,"merchant button drag position did not persist")
+ui.shiftDown=true; merchantButton:Click("RightButton"); ui.shiftDown=false
+assert(savedMerchantPoint.point=="TOPLEFT" and savedMerchantPoint.relativeTo=="MerchantFrame" and
+  savedMerchantPoint.offsetX==60 and savedMerchantPoint.offsetY==-28,"merchant button reset did not restore upstream default position")
+merchantButton:Click("RightButton")
+assert(junkWindow.shown,"merchant button right-click did not toggle the Junk frame")
+merchantButton:Click("RightButton")
+assert(not junkWindow.shown,"merchant button second right-click did not close the Junk frame")
+merchantButton:Click("LeftButton")
+assert(messages[#messages]:find("Selling is unavailable",1,true),"merchant button started or failed to explain the gated live seller")
+assert(runtime:UpdateMerchantButton({merchantButton=false},merchantItems,true) and not merchantButton.shown,
+  "disabled merchant-button option did not hide its merchant control")
+local requestedActions={}
+runtime:SetItemActionHandlers({
+  sellItem=function(item) requestedActions.sellItem=item.itemId; return true end,
+  destroyItem=function(item) requestedActions.destroyItem=item.itemId; return true end,
+  startSelling=function() requestedActions.startSelling=true; return true end,
+  destroyNext=function() requestedActions.destroyNext=true; return true end
+})
+local actionData={sellable=1,destroyable=1,items={{itemId=778,name="Action test",quality=0,count=1,unitVendorPrice=5,
+  sell={result="JUNK",reasonCode="QUALITY"},destroy={result="JUNK",reasonCode="QUALITY"}}}}
+runtime:UpdateMerchantButton({merchantButton=true},actionData,true)
+runtime:UpdateJunkFrame(actionData)
+local sellRowButton,destroyRowButton
+for _,candidate in ipairs(uiFrames) do
+  if candidate.kind=="Button" and candidate.action and candidate.parent and candidate.parent.item and candidate.parent.item.itemId==778 then
+    if candidate.action.key=="sellItem" then sellRowButton=candidate end
+    if candidate.action.key=="destroyItem" then destroyRowButton=candidate end
+  end
+end
+assert(sellRowButton and destroyRowButton and sellRowButton.enabled and destroyRowButton.enabled,
+  "eligible mock action callbacks did not enable their matching row controls")
+sellRowButton:Click("LeftButton"); destroyRowButton:Click("LeftButton")
+junkWindow.startSellingButton:Click("LeftButton"); junkWindow.destroyNextButton:Click("LeftButton")
+assert(requestedActions.sellItem==778 and requestedActions.destroyItem==778 and
+  requestedActions.startSelling==true and requestedActions.destroyNext==true,
+  "Junk frame controls did not dispatch to their injected action handlers")
 assert(not runtime:ToggleLootableFrame({count=0,items={}}),"empty lootable window should not open")
 assert(runtime:ToggleLootableFrame({count=1,items={{itemId=6948,name="Hearthstone",count=1,bag=0,slot=1}}}),
   "read-only Lootable frame failed to open")
@@ -616,8 +667,17 @@ searchBox:SetFocus(); searchBox:SetText("2"); searchBox:SetText("23")
 assert(searchBox:GetText()=="23" and searchBox.focused and listFrame.shown,
   "refreshing Lists while typing lost the search text, focus or selected page")
 searchBox:SetText("")
+local savedTransportPoint
+runtime:SetWindowPointHandlers(function(key) return key=="transportFrame" and savedTransportPoint end,
+  function(key,value) if key=="transportFrame" then savedTransportPoint=value; return true end return false end)
 listPanes["global:inclusions"].transportButton:Click()
-assert(namedFrame("DejunkWotLKListImport").shown and listFrame.shown==false)
+local transportFrame=namedFrame("DejunkWotLKListImport")
+assert(transportFrame.shown and listFrame.shown==false and transportFrame.movable and
+  transportFrame.dragButtons[1]=="LeftButton","transport frame is not movable like the upstream window")
+transportFrame:SetPoint("BOTTOMRIGHT",ui.UIParent,"BOTTOMRIGHT",-30,40)
+transportFrame.scripts.OnDragStop(transportFrame)
+assert(savedTransportPoint and savedTransportPoint.point=="BOTTOMRIGHT" and savedTransportPoint.offsetX==-30 and
+  savedTransportPoint.offsetY==40,"transport frame drag position did not persist")
 control("Button","Export"):Click()
 assert(namedFrame("DejunkWotLKListImport").shown and listFrame.shown==false)
 local exported=lastControl("EditBox","6948,6949")

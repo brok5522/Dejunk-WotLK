@@ -5,7 +5,8 @@ Addon.Runtime = Runtime
 -- All interaction with WoW globals, frames and commands stays in this module.
 function Runtime.New(environment)
   local api = environment or _G
-  local runtime = { registration = {} }
+  local runtime = { registration = {}, itemActionHandlers = {} }
+  local junkDataSource
   local function addonAssetPath(file)
     -- WoW's texture resolver expects the same extensionless asset path used by
     -- the original addon, even though the packaged source files are TGA.
@@ -92,6 +93,40 @@ function Runtime.New(environment)
       button:SetScript("OnClick",function()
         if action.enabled~=false and card.item and action.onClick then action.onClick(card.item) end
       end)
+      button:SetScript("OnEnter",function(self)
+        local tooltip=api.GameTooltip
+        if not tooltip or type(tooltip.SetOwner)~="function" then return end
+        tooltip:SetOwner(self,"ANCHOR_RIGHT")
+        local title=action.key=="sellItem" and "Sell" or action.key=="destroyItem" and "Destroy" or
+          action.icon=="ban" and "Exclude" or action.icon=="eye-slash" and "Ignore" or "Item action"
+        tooltip:SetText(title)
+        if card.item and type(card.item.bag)=="number" and type(card.item.slot)=="number" and type(tooltip.SetBagItem)=="function" then
+          tooltip:SetBagItem(card.item.bag,card.item.slot)
+          tooltip:AddLine(" ")
+          tooltip:AddLine(title,1,1,1)
+        end
+        if action.key=="sellItem" then
+          if not merchantButtonOpen then tooltip:AddLine("Available at a merchant.",0.65,0.65,0.65)
+          elseif type(runtime.itemActionHandlers.sellItem)~="function" then tooltip:AddLine("Seller is not connected yet.",0.65,0.65,0.65)
+          else tooltip:AddLine("Click to sell this stack.",1,0.82,0) end
+          if card.item and card.item.sell and card.item.sell.reasonCode then
+            tooltip:AddLine("Rule: "..tostring(card.item.sell.reasonCode),0.65,0.65,0.65)
+          end
+        elseif action.key=="destroyItem" then
+          if type(runtime.itemActionHandlers.destroyItem)~="function" then tooltip:AddLine("Destroyer is not connected yet.",0.65,0.65,0.65)
+          else tooltip:AddLine("Click to request a confirmed destroy.",1,0.82,0) end
+          if card.item and card.item.destroy and card.item.destroy.reasonCode then
+            tooltip:AddLine("Rule: "..tostring(card.item.destroy.reasonCode),0.65,0.65,0.65)
+          end
+        elseif action.icon=="ban" then
+          tooltip:AddLine("Click: add to profile exclusions.",0.65,0.65,0.65)
+          tooltip:AddLine("Shift-click: add to global exclusions.",0.65,0.65,0.65)
+        elseif action.icon=="eye-slash" then
+          tooltip:AddLine("Ignore this item type for this session.",0.65,0.65,0.65)
+        end
+        tooltip:Show()
+      end)
+      button:SetScript("OnLeave",function() if api.GameTooltip then api.GameTooltip:Hide() end end)
       card.actionButtons[index]=button
       actionWidth=actionWidth+26
     end
@@ -215,9 +250,12 @@ function Runtime.New(environment)
     api.SLASH_DEJUNK1 = "/dejunk"
     api.SlashCmdList.DEJUNK = function(input)
       local command=type(input)=="string" and input:match("^%s*(%S*)") or ""
-      if command=="" or command:lower()=="options" then callback("toggle-config")
-      elseif command:lower()=="profiles" then callback("open-profiles")
-      else callback(input) end
+      command=command:lower()
+      if command=="" or command=="options" then callback("toggle-config")
+      elseif command=="profiles" then callback("open-profiles")
+      elseif command=="help" or command=="sell" or command=="destroy" or command=="junk" or command=="loot" then
+        callback(command)
+      else callback("help") end
     end
   end
   function runtime:RegisterOptionsCategory(onOpen)
@@ -250,18 +288,42 @@ function Runtime.New(environment)
     getWindowPoint=type(getter)=="function" and getter or nil
     saveWindowPoint=type(saver)=="function" and saver or nil
   end
+  function runtime:SetItemActionHandlers(handlers)
+    local accepted={}
+    for _,name in ipairs({"sellItem","destroyItem","startSelling","destroyNext"}) do
+      if type(handlers)=="table" and type(handlers[name])=="function" then accepted[name]=handlers[name] end
+    end
+    self.itemActionHandlers=accepted
+    if junkDataSource and self.UpdateJunkFrame then self:UpdateJunkFrame(junkDataSource) end
+    return true
+  end
+  function runtime:RequestItemAction(name,item)
+    local handler=self.itemActionHandlers and self.itemActionHandlers[name]
+    if type(handler)~="function" then
+      self:Print((name=="sellItem" or name=="startSelling") and
+        "Selling is unavailable in this development build." or "Destroy action is unavailable in this development build.")
+      return false,"ACTION_UNAVAILABLE"
+    end
+    local ok,result,reason=pcall(handler,item)
+    if not ok then self:Print("Item action failed: "..tostring(result)); return false,"ACTION_ERROR" end
+    return result,reason
+  end
   local function setSavedPoint(target,key)
     local point=type(getWindowPoint)=="function" and getWindowPoint(key) or nil
     target:ClearAllPoints()
     if type(point)=="table" then
-      target:SetPoint(point.point or "CENTER",api.UIParent,point.relativePoint or "CENTER",point.offsetX or 0,point.offsetY or 0)
+      local relative=point.relativeTo and api[point.relativeTo] or api.UIParent
+      target:SetPoint(point.point or "CENTER",relative,point.relativePoint or "CENTER",point.offsetX or 0,point.offsetY or 0)
+    elseif key=="merchantButton" and api.MerchantFrame then
+      target:SetPoint("TOPLEFT",api.MerchantFrame,"TOPLEFT",60,-28)
     else target:SetPoint("CENTER",api.UIParent,"CENTER",0,0) end
   end
   local function saveCurrentPoint(target,key)
     if type(saveWindowPoint)~="function" or type(target.GetPoint)~="function" then return end
     local point,relativeTo,relativePoint,x,y=target:GetPoint(1)
     if not point or type(x)~="number" or type(y)~="number" then return end
-    saveWindowPoint(key,{point=point,relativeTo=relativeTo==api.UIParent and "UIParent" or nil,
+    saveWindowPoint(key,{point=point,relativeTo=relativeTo==api.UIParent and "UIParent" or
+      relativeTo==api.MerchantFrame and "MerchantFrame" or nil,
       relativePoint=relativePoint or point,offsetX=x,offsetY=y})
   end
   local function normalizeAngle(value)
@@ -342,6 +404,68 @@ function Runtime.New(environment)
     end
     positionMinimapButton()
     if state.hide==true then minimapButton:Hide() else minimapButton:Show() end
+    return true
+  end
+  local merchantButton,merchantButtonIcon,merchantButtonLabel,merchantButtonOpen,merchantJunkData=nil,nil,nil,false,nil
+  function runtime:UpdateMerchantButton(globalOptions,junkData,merchantOpen)
+    globalOptions=type(globalOptions)=="table" and globalOptions or {}
+    merchantButtonOpen=merchantOpen==true
+    merchantJunkData=type(junkData)=="table" and junkData or nil
+    if not api.MerchantFrame or type(api.CreateFrame)~="function" then return false,"MERCHANT_FRAME_UNAVAILABLE" end
+    if not merchantButton then
+      local ok,button=pcall(api.CreateFrame,"Button","DejunkWotLKMerchantButton",api.MerchantFrame)
+      if not ok or not button then return false,"MERCHANT_BUTTON_FAILED" end
+      merchantButton=button; button:SetWidth(108); button:SetHeight(28); button:SetFrameStrata("HIGH")
+      button:EnableMouse(true); button:SetMovable(true)
+      if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp","RightButtonUp") end
+      if type(button.RegisterForDrag)=="function" then button:RegisterForDrag("LeftButton") end
+      button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+      button:SetBackdropColor(18/255,18/255,18/255,0.92); button:SetBackdropBorderColor(0,0,0,1)
+      merchantButtonIcon=button:CreateTexture(nil,"ARTWORK")
+      merchantButtonIcon:SetTexture(addonAssetPath("dejunk-icon")); merchantButtonIcon:SetWidth(20); merchantButtonIcon:SetHeight(20)
+      merchantButtonIcon:SetPoint("LEFT",5,0)
+      merchantButtonLabel=button:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+      merchantButtonLabel:SetPoint("LEFT",merchantButtonIcon,"RIGHT",4,0); merchantButtonLabel:SetPoint("RIGHT",-4,0)
+      merchantButtonLabel:SetJustifyH("LEFT"); setTextColor(merchantButtonLabel,"blue")
+      button:SetScript("OnClick",function(_,mouseButton)
+        if mouseButton=="RightButton" and type(api.IsShiftKeyDown)=="function" and api.IsShiftKeyDown() then
+          local saved,reason=type(saveWindowPoint)=="function" and saveWindowPoint("merchantButton",{
+            point="TOPLEFT",relativeTo="MerchantFrame",relativePoint="TOPLEFT",offsetX=60,offsetY=-28})
+          if saved then setSavedPoint(button,"merchantButton") else runtime:Print("Merchant button position was not reset: "..tostring(reason or "UNAVAILABLE")) end
+        elseif mouseButton=="RightButton" and type(api.IsAltKeyDown)=="function" and api.IsAltKeyDown() then
+          runtime:RequestItemAction("destroyNext")
+        elseif mouseButton=="RightButton" then
+          local callbacks=runtime.configCallbacks or {}
+          local items=merchantJunkData or (callbacks.junkItems and callbacks.junkItems())
+          if items then runtime:ToggleJunkFrame(items) else runtime:Print("Junk preview is unavailable.") end
+        else
+          runtime:RequestItemAction("startSelling")
+        end
+      end)
+      button:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
+      button:SetScript("OnDragStop",function(self)
+        if self.StopMovingOrSizing then self:StopMovingOrSizing() end
+        saveCurrentPoint(self,"merchantButton")
+      end)
+      button:SetScript("OnEnter",function(self)
+        if api.GameTooltip then
+          api.GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); api.GameTooltip:SetText("Dejunk")
+          api.GameTooltip:AddLine("Left-click: Start Selling"..(type(runtime.itemActionHandlers.startSelling)=="function" and "" or " (unavailable)"),1,1,1)
+          api.GameTooltip:AddLine("Right-click: Toggle Junk Items",0.65,0.65,0.65)
+          api.GameTooltip:AddLine("Alt-right-click: Destroy Next Item"..(type(runtime.itemActionHandlers.destroyNext)=="function" and "" or " (unavailable)"),0.65,0.65,0.65)
+          api.GameTooltip:AddLine("Shift-right-click: Reset position",0.65,0.65,0.65); api.GameTooltip:Show()
+        end
+      end)
+      button:SetScript("OnLeave",function() if api.GameTooltip then api.GameTooltip:Hide() end end)
+      setSavedPoint(button,"merchantButton")
+    end
+    local count=type(junkData)=="table" and tonumber(junkData.sellable) or 0
+    merchantButtonLabel:SetText("Dejunk ("..tostring(count or 0)..")")
+    local merchantFrameShown=type(api.MerchantFrame.IsShown)~="function" or api.MerchantFrame:IsShown()
+    if globalOptions.merchantButton==true and merchantButtonOpen and merchantFrameShown then
+      merchantButton:Show()
+    else merchantButton:Hide() end
+    if junkFrame and junkDataSource then self:UpdateJunkFrame(junkDataSource) end
     return true
   end
   function runtime:Start(onEvent, onUpdate)
@@ -1498,6 +1622,13 @@ function Runtime.New(environment)
         importFrame=importFrame or api.CreateFrame("Frame",nil,api.UIParent)
         importFrame:SetWidth(560); importFrame:SetHeight(390); importFrame:SetPoint("CENTER")
         importFrame:SetFrameStrata("DIALOG"); importFrame:EnableMouse(true)
+        importFrame:SetMovable(true); importFrame:RegisterForDrag("LeftButton")
+        importFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
+        importFrame:SetScript("OnDragStop",function(self)
+          if self.StopMovingOrSizing then self:StopMovingOrSizing() end
+          saveCurrentPoint(self,"transportFrame")
+        end)
+        setSavedPoint(importFrame,"transportFrame")
         importFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
         importTitle=importFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
         importTitle:SetPoint("TOPLEFT",20,-18); setTextColor(importTitle,"blue")
@@ -2594,10 +2725,13 @@ function Runtime.New(environment)
 
   function runtime:UpdateJunkFrame(data)
     if not junkFrame then return false end
+    junkDataSource=type(data)=="table" and data or nil
     for _,row in ipairs(junkRows or {}) do row:Hide() end
     if type(data)~="table" then
       junkSummary:SetText("Bag data unavailable. Refreshing…")
       junkRowsContent:SetHeight(1)
+      if junkFrame.startSellingButton then junkFrame.startSellingButton:Disable() end
+      if junkFrame.destroyNextButton then junkFrame.destroyNextButton:Disable() end
       return false
     end
     junkTitle:SetText("Junk Items |cffffffff("..tostring(data.sellable or 0).."/"..tostring(data.destroyable or 0)..")|r")
@@ -2619,6 +2753,8 @@ function Runtime.New(environment)
         junkEmptyRow:SetPoint("TOPLEFT",12,-8); junkEmptyRow:SetWidth(500); junkEmptyRow:SetJustifyH("LEFT")
       end
       junkEmptyRow:SetText("No junk items."); junkEmptyRow:Show(); junkRowsContent:SetHeight(32)
+      if junkFrame.startSellingButton then junkFrame.startSellingButton:Disable() end
+      if junkFrame.destroyNextButton then junkFrame.destroyNextButton:Disable() end
       return true
     end
     if junkEmptyRow then junkEmptyRow:Hide() end
@@ -2626,7 +2762,9 @@ function Runtime.New(environment)
       local card=junkRows[index]
       if not card then
         local actions={
-          {icon="trash",enabled=false},
+          {icon="trash",key="destroyItem",enabled=false,onClick=function(target)
+            runtime:RequestItemAction("destroyItem",target)
+          end},
           {icon="ban",enabled=true,onClick=function(target)
             local callbacks=runtime.configCallbacks or {}
             local scope=type(api.IsShiftKeyDown)=="function" and api.IsShiftKeyDown() and "global" or "profile"
@@ -2635,7 +2773,9 @@ function Runtime.New(environment)
             local current=callbacks.junkItems and callbacks.junkItems()
             if current then runtime:UpdateJunkFrame(current) end
           end},
-          {icon="coins",enabled=false}
+          {icon="coins",key="sellItem",enabled=false,onClick=function(target)
+            runtime:RequestItemAction("sellItem",target)
+          end}
         }
         card=createReadOnlyItemCard(junkRowsContent,300,36,(index-1)*38+4,actions)
         junkRows[index]=card
@@ -2652,6 +2792,19 @@ function Runtime.New(environment)
       color=color or colors[item.quality] or {0.7,0.7,0.7}
       card.accent:SetVertexColor(color[1],color[2],color[3],1)
       card.item=item
+      for _,button in ipairs(card.actionButtons) do
+        local action=button.action
+        if action.key then
+          action.enabled=type(runtime.itemActionHandlers[action.key])=="function" and
+            (action.key~="sellItem" or (merchantButtonOpen and item.sell and item.sell.result=="JUNK")) and
+            (action.key~="destroyItem" or (item.destroy and item.destroy.result=="JUNK"))
+          if action.enabled then
+            button:Enable(); button.icon:SetVertexColor(1,1,1,1)
+          else
+            button:Disable(); button.icon:SetVertexColor(0.48,0.48,0.48,0.8)
+          end
+        end
+      end
       card.label:SetText("["..(item.name or ("Item #"..tostring(item.itemId))).."]"..((item.count or 1)>1 and ("x"..tostring(item.count)) or ""))
       if type(item.unitVendorPrice)=="number" and item.unitVendorPrice>0 and type(api.GetCoinTextureString)=="function" then
         local ok,value=pcall(api.GetCoinTextureString,item.unitVendorPrice*(item.count or 1))
@@ -2662,6 +2815,16 @@ function Runtime.New(environment)
       card:Show()
     end
     junkRowsContent:SetHeight(math.max(32,#data.items*38))
+    if junkFrame.startSellingButton then
+      if type(runtime.itemActionHandlers.startSelling)=="function" and merchantButtonOpen and (data.sellable or 0)>0 then
+        junkFrame.startSellingButton:Enable()
+      else junkFrame.startSellingButton:Disable() end
+    end
+    if junkFrame.destroyNextButton then
+      if type(runtime.itemActionHandlers.destroyNext)=="function" and (data.destroyable or 0)>0 then
+        junkFrame.destroyNextButton:Enable()
+      else junkFrame.destroyNextButton:Disable() end
+    end
     return true
   end
 
@@ -2699,8 +2862,10 @@ function Runtime.New(environment)
       junkScroll:SetScrollChild(junkRowsContent); junkRows={}
       local startSelling=styleThemedButton(api.CreateFrame("Button",nil,junkFrame),"Start Selling")
       startSelling:SetWidth(150); startSelling:SetHeight(30); startSelling:SetPoint("BOTTOMLEFT",8,8); startSelling:Disable()
+      startSelling:SetScript("OnClick",function() runtime:RequestItemAction("startSelling") end)
       local destroyNext=styleThemedButton(api.CreateFrame("Button",nil,junkFrame),"Destroy Next Item")
       destroyNext:SetWidth(150); destroyNext:SetHeight(30); destroyNext:SetPoint("BOTTOMRIGHT",-8,8); destroyNext:Disable()
+      destroyNext:SetScript("OnClick",function() runtime:RequestItemAction("destroyNext") end)
       junkFrame.startSellingButton=startSelling; junkFrame.destroyNextButton=destroyNext; junkFrame.settingsButton=settings
     end
     self:UpdateJunkFrame(data)

@@ -568,6 +568,10 @@ function Addon.NewApplication(runtime)
       local items,reason=self:GetJunkItems()
       if not items then runtime:Print("Junk items unavailable: "..tostring(reason)); return end
       runtime:ToggleJunkFrame(items)
+    elseif command == "sell" then
+      runtime:RequestItemAction("startSelling")
+    elseif command == "destroy" then
+      runtime:RequestItemAction("destroyNext")
     elseif command == "loot" then
       if self.state ~= "READY" then runtime:Print("Lootable items unavailable: "..self.state); return end
       local items,reason=self:GetLootableItems()
@@ -586,8 +590,11 @@ function Addon.NewApplication(runtime)
         for _,profile in ipairs(profiles or {}) do runtime:Print((profile.active and "* " or "  ")..profile.id.." — "..profile.name) end
       else runtime:Print("Use /djw profiles list | create <name> | switch <id>") end
     elseif command == "help" then
-      runtime:Print("Dejunk: /dejunk or /dejunk options opens the main settings window; /dejunk profiles lists profiles.")
-      runtime:Print("/dejunk junk shows a read-only list. Selling, destroying, repair and loot-frame actions remain disconnected.")
+      runtime:Print("Dejunk commands:")
+      runtime:Print("/dejunk or /dejunk options — open settings; /dejunk profiles — open Profiles.")
+      runtime:Print("/dejunk sell — start selling; /dejunk destroy — destroy next item.")
+      runtime:Print("/dejunk junk — toggle Junk Items; /dejunk loot — toggle Lootable Items.")
+      runtime:Print("Seller, destroyer, repair and loot actions are not connected in this development build.")
       runtime:Print("Development diagnostics: /djw status | /djw preview sell|destroy | /djw slot <bag> <slot> | /djw report.")
     elseif command == "report" then
       runtime:ShowReport(self.diagnostics:Report(self))
@@ -642,6 +649,11 @@ function Addon.NewApplication(runtime)
     runtime:UpdateJunkFrame(items)
   end
   local atMerchant,junkFrameAutoShown=false,false
+  local function refreshMerchantButton()
+    local global=app.store and app.store:GetState().global or {}
+    local junk=app.state=="READY" and app:GetJunkItems() or nil
+    runtime:UpdateMerchantButton(global,junk,atMerchant)
+  end
   local function updateAutoJunkFrame(snapshot)
     local global=app.store and app.store:GetState().global or {}
     if not atMerchant or not global.autoJunkFrame or not snapshot or
@@ -658,20 +670,22 @@ function Addon.NewApplication(runtime)
       junkFrameAutoShown=false
     end
   end
-  app.bus:On("BagsUpdated",function(snapshot) refreshVisibleJunkFrame(snapshot) end)
+  app.bus:On("BagsUpdated",function(snapshot) refreshVisibleJunkFrame(snapshot); refreshMerchantButton() end)
   app.bus:On("BagsUpdated",function(snapshot) updateAutoJunkFrame(snapshot) end)
-  app.bus:On("BagsInvalidated",function() runtime:UpdateJunkFrame(nil) end)
-  app.bus:On("StateUpdated",function() refreshVisibleJunkFrame(app.cache:GetSnapshot()) end)
+  app.bus:On("BagsInvalidated",function() runtime:UpdateJunkFrame(nil); refreshMerchantButton() end)
+  app.bus:On("StateUpdated",function() refreshVisibleJunkFrame(app.cache:GetSnapshot()); refreshMerchantButton() end)
   app.bus:On("StateUpdated",function() updateAutoJunkFrame(app.cache:GetSnapshot()) end)
   app.bus:On("MERCHANT_SHOW",function()
     atMerchant=true
     updateAutoJunkFrame(app.cache:GetSnapshot())
+    refreshMerchantButton()
   end)
   app.bus:On("MERCHANT_CLOSED",function()
     atMerchant=false
     local global=app.store and app.store:GetState().global or {}
     if global.autoJunkFrame then runtime:HideJunkFrame() end
     junkFrameAutoShown=false
+    refreshMerchantButton()
   end)
   local function refreshLootableFrame(snapshot)
     if app.state~="READY" then return end
