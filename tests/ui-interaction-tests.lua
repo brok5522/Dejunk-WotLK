@@ -397,18 +397,7 @@ local listCallbacks={
   junkItems=function() return {sellable=6,destroyable=7,items={}} end,
   lootableItems=function() return {count=0,items={}} end
 }
-local listScrollArrows={}
-for _,scope in ipairs({"global","profile"}) do
-  for _,kind in ipairs({"inclusions","exclusions"}) do
-    for _,direction in ipairs({"Up","Down"}) do
-      local name="DejunkWotLKListScroll_"..scope.."_"..kind.."ScrollBarScroll"..direction.."Button"
-      local arrow={hidden=false,Hide=function(self) self.hidden=true end}
-      ui[name]=arrow; listScrollArrows[#listScrollArrows+1]=arrow
-    end
-  end
-end
 runtime:ShowConfig(listCallbacks)
-for _,arrow in ipairs(listScrollArrows) do assert(arrow.hidden,"stock scroll arrow still overlaps the list title bar") end
 local footerProfile,footerJunk,footerLootable,brandVersion
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="FontString" then
@@ -461,8 +450,10 @@ for _,frame in ipairs(uiFrames) do
       if child.kind=="Texture" then transportIcon=child; break end
     end
     assert(transportIcon and transportIcon.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\transport-icon.tga" and
-      transportIcon.width==14 and transportIcon.height==14 and transportIcon.layer=="OVERLAY",
+      transportIcon.width==14 and transportIcon.height==14 and transportIcon.layer=="OVERLAY" and transportIcon.shown==true,
       "list transport control is missing the upstream-sized visible export/import icon")
+    assert(frame.scrollFrame and frame.scrollFrame.template==nil and frame.scrollTrack,
+      "list panel is still using the legacy arrow template instead of the upstream scroll track")
     assert(frame.transportButton.frameLevel>frame.titleBar:GetFrameLevel(),
       "list transport icon button is behind its title bar")
     assert(frame.heading.textColor and frame.heading.textColor[1]~=1,

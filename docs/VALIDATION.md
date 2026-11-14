@@ -207,10 +207,10 @@ logo/version header and active-profile, junk-count, and lootable-count footer.
 Upstream logo/transport artwork is included under its MIT attribution. Offline
 UI fixtures check panel order/colors, transport flow, scrolling rows, and footer
 rendering. The transport icon uses the upstream 14px size and overlay layer,
-and is raised above its title bar. The legacy scroll template's up/down buttons
-are hidden on these four panels because the upper one overlaps that icon; the
-scroll thumb and wheel scrolling remain available. UI fixtures assert the
-stock arrow controls are hidden and the transport control remains present.
+and is raised above its title bar. Lists now use bare legacy ScrollFrames with
+wheel handling and a custom thumb that appears only when rows overflow; the
+stock arrow template is removed so it cannot cover the transport button. UI
+fixtures assert the bare scroll frame, track and visible transport control.
 Original-client rendering still requires the user's next check.
 
 The Junk and Lootable windows now use their upstream 350×400 and 250×250

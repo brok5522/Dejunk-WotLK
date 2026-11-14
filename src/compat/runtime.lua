@@ -1261,47 +1261,60 @@ function Runtime.New(environment)
           local transportIcon=transport:CreateTexture(nil,"OVERLAY")
           transportIcon:SetTexture("Interface\\AddOns\\Dejunk-WotLK\\assets\\transport-icon.tga")
           transportIcon:SetWidth(14); transportIcon:SetHeight(14); transportIcon:SetPoint("CENTER",transport,"CENTER")
-          transportIcon:SetVertexColor(157/255,157/255,157/255,1)
+          transportIcon:SetVertexColor(0.9,0.9,0.9,1); transportIcon:Show(); transport:Show()
           transport:SetScript("OnEnter",function() transportIcon:SetVertexColor(1,1,1,1) end)
           transport:SetScript("OnLeave",function() transportIcon:SetVertexColor(157/255,157/255,157/255,1) end)
           transport:SetScript("OnClick",function()
             importScope,importKind=paneScope,paneKind
             self:ShowListImport(callbacks,"import")
           end)
-          box.titleBar=titleBar; box.heading=heading; box.transportButton=transport
+          box.titleBar=titleBar; box.heading=heading; box.transportButton=transport; box.transportIcon=transportIcon
           local empty=box:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
           empty:SetPoint("TOPLEFT",8,-36); empty:SetWidth(paneWidth-16); empty:SetJustifyH("LEFT"); setTextColor(empty,"grey")
           local scrollName="DejunkWotLKListScroll_"..paneScope.."_"..paneKind
-          local scroll=api.CreateFrame("ScrollFrame",scrollName,box,"UIPanelScrollFrameTemplate")
-          -- The legacy template's arrow buttons extend past the scroll-frame
-          -- bounds and overlap this panel's title bar (hiding its transport
-          -- control). Upstream uses a slider without arrow buttons.
-          for _,suffix in ipairs({"ScrollBarScrollUpButton","ScrollBarScrollDownButton"}) do
-            local arrow=api[scrollName..suffix]
-            if arrow and type(arrow.Hide)=="function" then arrow:Hide() end
-          end
-          scroll:SetPoint("TOPLEFT",box,"TOPLEFT",2,-29); scroll:SetPoint("BOTTOMRIGHT",box,"BOTTOMRIGHT",-24,2)
+          local scroll=api.CreateFrame("ScrollFrame",scrollName,box)
+          scroll:SetPoint("TOPLEFT",box,"TOPLEFT",2,-29); scroll:SetPoint("BOTTOMRIGHT",box,"BOTTOMRIGHT",-18,2)
           scroll:EnableMouse(true); if type(scroll.EnableMouseWheel)=="function" then scroll:EnableMouseWheel(true) end
           local rowContent=api.CreateFrame("Frame",nil,scroll)
-          rowContent:SetWidth(paneWidth-34); rowContent:SetHeight(196); scroll:SetScrollChild(rowContent)
+          rowContent:SetWidth(paneWidth-28); rowContent:SetHeight(196); scroll:SetScrollChild(rowContent)
+          local scrollTrack=api.CreateFrame("Frame",nil,box)
+          scrollTrack:SetWidth(6); scrollTrack:SetPoint("TOPRIGHT",box,"TOPRIGHT",-6,-31); scrollTrack:SetPoint("BOTTOMRIGHT",box,"BOTTOMRIGHT",-6,4)
+          scrollTrack:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); scrollTrack:SetBackdropColor(30/255,30/255,30/255,0.9)
+          local scrollThumb=scrollTrack:CreateTexture(nil,"OVERLAY")
+          scrollThumb:SetTexture("Interface\\Buttons\\WHITE8x8"); scrollThumb:SetWidth(6); scrollThumb:SetHeight(28)
+          scrollThumb:SetVertexColor(79/255,175/255,227/255,0.9)
+          local function updateScrollThumb()
+            local contentHeight=type(rowContent.GetHeight)=="function" and rowContent:GetHeight() or rowContent.height or 0
+            local scrollHeight=type(scroll.GetHeight)=="function" and scroll:GetHeight() or scroll.height or 0
+            local max=math.max(0,contentHeight-scrollHeight)
+            if max<=0 then scrollTrack:Hide(); return end
+            scrollTrack:Show(); scrollThumb:Show()
+            local trackHeight=type(scrollTrack.GetHeight)=="function" and scrollTrack:GetHeight() or math.max(1,scrollHeight)
+            local thumbHeight=math.max(20,math.floor(trackHeight*scrollHeight/contentHeight))
+            scrollThumb:SetHeight(math.min(trackHeight,thumbHeight))
+            local vertical=type(scroll.GetVerticalScroll)=="function" and scroll:GetVerticalScroll() or scroll.verticalScroll or 0
+            local position=vertical/max*math.max(0,trackHeight-thumbHeight)
+            scrollThumb:ClearAllPoints(); scrollThumb:SetPoint("TOP",scrollTrack,"TOP",0,-position)
+          end
           scroll:SetScript("OnMouseWheel",function(_,delta)
             if type(scroll.GetVerticalScroll)~="function" then return end
             local contentHeight=type(rowContent.GetHeight)=="function" and rowContent:GetHeight() or rowContent.height or 0
             local scrollHeight=type(scroll.GetHeight)=="function" and scroll:GetHeight() or scroll.height or 0
             local max=math.max(0,contentHeight-scrollHeight)
             scroll:SetVerticalScroll(math.max(0,math.min(max,scroll:GetVerticalScroll()-delta*28)))
+            updateScrollThumb()
           end)
           local rows={}
           local function createListRow(rowIndex)
             local row=api.CreateFrame("Button",nil,rowContent)
-            row:SetWidth(paneWidth-34); row:SetHeight(26); row:SetPoint("TOPLEFT",0,-(rowIndex-1)*28)
+            row:SetWidth(paneWidth-28); row:SetHeight(26); row:SetPoint("TOPLEFT",0,-(rowIndex-1)*28)
             row:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); row:SetBackdropBorderColor(0,0,0,0)
             row:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],0.55)
             local icon=row:CreateTexture(nil,"ARTWORK")
             icon:SetWidth(18); icon:SetHeight(18); icon:SetPoint("LEFT",4,0)
             local label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
             if type(label.SetFontObject)=="function" then label:SetFontObject("GameFontNormalSmall") end
-            label:SetPoint("LEFT",icon,"RIGHT",5,0); label:SetWidth(paneWidth-50); label:SetJustifyH("LEFT"); setTextColor(label,"white")
+            label:SetPoint("LEFT",icon,"RIGHT",5,0); label:SetWidth(paneWidth-44); label:SetJustifyH("LEFT"); setTextColor(label,"white")
             local accent=row:CreateTexture(nil,"ARTWORK")
             accent:SetWidth(3); accent:SetPoint("TOPLEFT"); accent:SetPoint("BOTTOMLEFT")
             row.icon=icon; row.label=label; row.accent=accent; row.listScope=paneScope; row.listKind=paneKind
@@ -1338,7 +1351,8 @@ function Runtime.New(environment)
             return row
           end
           for rowIndex=1,7 do createListRow(rowIndex) end
-          listPanels[#listPanels+1]={scope=pane.scope,kind=pane.kind,empty=empty,rows=rows,scroll=scroll,content=rowContent,createRow=createListRow,frame=box}
+          box.scrollFrame=scroll; box.scrollTrack=scrollTrack
+          listPanels[#listPanels+1]={scope=pane.scope,kind=pane.kind,empty=empty,rows=rows,scroll=scroll,content=rowContent,track=scrollTrack,thumb=scrollThumb,updateThumb=updateScrollThumb,createRow=createListRow,frame=box}
         end
         local function layoutListPage(width,height)
           width=type(width)=="number" and width>100 and width or listWidth
@@ -1353,10 +1367,10 @@ function Runtime.New(environment)
             pane.frame:SetWidth(currentPaneWidth); pane.frame:SetHeight(currentPaneHeight)
             pane.frame:ClearAllPoints(); pane.frame:SetPoint("TOPLEFT",listFrame,"TOPLEFT",x,y)
             pane.empty:SetWidth(currentPaneWidth-16)
-            pane.content:SetWidth(currentPaneWidth-34)
+            pane.content:SetWidth(currentPaneWidth-28)
             for _,row in ipairs(pane.rows) do
-              row:SetWidth(currentPaneWidth-34)
-              row.label:SetWidth(currentPaneWidth-50)
+              row:SetWidth(currentPaneWidth-28)
+              row.label:SetWidth(currentPaneWidth-44)
             end
           end
         end
@@ -1417,6 +1431,7 @@ function Runtime.New(environment)
         end)
         local total=#filtered
         pane.content:SetHeight(math.max(196,total*28))
+        pane.updateThumb()
         for rowIndex=1,total do if not pane.rows[rowIndex] then pane.createRow(rowIndex) end end
         for index,row in ipairs(pane.rows) do
           local item=filtered[index]
