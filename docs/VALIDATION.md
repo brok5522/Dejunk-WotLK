@@ -172,7 +172,7 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for current working tree `0.16.47-dev`:
+Results for current working tree `0.16.48-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 41 source digests and 153 legacy API references).
@@ -237,7 +237,7 @@ shortcut, item-row coin/exclude/trash icons, and bottom action buttons. The
 exclude control updates the selected profile list (Shift selects global).
 Coin, trash and merchant controls dispatch through registered action handlers.
 The lootable row opens the item on left click; eye-slash ignores the item ID for
-the current session. Live calls use `src/compat/transactions.lua`; fake API
+the current session. Live calls use `src/compat/runtime.lua`; fake API
 fixtures cover sale, repair, loot, cursor safety and destroy dispatch. Original
 client acceptance and exact upstream transaction/chat parity remain pending.
 
@@ -282,7 +282,7 @@ filter is disabled. Numeric inputs explicitly take mouse and keyboard focus.
    progress/messaging, and several
    command and state-migration details.
 2. Review seller, repair, loot and one-stack destroy parity against upstream.
-   These handlers now use the isolated transaction adapter; no destructive test
+   These handlers now use the embedded transaction adapter; no destructive test
    is needed or permitted for development verification.
 3. Run one consolidated, non-destructive UI and compatibility smoke check in
    the original build-12340 client. Current automated checks cannot prove the

@@ -55,7 +55,7 @@ def main():
         raise ValueError('Duplicate TOC entry')
     expected = [
         'src/namespace.lua', 'libs/Waffle.lua', 'src/compat/client.lua', 'src/compat/legacy.lua',
-        'src/compat/transactions.lua', 'src/compat/runtime.lua', 'src/core/events.lua', 'src/core/scheduler.lua',
+        'src/compat/runtime.lua', 'src/core/events.lua', 'src/core/scheduler.lua',
         'src/core/bag-cache.lua', 'src/core/diagnostics.lua', 'src/store/store.lua',
         'src/rules/evaluator.lua', 'src/services/preview.lua', 'src/services/junk-items.lua',
         'src/services/lootable-items.lua', 'src/services/seller.lua',
@@ -86,9 +86,8 @@ def main():
             if source.count('api.ClearCursor') != 2:
                 raise ValueError('Unexpected cursor-clear path in the compatibility UI')
             source = source.replace('api.ClearCursor', '')
-        if entry == 'src/compat/transactions.lua':
-            # Live item APIs are confined to this exact compatibility adapter.
-            # Calls must remain dynamic through the injected API table.
+        if entry == 'src/compat/runtime.lua':
+            # Live item APIs stay dynamic inside the always-loaded runtime.
             if re.search(r'(?<![\w.:"])\b(?:UseContainerItem|PickupContainerItem|DeleteCursorItem|RepairAllItems)\s*\(', source):
                 raise ValueError('Live inventory API must be called through the injected API adapter')
             source = re.sub(r'\b(?:UseContainerItem|PickupContainerItem|DeleteCursorItem|RepairAllItems)\b', 'TX_API', source)
@@ -100,7 +99,7 @@ def main():
             if re.search(r'\b(?:_G|CreateFrame|SlashCmdList|GetBuildInfo|GetContainer\w+|GetItemInfo|'
                          r'GetNumEquipmentSets|GetEquipmentSet\w+|DEFAULT_CHAT_FRAME|GameTooltip)\b', source):
                 raise ValueError(f'Game access outside compat: {entry}')
-    print(f'PASS: Interface 30300, {len(load_order)} ordered runtime files and isolated transaction API boundary', flush=True)
+    print(f'PASS: Interface 30300, {len(load_order)} ordered runtime files and embedded transaction API boundary', flush=True)
     lua_files = sorted((ROOT / 'src').rglob('*.lua')) + sorted((ROOT / 'tests').rglob('*.lua')) + [ROOT / 'libs/Waffle.lua']
     for path in lua_files:
         run([args.luac, '-p', str(path)])

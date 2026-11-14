@@ -1,8 +1,8 @@
 # Inventory safety contract
 
-The read-only legacy adapter remains separate from `src/compat/transactions.lua`,
-which is the only runtime boundary allowed to invoke inventory-mutating 3.3.5a
-APIs. UI handlers re-read item data and rule eligibility immediately before
+The read-only legacy adapter and transaction adapter are isolated sections of
+`src/compat/runtime.lua`; this file is the only runtime boundary allowed to
+invoke inventory-mutating 3.3.5a APIs. UI handlers re-read item data and rule eligibility immediately before
 dispatch. Sale, repair, loot and destroy integrations are connected but still
 require acceptance testing in the original client; offline fakes do not prove
 live-client behavior.

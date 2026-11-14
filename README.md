@@ -57,7 +57,7 @@ git diff --check
 ```
 Use Python 3.9+ and **lua5.1 / luac5.1**. If binaries are elsewhere, pass
 `--lua /path/to/lua5.1 --luac /path/to/luac5.1` to `tools/check.py`.
-The check verifies TOC/load order, the isolated transaction API boundary, Lua 5.1 syntax,
+The check verifies TOC/load order, the embedded transaction API boundary, Lua 5.1 syntax,
 research/docs and the behavioral suite. `tools/check_phase0.py` retains research
 checks; its historical no-runtime gate was replaced after Phase 1 approval.
 The package command refuses to overwrite existing files, creates a deterministic
