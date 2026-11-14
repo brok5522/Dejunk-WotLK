@@ -28,6 +28,7 @@ ui.SaveBindings=function() ui.bindingWrites=ui.bindingWrites+1 end
 local function object(kind,name,parent,template)
   local frame={kind=kind,name=name,parent=parent,template=template,scripts={},children={},enabled=true,text=""}
   function frame:SetWidth(value) self.width=value end
+  function frame:GetScript(name) return self.scripts[name] end
   function frame:SetHeight(value) self.height=value end
   function frame:SetAlpha(value) self.alpha=value end
   function frame:SetPoint(...) self.point={...} end
@@ -63,6 +64,7 @@ local function object(kind,name,parent,template)
   function frame:SetTextHeight(value) self.textHeight=value end
   function frame:SetFocus() self.focused=true; self.focusedWhileVisible=self.shown==true and self.parent and self.parent.shown==true end
   function frame:SetVerticalScroll(value) self.verticalScroll=value end
+  function frame:GetVerticalScroll() return self.verticalScroll or 0 end
   function frame:SetScript(event,callback) self.scripts[event]=callback end
   function frame:RegisterForClicks(...) self.registeredClicks={...} end
   function frame:RegisterEvent(event) self.registeredEvents=self.registeredEvents or {}; self.registeredEvents[event]=true end
@@ -75,6 +77,7 @@ local function object(kind,name,parent,template)
   function frame:GetChecked() if ui.numericChecked then return self.checked and 1 or nil end; return self.checked end
   function frame:GetText() return self.text end
   function frame:GetWidth() return self.width end
+  function frame:GetHeight() return self.height or 0 end
   function frame:GetParent() return self.parent end
   function frame:GetFrameLevel()
     if self.frameLevel~=nil then return self.frameLevel end
@@ -139,6 +142,10 @@ local runtime=Addon.Runtime.New(setmetatable({print=function(message) messages[#
 local bagTooltipHook,hookCount
 ui.GameTooltip={lines={},AddLine=function(self,text) self.lines[#self.lines+1]={text=text} end,
   AddDoubleLine=function(self,left,right) self.lines[#self.lines+1]={left=left,right=right} end,
+  SetOwner=function(self,owner) self.owner=owner end,
+  SetText=function(self,text) self.text=text end,
+  SetBagItem=function(self,bag,slot) self.bag,self.slot=bag,slot end,
+  Hide=function(self) self.shown=false end,
   Show=function(self) self.shown=true end,
   GetItem=function(self) return self.itemName,self.itemLink end}
 ui.hooksecurefunc=function(target,name,hook)
@@ -155,21 +162,27 @@ assert(runtime:RegisterBagTooltips(function()
   return {result="JUNK",reasonCode="QUALITY"},{result="KEEP",reasonCode="EXCLUDED"}
 end),"legacy bag tooltip hook did not register")
 bagTooltipHook(ui.GameTooltip,0,1)
-assert(ui.GameTooltip.shown and ui.GameTooltip.lines[2].left=="Selling" and
-  ui.GameTooltip.lines[3].right=="EXCLUDED","bag tooltip omitted filter decisions")
+assert(ui.GameTooltip.shown and ui.GameTooltip.lines[2].text:find("Dejunk",1,true) and
+  ui.GameTooltip.lines[3].text:find("Selling",1,true) and
+  ui.GameTooltip.lines[4].text:find("Included by quality",1,true) and
+  ui.GameTooltip.lines[5].text:find("Not Destroying",1,true),"bag tooltip omitted readable filter decisions")
 assert(runtime:RegisterBagTooltips(function() end) and hookCount==1,"bag tooltip hook registered more than once")
 assert(runtime:RegisterBagIcons(function()
   return {result="JUNK"},{result="KEEP"}
 end),"bag icon provider did not register")
 assert(runtime:UpdateBagIcons({itemIcons=true,itemIconStyle="SMALL"}) and
   ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown,"small junk overlay did not appear")
-assert(ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.texture=="Interface\\Icons\\INV_Misc_Trash_01",
+assert(ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\dejunk-icon",
   "junk overlay texture did not load")
 runtime:UpdateBagIcons({itemIcons=true,itemIconStyle="LARGE"})
+assert(ui.ContainerFrame1Item1.dejunkWotLKIconBackground.shown and
+  ui.ContainerFrame1Item1.dejunkWotLKIconBackground.vertexColor[4]==0.75,
+  "large bag overlay omitted the reference dark background")
 assert(ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.allPoints==ui.ContainerFrame1Item1,
   "large overlay did not fill the item button")
 runtime:RegisterBagIcons(function() return {result="KEEP"},{result="KEEP"} end)
 assert(not ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown,"stale junk overlay was not cleared")
+assert(not ui.ContainerFrame1Item1.dejunkWotLKIconBackground.shown,"stale bag overlay background was not cleared")
 runtime:UpdateBagIcons({itemIcons=false})
 assert(not ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown,"disabled item icons remained visible")
 local savedWindowPoint
@@ -233,14 +246,15 @@ assert(minimapButton and minimapButton.shown and minimapButton.dragButtons[1]=="
 minimapButton.scripts.OnClick(minimapButton,"LeftButton")
 assert(openFromMinimap==1,"minimap icon click did not open the addon")
 minimapButton.scripts.OnClick(minimapButton,"RightButton")
-assert(minimapState.minimapIcon.hide==true and minimapButton.shown==false,
-  "minimap icon right click did not persist its hidden state")
+assert(minimapState.minimapIcon.hide==false and minimapButton.shown==true and
+  messages[#messages]:find("Junk items are unavailable",1,true),
+  "minimap right click hid the icon instead of requesting the Junk window")
 minimapState.minimapIcon.hide=false
 assert(runtime:UpdateMinimapIcon(minimapState),"minimap icon could not be shown again")
 minimapButton.scripts.OnDragStart(minimapButton)
 minimapButton.scripts.OnUpdate(minimapButton,0.016)
 minimapButton.scripts.OnDragStop(minimapButton)
-assert(math.abs(minimapState.minimapIcon.angle)<0.01 and savedMinimapOptions>=2,
+assert(math.abs(minimapState.minimapIcon.angle)<0.01 and savedMinimapOptions>=1,
   "minimap dragging did not save its normalized position")
 assert(runtime:ToggleJunkFrame({sellable=1,destroyable=2,items={{itemId=123,name="Example",count=2,quality=0,unitVendorPrice=3,texture="Interface\\Icons\\INV_Misc_Junk_01",
   sell={reasonCode="QUALITY"},destroy={reasonCode="QUALITY"}},
@@ -248,7 +262,7 @@ assert(runtime:ToggleJunkFrame({sellable=1,destroyable=2,items={{itemId=123,name
   "read-only Junk frame failed to open")
 local junkWindow=namedFrame("DejunkWotLKJunkFrame")
 assert(junkWindow and junkWindow.shown,"Junk frame did not become visible")
-assert(junkWindow.width==350 and junkWindow.height==400 and junkWindow.strata=="HIGH" and junkWindow.settingsButton and
+assert(junkWindow.width==350 and junkWindow.height==400 and junkWindow.strata=="DIALOG" and junkWindow.settingsButton and
   junkWindow.startSellingButton and junkWindow.startSellingButton.enabled==false and
   junkWindow.destroyNextButton and junkWindow.destroyNextButton.enabled==false,
   "Junk window controls or upstream dimensions are missing / unsafe actions are enabled")
@@ -266,17 +280,18 @@ assert(savedWindowPoint and savedWindowPoint.key=="junkFrame" and savedWindowPoi
 local junkDetail
 local staleJunkRow
 for _,frame in ipairs(uiFrames) do
-  if frame.kind=="FontString" and frame.text and frame.text:find("Sell: QUALITY",1,true) then junkDetail=frame end
+  if frame.kind=="FontString" and frame.text=="Price unavailable" then junkDetail=frame end
   if frame.kind=="FontString" and frame.text and frame.text:find("[Another]",1,true) then staleJunkRow=frame end
 end
-assert(junkDetail and junkDetail.text:find("Destroy: QUALITY",1,true),"Junk frame omitted per-action decisions")
+assert(junkDetail,"Junk frame omitted the unavailable-price hint")
 assert(staleJunkRow,"Junk frame omitted later candidate rows")
 local junkIcon,qualityAccent
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="Texture" and frame.texture=="Interface\\Icons\\INV_Misc_Junk_01" then junkIcon=frame end
-  if frame.kind=="Texture" and frame.vertexColor and frame.vertexColor[1]==1 and frame.vertexColor[2]==0.35 then qualityAccent=frame end
+  if frame.kind=="Texture" and frame.vertexColor and frame.vertexColor[1]==157/255 and frame.vertexColor[2]==157/255 then qualityAccent=frame end
 end
-assert(junkIcon and qualityAccent,"Junk card omitted item icon or quality accent")
+assert(junkIcon and qualityAccent and qualityAccent.texture=="Interface\\Buttons\\WHITE8x8",
+  "Junk card omitted item icon or visible quality accent")
 local expectedActionIcons={
   ["Interface\\AddOns\\Dejunk-WotLK\\assets\\coins-icon"]=false,
   ["Interface\\AddOns\\Dejunk-WotLK\\assets\\ban-icon"]=true,
@@ -322,8 +337,8 @@ for _,frame in ipairs(uiFrames) do if frame.kind=="FontString" and frame.text=="
 assert(junkEmpty,"empty Junk frame state was not shown")
 assert(runtime:ToggleJunkFrame({sellable=0,destroyable=0,items={}}) and junkWindow.shown==false,
   "Junk frame toggle did not hide the existing window")
-local merchantItems={sellable=1,destroyable=1,items={{itemId=777,name="Merchant test",quality=0,count=1,
-  sell={reasonCode="QUALITY"},destroy={reasonCode="QUALITY"}}}}
+local merchantItems={sellable=1,destroyable=1,items={{itemId=777,name="Merchant test",quality=0,count=1,bag=0,slot=1,
+  sell={result="JUNK",reasonCode="QUALITY"},destroy={result="JUNK",reasonCode="QUALITY"}}}}
 local savedMerchantPoint
 runtime:SetWindowPointHandlers(function(key) return key=="merchantButton" and savedMerchantPoint end,
   function(key,value) if key=="merchantButton" then savedMerchantPoint=value; return true end return false end)
@@ -334,13 +349,19 @@ assert(merchantButton and merchantButton.parent==ui.MerchantFrame and merchantBu
 assert(merchantButton.width==108 and merchantButton.height==28 and
   merchantButton.children[1].texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\dejunk-icon" and
   merchantButton.children[2].text=="(1/1)","merchant button did not match upstream icon and count layout")
+ui.GameTooltip.lines={}; merchantButton.scripts.OnEnter(merchantButton)
+assert(ui.GameTooltip.lines[1].left=="Dejunk (1/1)" and ui.GameTooltip.lines[1].right=="3.3.5",
+  "merchant tooltip omitted the upstream item counts or version")
+ui.GameTooltip.lines={}; ui.altDown=true; merchantButton.scripts.OnEnter(merchantButton); ui.altDown=false
+assert(ui.GameTooltip.bag==0 and ui.GameTooltip.slot==1 and ui.GameTooltip.lines[2].right=="Destroy",
+  "holding Alt over the merchant button did not preview the next destroyable item")
 merchantButton:SetPoint("BOTTOM",ui.MerchantFrame,"BOTTOM",25,18)
 merchantButton.scripts.OnDragStop(merchantButton)
 assert(savedMerchantPoint and savedMerchantPoint.point=="BOTTOM" and savedMerchantPoint.relativeTo=="MerchantFrame" and
   savedMerchantPoint.offsetX==25 and savedMerchantPoint.offsetY==18,"merchant button drag position did not persist")
 ui.shiftDown=true; merchantButton:Click("RightButton"); ui.shiftDown=false
 assert(savedMerchantPoint.point=="TOPLEFT" and savedMerchantPoint.relativeTo=="MerchantFrame" and
-  savedMerchantPoint.offsetX==60 and savedMerchantPoint.offsetY==-28,"merchant button reset did not restore upstream default position")
+  savedMerchantPoint.offsetX==60 and savedMerchantPoint.offsetY==-44,"merchant button reset did not restore upstream default position")
 merchantButton:Click("RightButton")
 assert(junkWindow.shown,"merchant button right-click did not toggle the Junk frame")
 merchantButton:Click("RightButton")
@@ -369,6 +390,14 @@ for _,candidate in ipairs(uiFrames) do
 end
 assert(sellRowButton and destroyRowButton and sellRowButton.enabled and destroyRowButton.enabled,
   "eligible mock action callbacks did not enable their matching row controls")
+ui.GameTooltip.lines={}; sellRowButton.scripts.OnEnter(sellRowButton)
+local sellHint=false
+for _,line in ipairs(ui.GameTooltip.lines) do if line.text=="Click to sell this stack." then sellHint=true end end
+assert(sellHint,"sell tooltip did not see the current merchant session")
+runtime:SetItemActionsBusy(true)
+assert(not sellRowButton.enabled and not destroyRowButton.enabled and not junkWindow.startSellingButton.enabled,
+  "a sale run left competing action controls enabled")
+runtime:SetItemActionsBusy(false)
 assert(junkWindow.destroyNextButton.labelRegion.textColor[1]>0.8 and
   junkWindow.destroyNextButton.labelRegion.textColor[2]<0.4,
   "Destroy Next Item button did not use the upstream red label color")
@@ -395,7 +424,8 @@ for _,frame in ipairs(uiFrames) do
 end
 assert(ignoreIcon and ignoreIcon.parent.parent.enabled==true,"Lootable row ignore control is missing")
 assert(ignoreIcon.width==14 and ignoreIcon.height==14 and ignoreIcon.parent.width==32 and
-  ignoreIcon.parent.height==32 and ignoreIcon.parent.parent.icon.width==24 and ignoreIcon.parent.parent.height==34,
+  ignoreIcon.parent.height==32 and ignoreIcon.parent.parent.icon.width==24 and ignoreIcon.parent.parent.height==34 and
+  ignoreIcon.parent.parent.accent.texture=="Interface\\Buttons\\WHITE8x8",
   "Lootable item or ignore icons do not match the reference sizing")
 ignoreIcon.parent.scripts.OnClick(ignoreIcon.parent)
 assert(not ignoreIcon.parent.parent.shown,"ignoring a lootable item did not remove its row")
@@ -493,10 +523,10 @@ for _,frame in ipairs(uiFrames) do
     if frame.text and frame.text:find("Active Profile:",1,true) then footerProfile=frame end
     if frame.text and frame.text:find("|cffffd100Junk Items|r",1,true) then footerJunk=frame end
     if frame.text and frame.text:find("|cffffd100Lootable Items|r",1,true) then footerLootable=frame end
-    if frame.text=="3.5.0" then brandVersion=frame end
+    if frame.text=="3.3.5" then brandVersion=frame end
   end
 end
-assert(footerProfile and footerProfile.text:find("Test",1,true) and footerJunk and footerJunk.text:find("6/7",1,true) and
+assert(footerProfile and footerProfile.text:find("Test",1,true) and footerJunk and footerJunk.text:gsub("|c%x%x%x%x%x%x%x%x",""):gsub("|r",""):find("6/7",1,true) and
   footerLootable and footerLootable.text:find("0",1,true) and brandVersion,
   "main-window upstream header/version or status footer is missing: "..tostring(footerProfile and footerProfile.text).." / "..
   tostring(footerJunk and footerJunk.text).." / "..tostring(footerLootable and footerLootable.text).." / "..tostring(brandVersion and brandVersion.text))
@@ -505,6 +535,20 @@ for _,frame in ipairs(uiFrames) do
   if frame.kind=="Texture" and frame.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\dejunk-icon" and frame.width==20 then brandIcon=frame end
 end
 assert(brandIcon,"main window is missing the upstream 20px brand icon")
+namedFrame("DejunkWotLKFooter_profile"):Click()
+assert(namedFrame("DejunkWotLKProfiles").shown,"active-profile footer did not open Profiles")
+runtime:ToggleConfig(listCallbacks); runtime:ToggleConfig(listCallbacks)
+assert(namedFrame("DejunkWotLKProfiles").shown,"reopening the main window forgot the previous page")
+runtime:ToggleProfiles(listCallbacks)
+assert(not namedFrame("DejunkWotLK_MainWindow").shown,"profiles toggle did not close an already selected Profiles screen")
+runtime:ToggleProfiles(listCallbacks)
+assert(namedFrame("DejunkWotLKProfiles").shown,"profiles toggle did not reopen Profiles")
+namedFrame("DejunkWotLKFooter_junk"):Click()
+assert(junkWindow.shown,"junk-count footer did not toggle the Junk frame")
+namedFrame("DejunkWotLKFooter_junk"):Click()
+assert(not junkWindow.shown,"junk-count footer did not toggle back off")
+namedFrame("DejunkWotLKFooter_lootable"):Click()
+assert(messages[#messages]:find("No lootable items.",1,true),"empty lootable footer did not explain its result")
 control("Button","Lists"):Click()
 assert(namedFrame("DejunkWotLKLists"),"Lists page frame was not created")
 assert(lastControl("Button","X").template==nil,"configuration close still uses a red Blizzard template")
@@ -519,6 +563,17 @@ for _,candidate in ipairs(uiFrames) do
 end
 local listFrame=namedFrame("DejunkWotLKLists")
 local mainWindow=namedFrame("DejunkWotLK_MainWindow")
+runtime:UpdateMinimapIcon(minimapState,nil,function() runtime:ToggleConfig(listCallbacks) end)
+for cycle=1,3 do
+  minimapButton:Click("LeftButton")
+  assert(not mainWindow.shown,"minimap did not close the main window")
+  minimapButton:Click("LeftButton")
+  assert(mainWindow.shown and listFrame.shown,"minimap reopen left the selected Lists page hidden")
+end
+mainWindow:Hide()
+mainWindow.scripts.OnHide(mainWindow)
+minimapButton:Click("LeftButton")
+assert(mainWindow.shown and listFrame.shown,"reopening after Escape/direct hide left Lists blank")
 local navOrder={}
 for _,candidate in ipairs(uiFrames) do
   if candidate.kind=="Button" and
@@ -565,6 +620,7 @@ assert(listFrame.backdrop==nil,"Lists page retained the extra nested window fram
 assert(listSearch.height==28 and listSearch.fontObject=="GameFontNormal" and listSearch.width>400 and
   listSearch.backdropColor and listSearch.backdropColor[1]==30/255,
   "list search input does not match the upstream control size and palette")
+assert(listSearch.template==nil,"search still inherits the Blizzard input border")
 assert(not lastListInput,"Lists page still shows the non-upstream numeric item ID control")
 local ancestor=listFrame
 while ancestor and ancestor~=mainWindow do ancestor=ancestor.parent end
@@ -575,7 +631,8 @@ for _,frame in ipairs(uiFrames) do
 end
 assert(inclusionRow and inclusionRow.scripts.OnMouseDown,"list item rows do not accept cursor items")
 cursorItemId=6949
-inclusionRow.scripts.OnMouseDown(inclusionRow)
+assert(inclusionRow.scripts.OnReceiveDrag,"list row has no actual drop receiver")
+inclusionRow.scripts.OnReceiveDrag(inclusionRow)
 assert(listStore:GetState().global.inclusions[6949]==true,"cursor item was not added to the list")
 assert(cursorItemId==nil,"successful list drop did not clear the cursor item")
 for id=7000,7008 do assert(listStore:EditList("global","inclusions",id,true)) end
@@ -731,39 +788,54 @@ assert(searchIcon and searchIcon.width==14,"Lists is missing the upstream search
 searchBox:SetFocus(); searchBox:SetText("2"); searchBox:SetText("23")
 assert(searchBox:GetText()=="23" and searchBox.focused and listFrame.shown,
   "refreshing Lists while typing lost the search text, focus or selected page")
-searchBox:SetText("")
+searchBox.scripts.OnEscapePressed(searchBox)
+assert(searchBox:GetText()=="" and not searchBox.focused and listFrame.shown,
+  "Escape did not clear Lists search and release focus while preserving the page")
 local savedTransportPoint
 runtime:SetWindowPointHandlers(function(key) return key=="transportFrame" and savedTransportPoint end,
   function(key,value) if key=="transportFrame" then savedTransportPoint=value; return true end return false end)
 listPanes["global:inclusions"].transportButton:Click()
 local transportFrame=namedFrame("DejunkWotLKListImport")
+local transportClose=namedFrame("DejunkWotLKListTransportClose")
+assert(transportClose.width==24 and transportClose.height==24,"transport close button has no click area")
+local escapeNames={}
+for _,name in ipairs(runtime.api.UISpecialFrames) do escapeNames[name]=true end
+assert(escapeNames.DejunkWotLK_MainWindow and escapeNames.DejunkWotLKListImport and
+  escapeNames.DejunkWotLKJunkFrame,"windows were not registered with the legacy Escape handler")
 assert(transportFrame.shown and listFrame.shown==false and transportFrame.movable and
   transportFrame.dragButtons[1]=="LeftButton","transport frame is not movable like the upstream window")
+assert(transportFrame.width==325 and transportFrame.height==375,"transport frame does not match upstream dimensions")
 transportFrame:SetPoint("BOTTOMRIGHT",ui.UIParent,"BOTTOMRIGHT",-30,40)
 transportFrame.scripts.OnDragStop(transportFrame)
 assert(savedTransportPoint and savedTransportPoint.point=="BOTTOMRIGHT" and savedTransportPoint.offsetX==-30 and
   savedTransportPoint.offsetY==40,"transport frame drag position did not persist")
-control("Button","Export"):Click()
 assert(namedFrame("DejunkWotLKListImport").shown and listFrame.shown==false)
 local exported=lastControl("EditBox","6948,6949")
 assert(exported.focused,"transport export did not select the chosen list")
-control("Button","Select all"):Click()
 assert(exported.highlighted,"transport export did not select the IDs for copying")
-control("Button","Close"):Click()
+exported.scripts.OnEscapePressed(exported)
+assert(not transportFrame.shown and listFrame.shown,"Escape in the transport input did not dismiss the window")
+listPanes["global:inclusions"].transportButton:Click()
+namedFrame("DejunkWotLKListTransportClose"):Click()
 assert(listFrame.shown==true)
 
 listPanes["global:inclusions"].transportButton:Click()
 assert(namedFrame("DejunkWotLKListImport"),"import window did not use the Waffle window factory")
 assert(listFrame.shown==false)
 local importInput
-for _,frame in ipairs(uiFrames) do if frame.kind=="EditBox" and frame.width==455 then importInput=frame end end
+for _,frame in ipairs(uiFrames) do if frame.kind=="EditBox" and frame.width==245 then importInput=frame end end
 assert(importInput)
 importInput:SetText("123, 456")
-control("Button","Review"):Click()
-assert(lastControl("FontString","Ready: 2 new IDs; 0 already present."))
-lastControl("Button","Import"):Click()
-assert(listFrame.shown==true)
+control("Button","Import"):Click()
+assert(namedFrame("DejunkWotLKListImport").shown,
+  "successful import did not keep the transport window open")
 assert(listStore:ExportList("global","inclusions")=="123\n456\n6948\n6949")
+assert(messages[#messages]:find("Imported 2 item IDs.",1,true),"transport import did not report its result")
+listPanes["global:inclusions"].transportButton:Click()
+control("Button","Export"):Click()
+local reexported=lastControl("EditBox","123,456,6948,6949")
+assert(reexported.highlighted,"transport Export button did not refill and select the target list")
+namedFrame("DejunkWotLKListTransportClose"):Click()
 
 local function listRow(scope,kind,id)
   for _,frame in ipairs(uiFrames) do
@@ -772,6 +844,8 @@ local function listRow(scope,kind,id)
   error("missing list row "..scope.."/"..kind.."/"..id)
 end
 local globalInclusionRow=listRow("global","inclusions",6948)
+assert(globalInclusionRow.accent.texture=="Interface\\Buttons\\WHITE8x8",
+  "Lists item quality stripe has no visible texture")
 ui.shiftDown=true; globalInclusionRow:Click("RightButton"); ui.shiftDown=false
 assert(listStore:ExportList("global","exclusions")=="6948")
 ui.controlDown=true; listRow("global","inclusions",6948):Click("RightButton"); ui.controlDown=false
@@ -806,7 +880,9 @@ assert(configFrame.shown==true)
 local selectedProfile
 local profileOperations={}
 local profileCallbacks={
-  profiles=function() return {{id="default",name="Default",active=true,numInclusions=0,numExclusions=0},{id="profile-1",name="Test",active=false,numInclusions=1,numExclusions=2}} end,
+  profiles=function() return {{id="default",name="Default",active=true,numInclusions=0,numExclusions=0},
+    {id="profile-1",name="Test",active=false,numInclusions=1,numExclusions=2,characterKeys={"Realm\31Test"}}} end,
+  currentCharacterKey=function() return "Realm\31Test" end,
   activeProfileId=function() return "default" end,activeProfileName=function() return "Default" end,
   switchProfile=function(id) selectedProfile=id; return true end,
   createProfile=function(name) profileOperations.create={name=name}; return "created" end,
@@ -824,7 +900,7 @@ assert(profilesPage.width and profilesPage.width>0 and profilesPage.height and p
 assert(profilesPage.alpha~=0,"Profiles page was made transparent by the legacy page visibility path")
 assert(profilesPage.backdrop==nil,"Profiles page retained its own dialog backdrop")
 assert(profilesPage.shown,"Profiles page was not visible when selected")
-assert(profilesPage.pageTitle.text=="Dejunk | Profiles (Default)","Profiles panel title did not show the active profile")
+assert(profilesPage.pageTitle.text=="Profiles (|cffffffffDefault|r)","Profiles panel title did not show the active profile")
 assert(profilesPage.width>0,"Profiles screen did not receive a layout width")
 local profilesDescription
 for _,frame in ipairs(uiFrames) do
@@ -875,6 +951,11 @@ assert(testProfileSummary and testProfileSummary.point and testProfileSummary.po
 assert(testProfileSummary.text:find("|cff9d9d9dInclusions|r: |cffffffff1|r",1,true) and
   testProfileSummary.text:find("|cff9d9d9dExclusions|r: |cffffffff2|r",1,true),
   "inactive profile summary does not use upstream grey labels and white counts")
+ui.GameTooltip.lines={}; testProfileCard.scripts.OnEnter(testProfileCard)
+assert(ui.GameTooltip.text=="Test" and ui.GameTooltip.lines[1].left=="Inclusions" and
+  ui.GameTooltip.lines[4].text:find("Used By",1,true) and ui.GameTooltip.lines[5].text:find("Realm - Test",1,true),
+  "profile hover summary did not show counts and its assigned character")
+testProfileCard.scripts.OnLeave(testProfileCard)
 testProfileCard:Click()
 assert(selectedProfile=="profile-1","profile card did not activate the profile represented by that card")
 local function profileAction(action,id)
@@ -959,7 +1040,20 @@ assert(optionsPage.width and optionsPage.width>0 and optionsPage.height and opti
   "Options page was not sized by the main Waffle layout")
 assert(optionsPage.backdrop~=nil,"Options page is missing the opaque active-page background")
 assert(optionsPage.backdropColor and optionsPage.backdropColor[4]==1,"Options page background is not opaque over inactive screens")
-assert(optionsPage.scrollFrame and optionsPage.scrollFrame.template=="UIPanelScrollFrameTemplate","Profile options must use the legacy scroll-panel pattern")
+assert(optionsPage.scrollFrame and optionsPage.scrollFrame.template==nil and optionsPage.scrollFrame.scrollTrack,"Profile options must use the plain legacy scroll track")
+local optionsScroll=optionsPage.scrollFrame
+local previousHeight=optionsScroll.height
+optionsScroll:SetHeight(160); optionsScroll.scrollTrack:SetHeight(160)
+optionsScroll:SetVerticalScroll(0)
+optionsScroll.scripts.OnMouseWheel(optionsScroll,-1)
+assert(optionsScroll:GetVerticalScroll()==28 and optionsScroll.scrollTrack.shown,
+  "plain option scrollbar did not move or reveal its overflow track")
+optionsScroll.scripts.OnMouseWheel(optionsScroll,-10000)
+assert(optionsScroll:GetVerticalScroll()==optionsPage.contentFrame:GetHeight()-160,
+  "plain option scrollbar exceeded its content range")
+optionsScroll.scripts.OnMouseWheel(optionsScroll,10000)
+assert(optionsScroll:GetVerticalScroll()==0,"plain option scrollbar did not clamp at the top")
+optionsScroll.height=previousHeight
 assert(optionsPage.contentFrame and optionsPage.contentFrame.height>=2040,"Profile option groups must fit in the scroll content")
 assert(optionsPage.contentFrame.width and optionsPage.contentFrame.width>=420,"Profile options content was not sized to its page")
 local sectionOrder={}
@@ -968,7 +1062,7 @@ for _,frame in ipairs(uiFrames) do
     (frame.text=="General" or frame.text=="Include" or frame.text=="Exclude") then sectionOrder[#sectionOrder+1]=frame.text end
 end
 assert(table.concat(sectionOrder,",")=="General,Include,Exclude","Profile settings are not grouped in upstream section order")
-assert(optionsPage.pageTitle.text=="Dejunk | Profile Options (Test)","profile options heading did not identify the active profile")
+assert(optionsPage.pageTitle.text=="Profile Options (|cffffffffTest|r)","profile options heading did not identify the active profile")
 assert(optionsPage.pageTitle.textColor and optionsPage.pageTitle.textColor[1]>0.3,
   "upstream blue title color was not applied")
 assert(optionsPage.pageDescription.text=="These options only apply to characters using the active profile.","upstream profile-options panel description is missing")
@@ -1124,9 +1218,11 @@ assert(optionState.includeByQuality.enabled==true,"quality rule could not be re-
 local qualityCard
 for _,frame in ipairs(cards) do if frame.point and frame.point[5]==-208 then qualityCard=frame; break end end
 assert(qualityCard and qualityCard.scripts.OnMouseDown,"upstream option card click behavior was not provided")
-qualityCard.scripts.OnMouseDown(qualityCard)
+qualityCard.scripts.OnMouseDown(qualityCard,"RightButton")
+assert(optionState.includeByQuality.enabled==true,"right-click unexpectedly toggled the quality option")
+qualityCard.scripts.OnMouseDown(qualityCard,"LeftButton")
 assert(optionState.includeByQuality.enabled==false,"clicking the option card did not toggle its setting")
-qualityCard.scripts.OnMouseDown(qualityCard)
+qualityCard.scripts.OnMouseDown(qualityCard,"LeftButton")
 assert(optionState.includeByQuality.enabled==true,"option card did not toggle back on")
 control("CheckButton","Auto Sell"):Click(); assert(optionState.autoSell==true)
 runtime:ShowOptions(optionCallbacks,"global")
@@ -1161,8 +1257,18 @@ assert(control("CheckButton","Verbose").shown==true and control("CheckButton","S
   "global option detail and icon-size choices were not created")
 control("CheckButton","Merchant Button"):Click()
 assert(globalOptionState.merchantButton==false,"merchant button option did not persist")
-control("CheckButton","Verbose"):Click()
+local resetPoint
+runtime:SetWindowPointHandlers(function() end,function(key,value)
+  if key=="merchantButton" then resetPoint=value; return true end
+  return false
+end)
+control("CheckButton","Merchant Button").labelHit:Click("RightButton")
+assert(resetPoint and resetPoint.offsetX==60 and resetPoint.offsetY==-44 and globalOptionState.merchantButton==false,
+  "right-clicking Merchant Button options did not reset its position without toggling it")
+control("CheckButton","Verbose").labelHit:Click()
 assert(globalOptionState.chatMessages.detail=="VERBOSE","chat detail choice did not persist")
+control("CheckButton","Large").labelHit:Click()
+assert(globalOptionState.itemIconStyle=="LARGE","clicking the icon-size label did not save its choice")
 control("CheckButton","Safe Sell"):Click(); assert(globalOptionState.safeSell==true)
 runtime:ShowOptions(optionCallbacks,"profile")
 control("CheckButton","Poor"):Click(); assert(optionState.includeByQuality.qualities.poor==false)

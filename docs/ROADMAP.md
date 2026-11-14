@@ -51,3 +51,14 @@ precedence as a substitute for upstream behavior. If an API difference prevents
 parity, document the exact case and implement the closest behavior supported by
 the legacy client. Keep uncertainty safe only where the API truly cannot prove
 the upstream input; do not turn that into a new user-facing feature.
+
+## Source audit follow-up (0.16.58-dev)
+
+Main-window footer navigation, target-page toggles, native scroll tracks, readable
+item-reason tooltips and merchant option reset now have interaction fixtures.
+Sequential sales have a bounded settle wait, action-specific selection, twelve
+dispatched-call cap and cancellation/busy-state coverage. Delayed repair and
+single-use destroy confirmations have additional fake-API lifecycle tests.
+Original-client visual acceptance, localization/integrations and the remaining
+source differences in PARITY.md still gate completion; this is a regression-test
+candidate rather than a parity-complete release.

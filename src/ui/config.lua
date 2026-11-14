@@ -52,8 +52,13 @@ function Config.ListProfiles(store)
   local active=store:GetActiveProfileId()
   local profiles={}
   for id,value in pairs(state.profiles or {}) do
+    local characterKeys={}
+    for characterKey,profileId in pairs(state.characterProfiles or {}) do
+      if profileId==id then characterKeys[#characterKeys+1]=characterKey end
+    end
+    table.sort(characterKeys)
     profiles[#profiles+1]={id=id,name=value.name or id,active=id==active,autoSell=value.autoSell==true,
-      numInclusions=count(value.inclusions),numExclusions=count(value.exclusions)}
+      numInclusions=count(value.inclusions),numExclusions=count(value.exclusions),characterKeys=characterKeys}
   end
   table.sort(profiles,function(a,b) return a.id<b.id end)
   return profiles

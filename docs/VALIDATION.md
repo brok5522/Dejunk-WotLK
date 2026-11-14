@@ -1,5 +1,82 @@
 # Validation and completion report
 
+## Source audit and regression candidate: 0.16.58-dev
+
+Reference checkout was verified again at immutable upstream commit
+`04bafd5e411441ef5b51bb8ed10d208f2d7758f5`. Relevant comparisons:
+
+| Upstream source | Checked behavior | Port change / evidence |
+|---|---|---|
+| `src/ui/screens/main-window/main-window.lua:356` | Three interactive footer segments | Profile/Junk/Lootable footer buttons and click fixtures; live count refresh follows bag/state changes |
+| `src/ui/screens/main-window/main-window.lua:470` | Reopen on the selected page; targeted Profiles toggle | Page preservation and `/dejunk profiles` toggle, including repeated close/reopen fixtures |
+| `src/ui/item-tooltip.lua:20` | Colored headings and readable reasons on separate lines | Shared decision tooltip formatter in the legacy runtime, exercised by bag and action tooltips |
+| `src/ui/screens/main-window/options/global-options.lua` | Merchant option right-click reset and choice-label clicks | Reset without toggling the setting; Verbose and icon-size labels dispatch their controls |
+| `src/ui/screens/main-window/options/options-builder.lua` and native scroll widgets | Plain tracks, wheel input and bounded scroll range | Shared legacy scroll control for Profiles, Options, Transport, Junk and Lootable; overflow/clamp fixture |
+| `src/services/seller.lua:163` | Bounded cache settling, action-specific batches, busy lifecycle | 0.4-second cache wait; only sale-eligible rows dispatched; duplicate start rejected; end/cancel clears UI busy state |
+| `src/services/seller.lua:183` | Safe Sell counts calls rather than successful outcomes | Twelve-call cap tested with mixed sale/destroy rows and failing fake API dispatches |
+| `src/services/seller.lua:37` | Delayed merchant repair | Original session, option and settings revision are checked again; stale-session/disabled-option tests |
+| `src/services/confirmer.lua` and `src/services/destroyer.lua` | Deliberate item-specific confirmation | Copied, single-use intent; Cancel/settings changes expire it; fixtures never perform live deletion |
+
+The legacy item-card tooltip also had a lexical-scope bug: its closure read a
+global `merchantButtonOpen` instead of the later-declared local. The shared
+merchant state is now declared before card factories; a tooltip fixture proves
+the active merchant context is visible.
+
+Commands executed with actual Lua 5.1:
+
+```sh
+python3 tools/check_phase0.py
+python3 tools/check.py --lua /workspace/work/lua51/usr/bin/lua5.1 --luac /workspace/work/lua51/usr/bin/luac5.1
+git diff --check
+```
+
+All passed: runtime 64, store 21, services 8, destroyer 11, UI model 62,
+transaction adapter/action-lifecycle fixtures and UI interaction fixtures.
+Reproducible 38-entry packages passed content/CRC/layout checks. This is offline
+evidence only. `docs/CLIENT-TEST-0.16.58.fa.md` records the next client checks.
+
+Still not claimed complete: exact localization, third-party bag integrations,
+special-equipment edge cases, import parser semantics/progress, seller outcome
+observation and exact chat/session messages, plus final native-client layout and
+input acceptance. The older table entries that said no filter decisions reached
+actions were stale and have been corrected in PARITY.md.
+
+## Window layering and merchant placement: 0.16.57-dev
+
+The owner requested the visible header target 3.3.5 instead of upstream version
+3.5.1. This is an explicit presentation exception; the pinned source remains
+Dejunk 3.5.1. Junk and Transport use DIALOG strata on original WotLK so elevated
+profile action buttons cannot draw over them. Main/Junk backgrounds are opaque;
+the Junk settings gear dismisses Junk before opening Profile Options. Merchant
+button uses MEDIUM strata, and its default/reset position is 16px below its old
+placement to avoid the merchant name bar. Existing untouched old default points
+are adjusted when displayed; custom dragged positions remain preserved.
+The 0.16.56 minimap reopen fix is included. Lua 5.1 UI and regression checks
+passed; in-game visual acceptance remains pending.
+
+## Minimap reopen fix: 0.16.56-dev
+
+The owner observed an empty selected Lists page after opening through the minimap.
+ShowConfig/ToggleConfig hid child frames directly while their Waffle components
+remained VISIBLE. Reopening the already-selected page skipped a visibility change.
+Integrated pages now follow component visibility when closing/reopening the root;
+ShowLists also restores its frame after a temporary transport hide. Regression
+fixtures exercise three minimap close/reopen cycles and reopening after direct
+Escape-style root hiding. Original-client retest is pending.
+
+## Client feedback fixes: 0.16.55-dev
+
+The owner reported missing Escape dismissal, a displaced/double-looking minimap
+icon, failed item drops, doubled input borders and an uncloseable Transport
+window on 0.16.54. Windows now register in legacy UISpecialFrames; the Transport
+close button has an explicit 24px click area; list panels, scroll children and
+rows handle OnReceiveDrag. Search, profile-name and threshold inputs use one
+custom border without InputBoxTemplate. The minimap tracking border uses its
+stock TOPLEFT anchor. Transport uses a flat border instead of a dialog border.
+Offline UI tests cover registration, the close click area and actual drop events.
+Original-client retest is pending. Modifier transfers passed the owner's test;
+Lootable was not tested because no lootable item was available.
+
 Date: 2026-11-14. This report describes the current working tree, not a release.
 The exhaustive feature comparison is in [PARITY.md](PARITY.md).
 
@@ -172,16 +249,16 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for current working tree `0.16.51-dev`:
+Results for current working tree `0.16.58-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 54 source digests and 153 legacy API references).
-- `check.py`: PASS (21 ordered runtime files; Lua 5.1 syntax for 29 files;
+- `check.py`: PASS (20 ordered runtime files; Lua 5.1 syntax for 28 files;
   runtime 64/64, store 21/21, services 8/8, destroyer 11/11, UI model 62/62;
   transaction adapter fake-API tests and UI interaction fixtures passed,
   including seller/destroyer dispatch, slash-command routing, keybinding
   capture/overrides, merchant-button behavior and transport positioning; the
-  deterministic 33-entry ZIP verified).
+  deterministic 38-entry ZIP verified).
 - `git diff --check`: PASS.
 - Original 3.3.5a client rendering/input check: NOT RUN in this environment.
 
@@ -315,7 +392,7 @@ revision and limitations before relying on it. The screenshots in the project
 history exposed real UI errors and layout problems, which is why current
 automated model checks are not treated as proof of client correctness.
 
-## Visual parity follow-up (`0.16.51-dev`)
+## Visual parity follow-up (`0.16.53-dev`)
 
 Compared all available screen implementations with the pinned UI sources:
 Lists uses the exact search and transport icons; close controls use the upstream
@@ -324,8 +401,28 @@ reference order; profile summaries color active inclusion/exclusion counts;
 Keybindings use grey key boxes, white labels, red/green list names and the
 reference descriptions; Lootable rows use the upstream 24px item icon, 32px
 action button with a 14px ignore icon, five-row sizing, low frame strata and
-gold/white title counts. Normal windows use high frame strata. The main header
-logo uses the upstream 20px size. `python3 tools/check.py` passed
-with actual Lua 5.1, all 64 runtime, 21 store, 8 service, 11 destroyer, 62 UI
-model and UI interaction fixtures; ZIP reproducibility and layout checks passed.
-Original-client rendering remains unverified in this environment.
+gold/white title counts. The main window uses the reference 800×640 component
+dimensions and 20px logo; the transport frame uses its 325×375 dimensions and two-button
+Import/Export flow. Item quality stripes, locked-item handling and the merchant
+button's count/version and Alt-destroy tooltips now follow the reference more
+closely. `python3 tools/check.py` passed with actual Lua 5.1, all 64 runtime,
+21 store, 8 service, 11 destroyer, 62 UI model and UI interaction fixtures;
+ZIP reproducibility and layout checks passed. Exact styling/localization and
+original-client rendering remain unverified in this environment.
+
+Further UI corrections: Escape clears Lists search; profile action icons use
+14px reference sizing and action-specific hover colors; quality/price options
+show the reference pink caution text; right-click on an option card no longer
+toggles it. Bag overlays use Dejunk artwork and small/large dark backgrounds,
+cleared together with stale overlays. The minimap icon uses Dejunk artwork;
+right-click requests Junk Items, Alt-right-click requests Destroy Next, and
+Alt-left-click does not open settings. Lua 5.1 interaction and regression checks
+passed; no original-client operation was performed.
+
+## Comprehensive test candidate 0.16.54-dev
+
+Destroy Next now skips sale-only and locked candidates instead of choosing the
+first combined-list row. The Persian client test guide records installation,
+UI/storage/keybinding/list checks, low-value sale/repair/loot checks, and
+cancel-only destroy confirmation checks. No live inventory operation was run.
+GitHub distribution uses an isolated test-candidate branch; main is not merged.

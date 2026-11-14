@@ -460,6 +460,7 @@ function Addon.NewApplication(runtime)
         runtime:Print(ok and ("Poor quality rule "..(enabled and "enabled." or "disabled.")) or ("Rule update failed: "..tostring(reason)))
       end,
       profiles=function() return Addon.Config.ListProfiles(self.store) end,
+      currentCharacterKey=function() return runtime:CharacterKey() end,
       createProfile=function(name) return Addon.Config.CreateProfile(self.store,name) end,
       duplicateProfile=function(name) return Addon.Config.DuplicateProfile(self.store,name) end,
       duplicateProfileFrom=function(id,name) return Addon.Config.DuplicateProfileFrom(self.store,id,name) end,
@@ -567,7 +568,7 @@ function Addon.NewApplication(runtime)
       if runtime.configCallbacks then runtime:ToggleConfig(runtime.configCallbacks)
       else self:OpenConfig() end
     elseif command == "open-profiles" then
-      self:OpenConfig("profiles")
+      runtime:ToggleProfiles(self:BuildConfigCallbacks())
     elseif command == "junk" then
       if self.state ~= "READY" then runtime:Print("Junk items unavailable: " .. self.state); return end
       local items,reason=self:GetJunkItems()
@@ -677,12 +678,20 @@ function Addon.NewApplication(runtime)
       current.settingsRevision=self.store:GetRevision()
       local decision=Addon.Rules.Evaluate(current,"SELL",{profile=self.store:GetActiveProfile(),global=self.store:GetState().global})
       if decision.result~="JUNK" then return false,"NOT_ELIGIBLE" end
-      local ok,reason=self.transactions:AttemptSale({intent=current,sessionId="merchant-"..tostring(merchantSession)})
+      local ok,reason,attempted=self.transactions:AttemptSale({intent=current,sessionId="merchant-"..tostring(merchantSession)})
       if ok then self.cache:Invalidate("SELL_ATTEMPT") end
-      return ok,reason
+      return ok,reason,attempted
     end
     local function destroy(item)
+      item=Addon.Copy(item)
+      local intentRevision=self.store:GetRevision()
+      local consumed=false
       local function perform()
+        if consumed then return false,"INTENT_CONSUMED" end
+        consumed=true
+        if self.store:GetRevision()~=intentRevision then
+          runtime:Print("Destroy cancelled: settings changed."); return false,"STALE_SETTINGS"
+        end
         local current=readCurrent(item)
         if not current or current.itemId~=item.itemId or current.link~=item.link or current.count~=item.count then runtime:Print("Destroy cancelled: item changed."); return false end
         current.settingsRevision=self.store:GetRevision()
@@ -708,7 +717,8 @@ function Addon.NewApplication(runtime)
       local label=item.link or item.name or ("Item #"..tostring(item.itemId))
       local reason=item.destroy and item.destroy.reasonCode or "Eligible by current rules"
       dialogs[id]={text="Destroy "..label.." x"..tostring(item.count or 1).."?\nVendor value: "..valueText.."\nRule: "..tostring(reason).."\nThis cannot be undone.",button1=YES or "Yes",button2=NO or "No",
-        timeout=0,whileDead=1,hideOnEscape=1,showAlert=1,OnAccept=function() perform() end}
+        timeout=0,whileDead=1,hideOnEscape=1,showAlert=1,OnAccept=function() return perform() end,
+        OnCancel=function() consumed=true end}
       runtime.api.StaticPopup_Show(id)
       return true
     end
@@ -716,23 +726,45 @@ function Addon.NewApplication(runtime)
     runtime:SetItemActionHandlers({sellItem=sell,destroyItem=destroy,
       startSelling=function()
         if not atMerchant then return false,"MERCHANT_UNAVAILABLE" end
-        if self.saleTimer then self.saleTimer:Cancel(); self.saleTimer=nil end
+        if self.saleRun then return false,"BUSY" end
         local attempts,seen=0,{}
+        local run={session=merchantSession,revision=self.store:GetRevision(),waitSince=self.scheduler.now}
+        self.saleRun=run
+        local function finish()
+          if self.saleRun==run then
+            self.saleRun=nil; self.saleTimer=nil
+            if runtime.SetItemActionsBusy then runtime:SetItemActionsBusy(false) end
+          end
+        end
+        if runtime.SetItemActionsBusy then runtime:SetItemActionsBusy(true) end
         local function nextSale()
           self.saleTimer=nil
-          if not atMerchant then return end
-          if (self.store:GetState().global.safeSell and attempts>=12) then runtime:Print("Safe Sell stopped after 12 attempts."); return end
+          if self.saleRun~=run then return end
+          if not atMerchant or run.session~=merchantSession or run.revision~=self.store:GetRevision() then return finish() end
+          if (self.store:GetState().global.safeSell and attempts>=12) then runtime:Print("Safe Sell stopped after 12 attempts."); return finish() end
           local built=self:GetJunkItems(); local target
-          for i=#(built and built.items or {}),1,-1 do local it=built.items[i]; local k=it.bag..":"..it.slot..":"..it.itemId; if not seen[k] then target=it; seen[k]=true; break end end
-          if not target then return end
-          attempts=attempts+1; sell(target)
+          if not built then
+            if self.scheduler.now-run.waitSince>=0.4 then return finish() end
+            self.saleTimer=self.scheduler:After(0.05,nextSale); return
+          end
+          for i=#(built.items or {}),1,-1 do
+            local it=built.items[i]; local k=it.bag..":"..it.slot..":"..it.itemId
+            if it.sell and it.sell.result=="JUNK" and it.locked~=true and not seen[k] then target=it; seen[k]=true; break end
+          end
+          if not target then return finish() end
+          local succeeded,_,dispatched=sell(target)
+          if succeeded or dispatched then attempts=attempts+1 end
+          run.waitSince=self.scheduler.now
           self.saleTimer=self.scheduler:After(self.transactions:Latency(),nextSale)
         end
         self.saleTimer=self.scheduler:After(0.1,nextSale); return true
       end,
       destroyNext=function()
-        local built=self:GetJunkItems(); local target=built and built.items and built.items[1]
-        return target and destroy(target) or false,"NO_JUNK_ITEMS"
+        local built=self:GetJunkItems()
+        for _,item in ipairs(built and built.items or {}) do
+          if item.destroy and item.destroy.result=="JUNK" and item.locked~=true then return destroy(item) end
+        end
+        return false,"NO_JUNK_ITEMS"
       end,
       lootItem=function(item)
         local current=readCurrent(item)
@@ -747,6 +779,7 @@ function Addon.NewApplication(runtime)
     local global=app.store and app.store:GetState().global or {}
     local junk=app.state=="READY" and app:GetJunkItems() or nil
     runtime:UpdateMerchantButton(global,junk,atMerchant)
+    if runtime.RefreshConfigFooter then runtime:RefreshConfigFooter() end
   end
   local function updateAutoJunkFrame(snapshot)
     local global=app.store and app.store:GetState().global or {}
@@ -777,7 +810,10 @@ function Addon.NewApplication(runtime)
     local profile=app.store and app.store:GetActiveProfile() or {}
     local global=app.store and app.store:GetState().global or {}
     if app.transactions and profile.autoRepair then
+      local repairSession,repairRevision=merchantSession,app.store:GetRevision()
       app.scheduler:After(0.1,function()
+        if not atMerchant or merchantSession~=repairSession or app.store:GetRevision()~=repairRevision or
+            not app.store:GetActiveProfile().autoRepair then return end
         local context=app.transactions:ReadRepairContext("merchant-"..merchantSession,app.store:GetRevision())
         if context.canRepair and context.cost and context.cost>0 and context.money and context.money>=context.cost then
           local ok=app.transactions:AttemptRepair(context)
@@ -790,6 +826,8 @@ function Addon.NewApplication(runtime)
   app.bus:On("MERCHANT_CLOSED",function()
     atMerchant=false
     if app.saleTimer then app.saleTimer:Cancel(); app.saleTimer=nil end
+    app.saleRun=nil
+    if runtime.SetItemActionsBusy then runtime:SetItemActionsBusy(false) end
     local global=app.store and app.store:GetState().global or {}
     if global.autoJunkFrame then runtime:HideJunkFrame() end
     junkFrameAutoShown=false
@@ -799,6 +837,8 @@ function Addon.NewApplication(runtime)
     local vendorRefusal=runtime.api and runtime.api.ERR_VENDOR_DOESNT_BUY
     if vendorRefusal and message==vendorRefusal and app.saleTimer then
       app.saleTimer:Cancel(); app.saleTimer=nil
+      app.saleRun=nil
+      if runtime.SetItemActionsBusy then runtime:SetItemActionsBusy(false) end
       runtime:Print("Selling stopped: the merchant cannot buy this item.")
     end
   end)
