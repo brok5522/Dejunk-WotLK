@@ -393,6 +393,9 @@ for _,frame in ipairs(uiFrames) do
   if frame.kind=="Texture" and frame.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\eye-slash-icon" then ignoreIcon=frame end
 end
 assert(ignoreIcon and ignoreIcon.parent.parent.enabled==true,"Lootable row ignore control is missing")
+assert(ignoreIcon.width==24 and ignoreIcon.height==24 and ignoreIcon.parent.width==32 and
+  ignoreIcon.parent.height==32 and ignoreIcon.parent.parent.icon.width==32,
+  "Lootable item or ignore icons do not match the reference sizing")
 ignoreIcon.parent.scripts.OnClick(ignoreIcon.parent)
 assert(not ignoreIcon.parent.parent.shown,"ignoring a lootable item did not remove its row")
 assert(not runtime:ShowLootableFrame({count=1,items={{itemId=6948,name="Hearthstone",count=1,bag=0,slot=1}}}),
@@ -813,16 +816,20 @@ for _,frame in ipairs(uiFrames) do
   end
 end
 assert(lastControl("Button","New Profile").template==nil,"New Profile still uses a red Blizzard template")
-assert(lastControl("Button","Rename").template==nil and lastControl("Button","Duplicate").template==nil and
-  lastControl("Button","Reset").template==nil and lastControl("Button","Delete").template==nil,
-  "profile card actions still use red Blizzard templates")
-local protectedRename,protectedDelete
+local profileActionControls={}
 for _,frame in ipairs(uiFrames) do
-  if frame.kind=="Button" and frame.profileId=="default" and frame.profileAction=="rename" then protectedRename=frame end
-  if frame.kind=="Button" and frame.profileId=="default" and frame.profileAction=="delete" then protectedDelete=frame end
+  if frame.kind=="Button" and frame.profileId=="default" and frame.profileAction then
+    profileActionControls[frame.profileAction]=frame
+  end
 end
+local protectedRename,protectedDelete
+protectedRename=profileActionControls.rename; protectedDelete=profileActionControls.delete
 assert(protectedRename and protectedRename.enabled==false,"default profile rename must be disabled")
 assert(protectedDelete and protectedDelete.enabled==false,"default profile delete must be disabled")
+for _,action in ipairs({"rename","duplicate","reset","delete"}) do
+  local control=assert(profileActionControls[action],"profile icon action is missing: "..action)
+  assert(control.icon and control.icon.texture and control.width==28,"profile action did not render as an icon: "..action)
+end
 local testProfileCard
 for _,frame in ipairs(uiFrames) do if frame.kind=="Button" and frame.parent and frame.parent.kind=="Frame" and frame.profileId=="profile-1" and frame.height==48 then testProfileCard=frame end end
 assert(testProfileCard,"profile selection card was not created")
@@ -840,6 +847,11 @@ local function profileAction(action,id)
     if frame.kind=="Button" and frame.profileId==id and frame.profileAction==action then return frame end
   end
   error("missing profile action "..action.." for "..id)
+end
+for _,action in ipairs({"rename","duplicate","reset","delete"}) do
+  local control=profileAction(action,"profile-1")
+  assert(control.icon and control.icon.texture and control.width==28,
+    "profile action is missing its upstream-style icon: "..action)
 end
 local createProfileButton=lastControl("Button","New Profile")
 createProfileButton:Click()
@@ -878,8 +890,7 @@ assert(profileOperations.reset=="profile-1","profile reset did not target the se
 profileAction("delete","profile-1"):Click()
 profilePopup.acceptButton:Click()
 assert(profileOperations.delete=="profile-1","profile delete did not target the selected profile")
-assert(lastControl("Button","Duplicate").width>=70 and lastControl("Button","Rename").width>=60,
-  "profile action buttons are too narrow for their full labels")
+assert(protectedRename.icon and protectedDelete.icon,"default profile action icons are missing")
 control("Button","Lists"):Click()
 assert(profilesPage.shown==false and namedFrame("DejunkWotLKLists").shown,"Lists navigation left the Profiles page visible")
 runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function() return "default" end,activeProfileName=function() return "Default" end})

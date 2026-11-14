@@ -274,7 +274,7 @@ function Runtime.New(environment)
       if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp") end
       local actionIcon=button:CreateTexture(nil,"OVERLAY")
       actionIcon:SetTexture(addonAssetPath(action.icon.."-icon"))
-      actionIcon:SetWidth(20); actionIcon:SetHeight(20); actionIcon:SetPoint("CENTER",button,"CENTER")
+      actionIcon:SetWidth(24); actionIcon:SetHeight(24); actionIcon:SetPoint("CENTER",button,"CENTER")
       if action.enabled==false then
         actionIcon:SetVertexColor(0.48,0.48,0.48,0.8)
       end
@@ -949,8 +949,8 @@ function Runtime.New(environment)
           local card=api.CreateFrame("Button",nil,content); card:SetPoint("TOPLEFT",4,-y); card:SetPoint("TOPRIGHT",-4,-y); card:SetHeight(42)
           card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); card:SetBackdropColor(1,1,1,0.035)
           local label=card:CreateFontString(nil,"ARTWORK","GameFontNormal")
-          label:SetPoint("LEFT",10,0); label:SetWidth(260); label:SetJustifyH("LEFT"); label:SetText(entry.label)
-          local button=styleThemedButton(api.CreateFrame("Button","DejunkWotLKKeybinding_"..entry.id,card))
+          label:SetPoint("LEFT",10,0); label:SetWidth(260); label:SetJustifyH("LEFT"); label:SetText(entry.label); setTextColor(label,"white")
+          local button=styleThemedButton(api.CreateFrame("Button","DejunkWotLKKeybinding_"..entry.id,card),nil,"grey")
           button:SetWidth(170); button:SetHeight(28); button:SetPoint("RIGHT",-8,0)
           if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("AnyUp") end
           keybindingRows[entry.id]={id=entry.id,button=button,label=label,card=card}
@@ -1099,7 +1099,7 @@ function Runtime.New(environment)
           brand:AddChild({width=20,height=20,frameFactory=function(parent)
             local icon=parent:CreateTexture(nil,"ARTWORK")
             icon:SetTexture(addonAssetPath("dejunk-icon"))
-            icon:SetWidth(20); icon:SetHeight(20)
+            icon:SetWidth(24); icon:SetHeight(24)
             return icon
           end})
           brand:AddChild(text(nil,"Dejunk",30,"blue"))
@@ -1472,21 +1472,38 @@ function Runtime.New(environment)
           self:Print(switched and ("Active profile: "..profileEntry.name) or ("Profile switch failed: "..tostring(reason)))
           self:ShowProfiles(callbacks)
         end)
-        local actions={{"Rename","rename",66},{"Duplicate","duplicate",74},{"Reset","reset",58},{"Delete","delete",62}}
+        local actions={{"Rename","rename","Interface\\Buttons\\UI-GuildButton-PublicNote-Up"},
+          {"Duplicate","duplicate","Interface\\Buttons\\UI-GroupLoot-Pass-Up"},
+          {"Reset","reset","Interface\\Buttons\\UI-RefreshButton"},
+          {"Delete","delete",addonAssetPath("trash-icon")}}
         local right=-5
         for _,entry in ipairs(actions) do
-          local action,label,width=entry[2],entry[1],entry[3]
-          local actionButton=styleThemedButton(api.CreateFrame("Button",nil,button),label)
-          actionButton:SetWidth(width); actionButton:SetHeight(22); actionButton:SetPoint("RIGHT",button,"RIGHT",right,0)
+          local action,label,iconPath=entry[2],entry[1],entry[3]
+          local actionButton=api.CreateFrame("Button",nil,button)
+          actionButton:SetWidth(28); actionButton:SetHeight(28); actionButton:SetPoint("RIGHT",button,"RIGHT",right,0)
+          actionButton:EnableMouse(true)
+          actionButton:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); actionButton:SetBackdropColor(0,0,0,0)
+          local actionIcon=actionButton:CreateTexture(nil,"ARTWORK"); actionIcon:SetTexture(iconPath)
+          actionIcon:SetWidth(20); actionIcon:SetHeight(20); actionIcon:SetPoint("CENTER",actionButton,"CENTER")
+          actionButton.icon=actionIcon
+          actionButton:SetScript("OnEnter",function(self)
+            self:SetBackdropColor(1,1,1,0.1)
+            if api.GameTooltip then api.GameTooltip:SetOwner(self,"ANCHOR_TOP"); api.GameTooltip:SetText(label); api.GameTooltip:Show() end
+          end)
+          actionButton:SetScript("OnLeave",function(self)
+            self:SetBackdropColor(0,0,0,0)
+            if api.GameTooltip then api.GameTooltip:Hide() end
+          end)
           actionButton.profileAction=action; actionButton.profileId=profile.id
           if (action=="rename" or action=="delete") and profile.id=="default" then
             actionButton:Disable(); actionButton:SetAlpha(0.35)
+            if type(actionIcon.SetDesaturated)=="function" then actionIcon:SetDesaturated(true) end
           end
           actionButton:SetScript("OnClick",function()
             if action=="rename" or action=="duplicate" then profileFrame.showNamePrompt(action,profileEntry)
             else profileFrame.confirmProfileAction(action,profileEntry) end
           end)
-          right=right-width-3
+          right=right-30
         end
         profileButtons[#profileButtons+1]=button
         row=row+1
@@ -3176,7 +3193,7 @@ function Runtime.New(environment)
     for _,item in ipairs(data.items or {}) do
       if not lootableIgnoredIds[item.itemId] then visibleItems[#visibleItems+1]=item end
     end
-    lootableTitle:SetText("Lootable Items ("..tostring(#visibleItems)..")")
+    lootableTitle:SetText("|cffffd100Lootable Items|r |cffffffff("..tostring(#visibleItems)..")|r")
     if #visibleItems==0 then
       if not lootableEmptyRow then
         lootableEmptyRow=lootableRowsContent:CreateFontString(nil,"ARTWORK","GameFontHighlight")
@@ -3196,9 +3213,10 @@ function Runtime.New(environment)
           runtime:Print("Ignored this item type for the current session.")
           runtime:UpdateLootableFrame(lootableSourceData)
         end}}
-        card=createReadOnlyItemCard(lootableRowsContent,210,34,(index-1)*40+4,actions,function(target)
+        card=createReadOnlyItemCard(lootableRowsContent,210,48,(index-1)*52+4,actions,function(target)
           runtime:RequestItemAction("lootItem",target)
         end)
+        card.icon:SetWidth(32); card.icon:SetHeight(32)
         lootableRows[index]=card
       end
       card.item=item
@@ -3210,10 +3228,10 @@ function Runtime.New(environment)
           card.accent:SetVertexColor(r,g,b,1)
         end
       end
-      card.detail:SetText("Bag "..tostring(item.bag).." / Slot "..tostring(item.slot).."  •  Click to loot")
+      card.detail:SetText("")
       card:Show()
     end
-    lootableRowsContent:SetHeight(math.max(32,#visibleItems*40))
+    lootableRowsContent:SetHeight(math.max(32,#visibleItems*52))
     return true
   end
 

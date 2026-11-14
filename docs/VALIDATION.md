@@ -172,7 +172,7 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for current working tree `0.16.49-dev`:
+Results for current working tree `0.16.50-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 41 source digests and 153 legacy API references).
@@ -314,3 +314,14 @@ legacy-client evidence remains in `docs/research/CLIENT-12340-*.md`; consult its
 revision and limitations before relying on it. The screenshots in the project
 history exposed real UI errors and layout problems, which is why current
 automated model checks are not treated as proof of client correctness.
+
+## Visual parity follow-up (`0.16.50-dev`)
+
+Compared the current screenshots against the reference: keybinding labels are
+white and key controls grey, profile rename/duplicate/reset/delete controls are
+compact icon buttons with hover tooltips, the main header logo is 24px, and
+Lootable rows use a 32px item icon plus a 24px ignore icon. Lootable title
+counting uses the gold/white reference colors. `python3 tools/check.py` passed
+with actual Lua 5.1, all 64 runtime, 21 store, 8 service, 11 destroyer, 62 UI
+model and UI interaction fixtures; ZIP reproducibility and layout checks passed.
+Original-client rendering remains unverified in this environment.
