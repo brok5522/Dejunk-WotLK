@@ -6,6 +6,9 @@ Addon.Runtime = Runtime
 function Runtime.New(environment)
   local api = environment or _G
   local runtime = { registration = {} }
+  local function addonAssetPath(file)
+    return "Interface\\AddOns\\"..tostring(Addon.name or "Dejunk-WotLK").."\\assets\\"..file..".tga"
+  end
   local theme={backdrop={18/255,18/255,18/255},blue={79/255,175/255,227/255},grey={157/255,157/255,157/255},white={1,1,1},dark={30/255,30/255,30/255},gold={1,209/255,0},black={0,0,0},red={227/255,79/255,79/255},green={79/255,227/255,79/255},quality={{157/255,157/255,157/255},{1,1,1},{30/255,1,0},{0,112/255,221/255},{163/255,53/255,238/255}}}
   local function setTextColor(region,color)
     if region and region.SetTextColor and theme[color] then region:SetTextColor(theme[color][1],theme[color][2],theme[color][3],1) end
@@ -78,7 +81,7 @@ function Runtime.New(environment)
       button:EnableMouse(true)
       if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp") end
       local actionIcon=button:CreateTexture(nil,"OVERLAY")
-      actionIcon:SetTexture("Interface\\AddOns\\Dejunk-WotLK\\assets\\"..action.icon.."-icon.tga")
+      actionIcon:SetTexture(addonAssetPath(action.icon.."-icon"))
       actionIcon:SetWidth(18); actionIcon:SetHeight(18); actionIcon:SetPoint("CENTER",button,"CENTER")
       if action.enabled==false then
         actionIcon:SetVertexColor(0.48,0.48,0.48,0.8)
@@ -755,7 +758,7 @@ function Runtime.New(environment)
           local brand=title:AddRow({width=150,height=28,gap=4,align="CENTER"})
           brand:AddChild({width=20,height=20,frameFactory=function(parent)
             local icon=parent:CreateTexture(nil,"ARTWORK")
-            icon:SetTexture("Interface\\AddOns\\Dejunk-WotLK\\assets\\dejunk-icon.tga")
+            icon:SetTexture(addonAssetPath("dejunk-icon"))
             icon:SetWidth(20); icon:SetHeight(20)
             return icon
           end})
@@ -1259,7 +1262,7 @@ function Runtime.New(environment)
           end
           if type(transport.RegisterForClicks)=="function" then transport:RegisterForClicks("LeftButtonUp") end
           local transportIcon=transport:CreateTexture(nil,"OVERLAY")
-          transportIcon:SetTexture("Interface\\AddOns\\Dejunk-WotLK\\assets\\transport-icon.tga")
+          transportIcon:SetTexture(addonAssetPath("transport-icon"))
           transportIcon:SetWidth(14); transportIcon:SetHeight(14); transportIcon:SetPoint("CENTER",transport,"CENTER")
           transportIcon:SetVertexColor(0.9,0.9,0.9,1); transportIcon:Show(); transport:Show()
           transport:SetScript("OnEnter",function() transportIcon:SetVertexColor(1,1,1,1) end)
@@ -2680,7 +2683,7 @@ function Runtime.New(environment)
       styleCloseButton(close); close:SetScript("OnClick",function() junkFrame:Hide(); junkVisible=false end)
       local settings=api.CreateFrame("Button",nil,header); settings:SetWidth(26); settings:SetHeight(26); settings:SetPoint("RIGHT",close,"LEFT",0,0); settings:EnableMouse(true)
       if type(settings.RegisterForClicks)=="function" then settings:RegisterForClicks("LeftButtonUp") end
-      local gear=settings:CreateTexture(nil,"OVERLAY"); gear:SetTexture("Interface\\AddOns\\Dejunk-WotLK\\assets\\gear-icon.tga")
+      local gear=settings:CreateTexture(nil,"OVERLAY"); gear:SetTexture(addonAssetPath("gear-icon"))
       gear:SetWidth(16); gear:SetHeight(16); gear:SetPoint("CENTER",settings,"CENTER")
       settings:SetScript("OnClick",function()
         local callbacks=runtime.configCallbacks or {}

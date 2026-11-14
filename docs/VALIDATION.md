@@ -213,6 +213,12 @@ stock arrow template is removed so it cannot cover the transport button. UI
 fixtures assert the bare scroll frame, track and visible transport control.
 Original-client rendering still requires the user's next check.
 
+Follow-up client screenshots showed bundled UI art missing even though its
+texture controls existed. Asset paths used a hard-coded AddOn folder name;
+they now use the actual name supplied by WoW when loading the AddOn, so a
+renamed install folder still resolves its icons. Offline fixtures check the
+resolved paths; a fresh client screenshot is needed to confirm the artwork.
+
 The Junk and Lootable windows now use their upstream 350×400 and 250×250
 dimensions. Junk has candidate counts, a stack-value summary, a Profile Options
 shortcut, item-row coin/exclude/trash icons, and bottom action buttons. The
