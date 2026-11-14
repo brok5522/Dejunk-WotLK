@@ -412,6 +412,15 @@ for _,frame in ipairs(uiFrames) do
     listPanelCount=listPanelCount+1
     assert(frame.backdrop and frame.backdrop.edgeSize==1,"list panel is not a square Waffle panel")
     assert(frame.heading and frame.transportButton,"list panel is missing its title or transport control")
+    local transportIcon
+    for _,child in ipairs(frame.transportButton.children or {}) do
+      if child.kind=="Texture" then transportIcon=child; break end
+    end
+    assert(transportIcon and transportIcon.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\transport-icon.tga" and
+      transportIcon.width==14 and transportIcon.height==14 and transportIcon.layer=="OVERLAY",
+      "list transport control is missing the upstream-sized visible export/import icon")
+    assert(frame.transportButton.frameLevel>frame.titleBar:GetFrameLevel(),
+      "list transport icon button is behind its title bar")
     assert(frame.heading.textColor and frame.heading.textColor[1]~=1,
       "list panel title does not use its inclusion/exclusion color")
     listPanes[frame.listScope..":"..frame.listKind]=frame

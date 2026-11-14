@@ -1233,10 +1233,14 @@ function Runtime.New(environment)
           heading:SetText(pane.title); setTextColor(heading,pane.kind=="inclusions" and "red" or "green")
           local transport=api.CreateFrame("Button",nil,titleBar)
           transport:SetWidth(24); transport:SetHeight(24); transport:SetPoint("RIGHT",-4,0); transport:EnableMouse(true)
+          if type(titleBar.GetFrameLevel)=="function" and type(transport.SetFrameLevel)=="function" then
+            transport:SetFrameLevel(titleBar:GetFrameLevel()+2)
+          end
           if type(transport.RegisterForClicks)=="function" then transport:RegisterForClicks("LeftButtonUp") end
-          local transportIcon=transport:CreateTexture(nil,"ARTWORK")
+          local transportIcon=transport:CreateTexture(nil,"OVERLAY")
           transportIcon:SetTexture("Interface\\AddOns\\Dejunk-WotLK\\assets\\transport-icon.tga")
-          transportIcon:SetWidth(18); transportIcon:SetHeight(18); transportIcon:SetPoint("CENTER")
+          transportIcon:SetWidth(14); transportIcon:SetHeight(14); transportIcon:SetPoint("CENTER",transport,"CENTER")
+          transportIcon:SetVertexColor(157/255,157/255,157/255,1)
           transport:SetScript("OnEnter",function() transportIcon:SetVertexColor(1,1,1,1) end)
           transport:SetScript("OnLeave",function() transportIcon:SetVertexColor(157/255,157/255,157/255,1) end)
           transport:SetScript("OnClick",function()

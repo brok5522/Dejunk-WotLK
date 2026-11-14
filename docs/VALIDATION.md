@@ -206,7 +206,9 @@ and right-click removes or moves entries. The window now also has the upstream
 logo/version header and active-profile, junk-count, and lootable-count footer.
 Upstream logo/transport artwork is included under its MIT attribution. Offline
 UI fixtures check panel order/colors, transport flow, scrolling rows, and footer
-rendering. Original-client rendering still requires the user's next check.
+rendering. The transport icon uses the upstream 14px size and overlay layer,
+and is raised above its title bar so the import/export action stays visible.
+Original-client rendering still requires the user's next check.
 
 The original 3.3.5a client visual check was not run. The main window still uses
 port-built native screens and some list/profile/action widgets are development
