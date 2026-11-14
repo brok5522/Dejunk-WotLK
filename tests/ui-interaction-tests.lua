@@ -834,8 +834,55 @@ for _,frame in ipairs(uiFrames) do
 end
 assert(persistedLevelEdit and persistedLevelApply,"item-level input or Apply button is missing")
 assert(persistedLevelApply.enabled~=false,"Apply is disabled while the threshold filter is off")
+persistedLevelEdit.scripts.OnMouseDown(persistedLevelEdit)
+assert(persistedLevelEdit.focused,"threshold input did not receive focus on click")
 persistedLevelEdit:SetText("47")
 persistedLevelApply:Click()
 local appliedThreshold=persistedUiStore:GetActiveProfile().options.includeBelowItemLevel
 assert(appliedThreshold.value==47 and appliedThreshold.enabled==true and appliedThreshold.scope=="SELL" and appliedThreshold.qualities.poor==false,
   "Profile Options Apply did not persist and enable the configured threshold")
+local moreThresholds={
+  {key="includeBelowPrice",value=1234,scope="SELL",parts={"0","12","34"}},
+  {key="excludeAboveItemLevel",value=58,scope="DESTROY",parts={"58"}},
+  {key="excludeAbovePrice",value=3210,scope="BOTH",parts={"0","32","10"}}
+}
+for _,spec in ipairs(moreThresholds) do
+  local scopeChoice,qualityChoice,label,apply
+  local inputs={}
+  for _,frame in ipairs(uiFrames) do
+    if frame.kind=="CheckButton" and frame.thresholdKey==spec.key then label=frame end
+    if frame.kind=="CheckButton" and frame.scopeKey==spec.key and frame.scopeValue==spec.scope then scopeChoice=frame end
+    if frame.kind=="CheckButton" and frame.optionGroup==spec.key and frame.optionQuality=="poor" then qualityChoice=frame end
+    if frame.kind=="EditBox" and frame.thresholdKey==spec.key then inputs[frame.thresholdPart]=frame end
+    if frame.kind=="Button" and frame.thresholdKey==spec.key then apply=frame end
+  end
+  assert(label and scopeChoice and qualityChoice and apply,"missing threshold controls for "..spec.key)
+  assert(apply.enabled~=false and scopeChoice.enabled~=false and qualityChoice.enabled~=false,
+    "disabled filter blocked editing controls for "..spec.key)
+  scopeChoice:Click(); qualityChoice:Click()
+  for part,value in ipairs(spec.parts) do assert(inputs[part],"missing threshold part "..part); inputs[part]:SetText(value) end
+  apply:Click()
+  local result=persistedUiStore:GetActiveProfile().options[spec.key]
+  assert(result.enabled==true and result.scope==spec.scope and result.value==spec.value and result.qualities.poor==false,
+    "threshold controls did not persist full state for "..spec.key)
+end
+local qualityRule=Addon.Config.GetOptions(persistedUiStore).includeByQuality
+qualityRule.enabled=false
+assert(Addon.Config.SetOption(persistedUiStore,"includeByQuality",qualityRule))
+runtime:ShowOptions(persistedCallbacks,"profile")
+local includeQualityTitle,includeQualityScope,includeQualityPoor
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="CheckButton" and frame.optionLabel=="Include by quality" then includeQualityTitle=frame end
+  if frame.kind=="CheckButton" and frame.scopeKey=="includeByQuality" and frame.scopeValue=="SELL" then includeQualityScope=frame end
+  if frame.kind=="CheckButton" and frame.optionGroup=="includeByQuality" and frame.optionQuality=="poor" then includeQualityPoor=frame end
+end
+assert(includeQualityTitle and includeQualityScope and includeQualityPoor and includeQualityScope.enabled~=false and includeQualityPoor.enabled~=false,
+  "Include by quality subcontrols were disabled with the parent filter")
+includeQualityScope:Click(); includeQualityPoor:Click()
+local savedQualityRule=Addon.Config.GetOptions(persistedUiStore).includeByQuality
+assert(savedQualityRule.enabled==false and savedQualityRule.scope=="SELL" and savedQualityRule.qualities.poor==false,
+  "Include by quality scope and quality were not saved while its filter was off")
+includeQualityTitle:Click()
+assert(Addon.Config.GetOptions(persistedUiStore).includeByQuality.enabled==true and
+  lastControl("CheckButton","Include by quality"):GetChecked()==true,
+  "Include by quality did not activate or render its persisted state")

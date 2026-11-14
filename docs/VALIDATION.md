@@ -133,7 +133,7 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for revision `0.16.36-dev`:
+Results for revision `0.16.37-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 39 source digests and 153 legacy API references).
@@ -168,7 +168,9 @@ inactive because their parent filter checkbox was off. Scope and quality
 selectors are now editable while the filter is off, and Apply remains
 clickable; applying a numeric threshold saves the entered value and enables
 that filter. Store-backed UI fixtures verify scope and quality edits while
-disabled and persistence after Apply.
+disabled and persistence after Apply across all four threshold cards. The
+Include by quality scope and quality chips are also checked while their parent
+filter is disabled. Numeric inputs explicitly take mouse and keyboard focus.
 
 ## Still required to complete the upstream port
 

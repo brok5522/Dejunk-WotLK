@@ -1650,6 +1650,7 @@ function Runtime.New(environment)
           local cardTop=({-330,-490,-1018,-1178})[index]
           local valueY,scopeY,qualityY=cardTop-54,cardTop-80,cardTop-106
           local label=createOptionCheck(row.label,24,cardTop-8)
+          label.thresholdKey=row.key
           local function toggleThreshold()
             local currentCallbacks=optionsCallbacks or callbacks
             local current=currentCallbacks.options and currentCallbacks.options() or {}
@@ -1672,9 +1673,11 @@ function Runtime.New(environment)
           for part,width in ipairs(editWidths) do
             local edit=api.CreateFrame("EditBox",nil,optionsContentFrame,"InputBoxTemplate")
             edit:SetWidth(width); edit:SetHeight(22); edit:SetAutoFocus(false); edit:SetNumeric(true); edit:SetMaxLetters(part==1 and isPrice and 6 or (isPrice and 2 or 10))
+            edit:EnableMouse(true); edit:EnableKeyboard(true)
             raiseForMouseInput(edit,10)
             edit:SetPoint("TOPLEFT",x,valueY)
             edit.thresholdKey=row.key; edit.thresholdPart=part
+            edit:SetScript("OnMouseDown",function(self) self:SetFocus() end)
             edit:SetScript("OnEnterPressed",function(self) self:ClearFocus() end)
             edit:SetScript("OnEscapePressed",function(self) self:ClearFocus() end)
             edits[part]=edit
