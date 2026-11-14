@@ -61,7 +61,7 @@ function Runtime.New(environment)
     refresh(false)
     return button
   end
-  local function createReadOnlyItemCard(parent,width,height,y)
+  local function createReadOnlyItemCard(parent,width,height,y,actions)
     local card=api.CreateFrame("Frame",nil,parent)
     card:SetWidth(width); card:SetHeight(height); card:SetPoint("TOPLEFT",10,-y)
     card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); card:SetBackdropColor(1,1,1,0.035)
@@ -70,10 +70,30 @@ function Runtime.New(environment)
     local icon=card:CreateTexture(nil,"ARTWORK")
     icon:SetWidth(24); icon:SetHeight(24); icon:SetPoint("LEFT",9,0)
     local label=card:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
-    label:SetPoint("TOPLEFT",icon,"TOPRIGHT",8,-4); label:SetWidth(width-64); label:SetJustifyH("LEFT")
+    local actionWidth=0
+    card.actionButtons={}
+    for index,action in ipairs(actions or {}) do
+      local button=api.CreateFrame("Button",nil,card)
+      button:SetWidth(24); button:SetHeight(28); button:SetPoint("RIGHT",card,"RIGHT",-4-(index-1)*26,0)
+      button:EnableMouse(true)
+      if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp") end
+      local actionIcon=button:CreateTexture(nil,"OVERLAY")
+      actionIcon:SetTexture("Interface\\AddOns\\Dejunk-WotLK\\assets\\"..action.icon.."-icon.tga")
+      actionIcon:SetWidth(18); actionIcon:SetHeight(18); actionIcon:SetPoint("CENTER",button,"CENTER")
+      if action.enabled==false then
+        actionIcon:SetVertexColor(0.48,0.48,0.48,0.8)
+      end
+      button.icon=actionIcon; button.action=action
+      button:SetScript("OnClick",function()
+        if action.enabled~=false and card.item and action.onClick then action.onClick(card.item) end
+      end)
+      card.actionButtons[index]=button
+      actionWidth=actionWidth+26
+    end
+    label:SetPoint("TOPLEFT",icon,"TOPRIGHT",8,-4); label:SetWidth(width-64-actionWidth); label:SetJustifyH("LEFT")
     local detail=card:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
-    detail:SetPoint("TOPLEFT",label,"BOTTOMLEFT",0,-2); detail:SetWidth(width-64); detail:SetJustifyH("LEFT")
-    card.icon,card.accent,card.label,card.detail=icon,accent,label,detail
+    detail:SetPoint("TOPLEFT",label,"BOTTOMLEFT",0,-2); detail:SetWidth(width-64-actionWidth); detail:SetJustifyH("LEFT")
+    card.icon,card.accent,card.label,card.detail,card.actionWidth=icon,accent,label,detail,actionWidth
     return card
   end
   local frame, update, scanTooltip, reportFrame, reportEdit, reportTitle, configFrame, configSummary, poorButton
@@ -86,6 +106,7 @@ function Runtime.New(environment)
   local minimapButton,minimapAngle,minimapSetGlobalOption,minimapOpenConfig,minimapGetGlobalOptions
   local junkFrame,junkTitle,junkSummary,junkScroll,junkRows,junkRowsContent,junkEmptyRow,junkVisible
   local lootableFrame,lootableTitle,lootableSummary,lootableScroll,lootableRows,lootableRowsContent,lootableEmptyRow,lootableVisible
+  local lootableIgnoredIds,lootableSourceData={},nil
   local configWaffleRoot
   local configContentComponent,configOverviewComponent,mainContentFrame
   local optionsPageComponent,profilePageComponent,listPageComponent
@@ -2559,7 +2580,19 @@ function Runtime.New(environment)
       junkRowsContent:SetHeight(1)
       return false
     end
-    junkSummary:SetText("Sell candidates: "..tostring(data.sellable or 0).."   Destroy candidates: "..tostring(data.destroyable or 0))
+    junkTitle:SetText("Junk Items |cffffffff("..tostring(data.sellable or 0).."/"..tostring(data.destroyable or 0)..")|r")
+    local totalValue=0
+    for _,item in ipairs(data.items) do
+      if type(item.unitVendorPrice)=="number" and item.unitVendorPrice>0 then
+        totalValue=totalValue+item.unitVendorPrice*(item.count or 1)
+      end
+    end
+    local moneyText
+    if type(api.GetCoinTextureString)=="function" then
+      local ok,value=pcall(api.GetCoinTextureString,totalValue)
+      if ok and type(value)=="string" then moneyText=value end
+    end
+    junkSummary:SetText(moneyText or (tostring(totalValue).." copper"))
     if #data.items==0 then
       if not junkEmptyRow then
         junkEmptyRow=junkRowsContent:CreateFontString(nil,"ARTWORK","GameFontHighlight")
@@ -2572,7 +2605,19 @@ function Runtime.New(environment)
     for index,item in ipairs(data.items) do
       local card=junkRows[index]
       if not card then
-        card=createReadOnlyItemCard(junkRowsContent,510,44,(index-1)*48+4)
+        local actions={
+          {icon="trash",enabled=false},
+          {icon="ban",enabled=true,onClick=function(target)
+            local callbacks=runtime.configCallbacks or {}
+            local scope=type(api.IsShiftKeyDown)=="function" and api.IsShiftKeyDown() and "global" or "profile"
+            local added,reason=callbacks.editItem and callbacks.editItem(scope,"exclusions",target.itemId,true)
+            runtime:Print(added and ("Added item to "..scope.." exclusions.") or ("List update failed: "..tostring(reason or "UNAVAILABLE")))
+            local current=callbacks.junkItems and callbacks.junkItems()
+            if current then runtime:UpdateJunkFrame(current) end
+          end},
+          {icon="coins",enabled=false}
+        }
+        card=createReadOnlyItemCard(junkRowsContent,300,36,(index-1)*38+4,actions)
         junkRows[index]=card
       end
       local sell=item.sell and item.sell.reasonCode or "UNKNOWN"
@@ -2586,18 +2631,24 @@ function Runtime.New(environment)
       end
       color=color or colors[item.quality] or {0.7,0.7,0.7}
       card.accent:SetVertexColor(color[1],color[2],color[3],1)
-      card.label:SetText((item.name or ("Item #"..tostring(item.itemId))).." (#"..tostring(item.itemId)..") x"..tostring(item.count or 1))
-      card.detail:SetText("Sell: "..tostring(sell).."   Destroy: "..tostring(destroy))
+      card.item=item
+      card.label:SetText("["..(item.name or ("Item #"..tostring(item.itemId))).."]"..((item.count or 1)>1 and ("x"..tostring(item.count)) or ""))
+      if type(item.unitVendorPrice)=="number" and item.unitVendorPrice>0 and type(api.GetCoinTextureString)=="function" then
+        local ok,value=pcall(api.GetCoinTextureString,item.unitVendorPrice*(item.count or 1))
+        card.detail:SetText(ok and value or "Price unavailable")
+      else
+        card.detail:SetText(type(item.unitVendorPrice)=="number" and item.unitVendorPrice<=0 and "No sell price" or ("Sell: "..tostring(sell).."   Destroy: "..tostring(destroy)))
+      end
       card:Show()
     end
-    junkRowsContent:SetHeight(math.max(32,#data.items*48))
+    junkRowsContent:SetHeight(math.max(32,#data.items*38))
     return true
   end
 
   function runtime:ToggleJunkFrame(data)
     if not junkFrame then
       junkFrame=api.CreateFrame("Frame","DejunkWotLKJunkFrame",api.UIParent)
-      junkFrame:SetFrameStrata("DIALOG"); junkFrame:SetWidth(560); junkFrame:SetHeight(430)
+      junkFrame:SetFrameStrata("DIALOG"); junkFrame:SetWidth(350); junkFrame:SetHeight(400)
       setSavedPoint(junkFrame,"junkFrame"); junkFrame:EnableMouse(true); junkFrame:SetMovable(true)
       junkFrame:RegisterForDrag("LeftButton")
       junkFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
@@ -2609,15 +2660,28 @@ function Runtime.New(environment)
       local header=api.CreateFrame("Frame",nil,junkFrame); header:SetHeight(34); header:SetPoint("TOPLEFT",0,0); header:SetPoint("TOPRIGHT",0,0)
       header:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); header:SetBackdropColor(30/255,30/255,30/255,1)
       junkTitle=header:CreateFontString(nil,"ARTWORK","GameFontNormal")
-      junkTitle:SetPoint("LEFT",12,0); junkTitle:SetText("Junk Items"); setTextColor(junkTitle,"blue")
+      junkTitle:SetPoint("LEFT",12,0); junkTitle:SetWidth(240); junkTitle:SetJustifyH("LEFT"); junkTitle:SetText("Junk Items"); setTextColor(junkTitle,"gold")
       local close=api.CreateFrame("Button",nil,header); close:SetWidth(26); close:SetHeight(26); close:SetPoint("RIGHT",-5,0)
       styleCloseButton(close); close:SetScript("OnClick",function() junkFrame:Hide(); junkVisible=false end)
+      local settings=api.CreateFrame("Button",nil,header); settings:SetWidth(26); settings:SetHeight(26); settings:SetPoint("RIGHT",close,"LEFT",0,0); settings:EnableMouse(true)
+      if type(settings.RegisterForClicks)=="function" then settings:RegisterForClicks("LeftButtonUp") end
+      local gear=settings:CreateTexture(nil,"OVERLAY"); gear:SetTexture("Interface\\AddOns\\Dejunk-WotLK\\assets\\gear-icon.tga")
+      gear:SetWidth(16); gear:SetHeight(16); gear:SetPoint("CENTER",settings,"CENTER")
+      settings:SetScript("OnClick",function()
+        local callbacks=runtime.configCallbacks or {}
+        runtime:ShowConfig(callbacks); runtime:ShowOptions(callbacks,"profile")
+      end)
       junkSummary=junkFrame:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
-      junkSummary:SetPoint("TOPLEFT",14,-43); junkSummary:SetText("Scanning bags…")
+      junkSummary:SetPoint("TOPLEFT",14,-45); junkSummary:SetText("Scanning bags…")
       junkScroll=api.CreateFrame("ScrollFrame","DejunkWotLKJunkScroll",junkFrame,"UIPanelScrollFrameTemplate")
-      junkScroll:SetPoint("TOPLEFT",12,-66); junkScroll:SetPoint("BOTTOMRIGHT",-30,12)
-      junkRowsContent=api.CreateFrame("Frame",nil,junkScroll); junkRowsContent:SetWidth(510); junkRowsContent:SetHeight(1)
+      junkScroll:SetPoint("TOPLEFT",12,-66); junkScroll:SetPoint("BOTTOMRIGHT",-30,46)
+      junkRowsContent=api.CreateFrame("Frame",nil,junkScroll); junkRowsContent:SetWidth(300); junkRowsContent:SetHeight(1)
       junkScroll:SetScrollChild(junkRowsContent); junkRows={}
+      local startSelling=styleThemedButton(api.CreateFrame("Button",nil,junkFrame),"Start Selling")
+      startSelling:SetWidth(150); startSelling:SetHeight(30); startSelling:SetPoint("BOTTOMLEFT",8,8); startSelling:Disable()
+      local destroyNext=styleThemedButton(api.CreateFrame("Button",nil,junkFrame),"Destroy Next Item")
+      destroyNext:SetWidth(150); destroyNext:SetHeight(30); destroyNext:SetPoint("BOTTOMRIGHT",-8,8); destroyNext:Disable()
+      junkFrame.startSellingButton=startSelling; junkFrame.destroyNextButton=destroyNext; junkFrame.settingsButton=settings
     end
     self:UpdateJunkFrame(data)
     if junkVisible then junkFrame:Hide(); junkVisible=false else junkFrame:Show(); junkVisible=true end
@@ -2644,24 +2708,37 @@ function Runtime.New(environment)
       lootableRowsContent:SetHeight(1)
       return false
     end
-    lootableSummary:SetText("Lootable stacks: "..tostring(data.count or 0))
-    if #data.items==0 then
+    lootableSourceData=data
+    local visibleItems={}
+    for _,item in ipairs(data.items or {}) do
+      if not lootableIgnoredIds[item.itemId] then visibleItems[#visibleItems+1]=item end
+    end
+    lootableTitle:SetText("Lootable Items ("..tostring(#visibleItems)..")")
+    if #visibleItems==0 then
       if not lootableEmptyRow then
         lootableEmptyRow=lootableRowsContent:CreateFontString(nil,"ARTWORK","GameFontHighlight")
-        lootableEmptyRow:SetPoint("TOPLEFT",10,-8); lootableEmptyRow:SetWidth(300); lootableEmptyRow:SetJustifyH("LEFT")
+        lootableEmptyRow:SetPoint("TOPLEFT",10,-8); lootableEmptyRow:SetWidth(200); lootableEmptyRow:SetJustifyH("LEFT")
       end
       lootableEmptyRow:SetText("No lootable items."); lootableEmptyRow:Show(); lootableRowsContent:SetHeight(32)
+      local global=runtime.configCallbacks and runtime.configCallbacks.globalOptions and runtime.configCallbacks.globalOptions() or {}
+      if global.autoLootableFrame and lootableVisible then self:HideLootableFrame() end
       return true
     end
     if lootableEmptyRow then lootableEmptyRow:Hide() end
-    for index,item in ipairs(data.items) do
+    for index,item in ipairs(visibleItems) do
       local card=lootableRows[index]
       if not card then
-        card=createReadOnlyItemCard(lootableRowsContent,300,40,(index-1)*44+4)
+        local actions={{icon="eye-slash",onClick=function(target)
+          lootableIgnoredIds[target.itemId]=true
+          runtime:Print("Ignored this item type for the current session.")
+          runtime:UpdateLootableFrame(lootableSourceData)
+        end}}
+        card=createReadOnlyItemCard(lootableRowsContent,210,34,(index-1)*40+4,actions)
         lootableRows[index]=card
       end
+      card.item=item
       card.icon:SetTexture(item.texture or "Interface\\Icons\\INV_Misc_QuestionMark")
-      card.label:SetText((item.name or ("Item #"..tostring(item.itemId))).." (#"..tostring(item.itemId)..") x"..tostring(item.count or 1))
+      card.label:SetText("["..(item.name or ("Item #"..tostring(item.itemId))).."]"..((item.count or 1)>1 and ("x"..tostring(item.count)) or ""))
       if type(api.GetItemQualityColor)=="function" and type(item.quality)=="number" then
         local ok,r,g,b=pcall(api.GetItemQualityColor,item.quality)
         if ok and type(r)=="number" and type(g)=="number" and type(b)=="number" and type(card.accent.SetVertexColor)=="function" then
@@ -2671,14 +2748,19 @@ function Runtime.New(environment)
       card.detail:SetText("Bag "..tostring(item.bag).." / Slot "..tostring(item.slot))
       card:Show()
     end
-    lootableRowsContent:SetHeight(math.max(32,#data.items*44))
+    lootableRowsContent:SetHeight(math.max(32,#visibleItems*40))
     return true
   end
 
   function runtime:ShowLootableFrame(data)
+    local available=0
+    for _,item in ipairs(type(data)=="table" and data.items or {}) do
+      if not lootableIgnoredIds[item.itemId] then available=available+1 end
+    end
+    if available==0 then return false end
     if not lootableFrame then
       lootableFrame=api.CreateFrame("Frame","DejunkWotLKLootableFrame",api.UIParent)
-      lootableFrame:SetFrameStrata("DIALOG"); lootableFrame:SetWidth(350); lootableFrame:SetHeight(330)
+      lootableFrame:SetFrameStrata("DIALOG"); lootableFrame:SetWidth(250); lootableFrame:SetHeight(250)
       setSavedPoint(lootableFrame,"lootableFrame"); lootableFrame:EnableMouse(true); lootableFrame:SetMovable(true)
       lootableFrame:RegisterForDrag("LeftButton")
       lootableFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
@@ -2690,14 +2772,14 @@ function Runtime.New(environment)
       local header=api.CreateFrame("Frame",nil,lootableFrame); header:SetHeight(34); header:SetPoint("TOPLEFT",0,0); header:SetPoint("TOPRIGHT",0,0)
       header:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); header:SetBackdropColor(30/255,30/255,30/255,1)
       lootableTitle=header:CreateFontString(nil,"ARTWORK","GameFontNormal")
-      lootableTitle:SetPoint("LEFT",12,0); lootableTitle:SetText("Lootable Items"); setTextColor(lootableTitle,"blue")
+      lootableTitle:SetPoint("LEFT",12,0); lootableTitle:SetWidth(180); lootableTitle:SetJustifyH("LEFT"); lootableTitle:SetText("Lootable Items"); setTextColor(lootableTitle,"gold")
       local close=api.CreateFrame("Button",nil,header); close:SetWidth(26); close:SetHeight(26); close:SetPoint("RIGHT",-5,0)
       styleCloseButton(close); close:SetScript("OnClick",function() lootableFrame:Hide(); lootableVisible=false end)
       lootableSummary=lootableFrame:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
-      lootableSummary:SetPoint("TOPLEFT",14,-43); lootableSummary:SetText("Scanning bags…")
+      lootableSummary:SetPoint("TOPLEFT",14,-43); lootableSummary:SetText("")
       lootableScroll=api.CreateFrame("ScrollFrame","DejunkWotLKLootableScroll",lootableFrame,"UIPanelScrollFrameTemplate")
-      lootableScroll:SetPoint("TOPLEFT",12,-66); lootableScroll:SetPoint("BOTTOMRIGHT",-30,12)
-      lootableRowsContent=api.CreateFrame("Frame",nil,lootableScroll); lootableRowsContent:SetWidth(300); lootableRowsContent:SetHeight(1)
+      lootableScroll:SetPoint("TOPLEFT",12,-50); lootableScroll:SetPoint("BOTTOMRIGHT",-30,12)
+      lootableRowsContent=api.CreateFrame("Frame",nil,lootableScroll); lootableRowsContent:SetWidth(210); lootableRowsContent:SetHeight(1)
       lootableScroll:SetScrollChild(lootableRowsContent); lootableRows={}
     end
     self:UpdateLootableFrame(data)

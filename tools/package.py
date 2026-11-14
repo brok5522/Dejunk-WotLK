@@ -34,7 +34,7 @@ def build(destination):
         'Disable in the AddOns menu or remove only this addon folder to uninstall.\n'
         'Code is independently written; upstream design reference: moody/Dejunk\n'
         'commit 04bafd5e411441ef5b51bb8ed10d208f2d7758f5 (MIT).\n'
-        'The Dejunk logo and transport icon are upstream Dejunk artwork, copyright moody, MIT License.\n'
+        'Dejunk UI icons are upstream artwork, copyright moody, under the MIT License in assets/LICENSE.txt.\n'
         'No upstream code or Blizzard FrameXML is bundled.\n'
     ).encode('utf-8')
     destination = destination.resolve()

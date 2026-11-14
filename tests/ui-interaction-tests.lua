@@ -241,12 +241,17 @@ minimapButton.scripts.OnUpdate(minimapButton,0.016)
 minimapButton.scripts.OnDragStop(minimapButton)
 assert(math.abs(minimapState.minimapIcon.angle)<0.01 and savedMinimapOptions>=2,
   "minimap dragging did not save its normalized position")
-assert(runtime:ToggleJunkFrame({sellable=1,destroyable=2,items={{itemId=123,name="Example",count=2,quality=0,texture="Interface\\Icons\\INV_Misc_Junk_01",
+assert(runtime:ToggleJunkFrame({sellable=1,destroyable=2,items={{itemId=123,name="Example",count=2,quality=0,unitVendorPrice=3,texture="Interface\\Icons\\INV_Misc_Junk_01",
   sell={reasonCode="QUALITY"},destroy={reasonCode="QUALITY"}},
   {itemId=456,name="Another",count=1,sell={reasonCode="KEEP"},destroy={reasonCode="QUALITY"}}}}),
   "read-only Junk frame failed to open")
 local junkWindow=namedFrame("DejunkWotLKJunkFrame")
 assert(junkWindow and junkWindow.shown,"Junk frame did not become visible")
+assert(junkWindow.width==350 and junkWindow.height==400 and junkWindow.settingsButton and
+  junkWindow.startSellingButton and junkWindow.startSellingButton.enabled==false and
+  junkWindow.destroyNextButton and junkWindow.destroyNextButton.enabled==false,
+  "Junk window controls or upstream dimensions are missing / unsafe actions are enabled")
+assert(junkWindow.children[1]~=nil,"Junk window title bar was not created")
 assert(junkWindow.point[1]=="TOPLEFT" and junkWindow.point[4]==25 and junkWindow.point[5]==-30,
   "Junk frame did not restore its saved point")
 junkWindow.point={"BOTTOMRIGHT",ui.UIParent,"BOTTOMRIGHT",-50,60}
@@ -257,7 +262,7 @@ local junkDetail
 local staleJunkRow
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="FontString" and frame.text and frame.text:find("Sell: QUALITY",1,true) then junkDetail=frame end
-  if frame.kind=="FontString" and frame.text and frame.text:find("Another (#456)",1,true) then staleJunkRow=frame end
+  if frame.kind=="FontString" and frame.text and frame.text:find("[Another]",1,true) then staleJunkRow=frame end
 end
 assert(junkDetail and junkDetail.text:find("Destroy: QUALITY",1,true),"Junk frame omitted per-action decisions")
 assert(staleJunkRow,"Junk frame omitted later candidate rows")
@@ -267,6 +272,24 @@ for _,frame in ipairs(uiFrames) do
   if frame.kind=="Texture" and frame.vertexColor and frame.vertexColor[1]==1 and frame.vertexColor[2]==0.35 then qualityAccent=frame end
 end
 assert(junkIcon and qualityAccent,"Junk card omitted item icon or quality accent")
+local expectedActionIcons={
+  ["Interface\\AddOns\\Dejunk-WotLK\\assets\\coins-icon.tga"]=false,
+  ["Interface\\AddOns\\Dejunk-WotLK\\assets\\ban-icon.tga"]=true,
+  ["Interface\\AddOns\\Dejunk-WotLK\\assets\\trash-icon.tga"]=false
+}
+for texture,expectedEnabled in pairs(expectedActionIcons) do
+  local found=false
+  for _,frame in ipairs(uiFrames) do
+    if frame.kind=="Texture" and frame.texture==texture then
+      found=true
+      assert(frame.parent.action.enabled==expectedEnabled,"Junk row action state is incorrect for "..texture)
+    end
+  end
+  assert(found,"Junk row is missing upstream action icon "..texture)
+end
+local totalPrice
+for _,frame in ipairs(uiFrames) do if frame.kind=="FontString" and frame.text=="6 copper" then totalPrice=frame end end
+assert(totalPrice,"Junk item stack value was not rendered")
 runtime:UpdateJunkFrame({sellable=0,destroyable=0,items={}})
 assert(staleJunkRow.parent.shown==false,"stale Junk frame cards were not cleared")
 local junkEmpty=false
@@ -279,6 +302,16 @@ assert(runtime:ToggleLootableFrame({count=1,items={{itemId=6948,name="Hearthston
   "read-only Lootable frame failed to open")
 local lootableWindow=namedFrame("DejunkWotLKLootableFrame")
 assert(lootableWindow and lootableWindow.shown and runtime:IsLootableFrameVisible(),"Lootable frame did not become visible")
+assert(lootableWindow.width==250 and lootableWindow.height==250,"Lootable frame does not use the upstream dimensions")
+local ignoreIcon
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="Texture" and frame.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\eye-slash-icon.tga" then ignoreIcon=frame end
+end
+assert(ignoreIcon and ignoreIcon.parent.parent.enabled==true,"Lootable row ignore control is missing")
+ignoreIcon.parent.scripts.OnClick(ignoreIcon.parent)
+assert(not ignoreIcon.parent.parent.shown,"ignoring a lootable item did not remove its row")
+assert(not runtime:ShowLootableFrame({count=1,items={{itemId=6948,name="Hearthstone",count=1,bag=0,slot=1}}}),
+  "session-ignored item reappeared in Lootable frame")
 runtime:UpdateLootableFrame({count=0,items={}})
 assert(runtime:IsLootableFrameVisible(),"manual Lootable frame unexpectedly closed when its list emptied")
 assert(runtime:ToggleLootableFrame({count=0,items={}}) and not runtime:IsLootableFrameVisible(),

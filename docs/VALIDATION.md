@@ -213,6 +213,17 @@ scroll thumb and wheel scrolling remain available. UI fixtures assert the
 stock arrow controls are hidden and the transport control remains present.
 Original-client rendering still requires the user's next check.
 
+The Junk and Lootable windows now use their upstream 350×400 and 250×250
+dimensions. Junk has candidate counts, a stack-value summary, a Profile Options
+shortcut, item-row coin/exclude/trash icons, and bottom action buttons. The
+exclude control updates the selected profile list (Shift selects global).
+Coin, trash, selling and destruction controls stay disabled because live
+inventory actions require the separate owner review in `AGENTS.md`. Lootable
+has an item count and eye-slash control; ignoring an item hides that item ID for
+the current session. Item use stays disconnected. Lua fixtures cover sizes,
+assets/states, stack value, session ignore and disabled actions. Merchant button
+and live transaction/chat integrations remain absent.
+
 The original 3.3.5a client visual check was not run. The main window still uses
 port-built native screens and some list/profile/action widgets are development
 scaffolding, so these changes improve shared component parity but do not claim

@@ -119,11 +119,18 @@ def main():
                                      'Dejunk-WotLK/libs/Waffle-LICENSE.txt',
                                      'Dejunk-WotLK/assets/LICENSE.txt',
                                      'Dejunk-WotLK/assets/dejunk-icon.tga',
-                                     'Dejunk-WotLK/assets/transport-icon.tga'})
+                                     'Dejunk-WotLK/assets/transport-icon.tga',
+                                     'Dejunk-WotLK/assets/gear-icon.tga',
+                                     'Dejunk-WotLK/assets/coins-icon.tga',
+                                     'Dejunk-WotLK/assets/ban-icon.tga',
+                                     'Dejunk-WotLK/assets/trash-icon.tga',
+                                     'Dejunk-WotLK/assets/eye-slash-icon.tga'})
             if set(archive.namelist()) != expected_entries or archive.testzip() is not None:
                 raise ValueError('ZIP content/layout/CRC check failed')
             for entry in load_order + ['Dejunk-WotLK.toc', 'LICENSE', 'libs/Waffle-LICENSE.txt',
-                                       'assets/LICENSE.txt', 'assets/dejunk-icon.tga', 'assets/transport-icon.tga']:
+                                       'assets/LICENSE.txt', 'assets/dejunk-icon.tga', 'assets/transport-icon.tga',
+                                       'assets/gear-icon.tga', 'assets/coins-icon.tga', 'assets/ban-icon.tga',
+                                       'assets/trash-icon.tga', 'assets/eye-slash-icon.tga']:
                 if archive.read('Dejunk-WotLK/' + entry) != (ROOT / entry).read_bytes():
                     raise ValueError(f'Packaged file mismatch: {entry}')
         try:

@@ -1,5 +1,7 @@
-The dejunk-icon.tga and transport-icon.tga artwork are from Dejunk by moody,
+The following artwork is from Dejunk by moody,
 https://github.com/moody/Dejunk, commit 04bafd5e411441ef5b51bb8ed10d208f2d7758f5.
+Files: dejunk-icon.tga, transport-icon.tga, gear-icon.tga, coins-icon.tga,
+ban-icon.tga, trash-icon.tga, and eye-slash-icon.tga.
 
 MIT License
 

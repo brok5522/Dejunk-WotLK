@@ -76,6 +76,6 @@ from inventory operations in this development build.
 Upstream Dejunk 3.5.1 was examined at commit
 `04bafd5e411441ef5b51bb8ed10d208f2d7758f5`, under MIT (copyright 2017–2026 moody).
 The independently written port code is licensed under [MIT](LICENSE).
-No upstream runtime code or artwork is distributed here. Preserve upstream MIT
-notices if code is adapted later; separately review artwork and library licenses.
-See [dependency policy](docs/research/DEPENDENCIES.md).
+No upstream runtime code is distributed here. The listed upstream UI artwork is
+included under its MIT notice in `assets/LICENSE.txt`. See
+[dependency policy](docs/research/DEPENDENCIES.md).
