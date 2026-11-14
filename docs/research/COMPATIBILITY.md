@@ -30,7 +30,7 @@ inventory, not an exhaustive list of all globals or proof that every row fails.
 | Settings.Register* | InterfaceOptions_AddCategory with native options panel or launcher into own window | F: InterfaceOptionsFrame.lua:585 |
 | BackdropTemplateMixin / Mixin | legacy frame:SetBackdrop; ordinary Lua composition | U/P; audit frame types and backdrop keys |
 | SetColorTexture | texture:SetTexture(r,g,b,a) legacy solid-color path | U/P; test alpha and texture reset |
-| SetPropagateMouseClicks/Motion, modern keyboard helpers | omit propagation APIs; explicit EnableMouse / OnKeyDown and legacy modifier state; Bindings.xml/SetBindingClick where appropriate | U/P; verify focus, Escape, wheel and conflicts out of combat |
+| SetPropagateMouseClicks/Motion, modern keyboard helpers | explicit EnableMouse / OnKeyDown, legacy modifier state and owner-scoped `SetOverrideBindingClick` / `ClearOverrideBindings` | F: pinned 3.3.5 `RestrictedFrames.lua:526,550` and `Blizzard_BindingUI.lua:152-288`; addon key capture, focus, Escape, wheel and combat transitions still require target-client verification |
 | SOUNDKIT.ITEM_REPAIR | legacy sound name such as PlaySound("ITEM_REPAIR"), or omit optional sound | F: MerchantFrame.xml; audit exact string |
 | Numeric texture file IDs (including LibDBIcon) | Interface\... texture paths or independently licensed .tga/.blp | U/P; verify in original client; never assume modern IDs resolve |
 | Default bag frame = bag+1 assumption | enumerate visible ContainerFrame1..NUM_CONTAINER_FRAMES; use frame:GetID() bag and child button:GetID() slot | F: ContainerFrame.lua; P: bag open order and reused frames test |

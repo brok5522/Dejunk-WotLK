@@ -3,6 +3,15 @@ local Store = { VERSION = 2 }
 Addon.Store = Store
 local DEFAULT, MAX_PROFILES, MAX_IDS, MAX_IMPORT = "default", 50, 5000, 65536
 local function copy(value) return Addon.Copy(value) end
+local bindingPunctuation={ ["-"]=true,["["]=true,["]"]=true,[";"]=true,["'"]=true,[","]=true,["."]=true,["/"]=true,["="]=true,["\\"]=true,["`"]=true }
+local function validBinding(value)
+  if type(value)~="string" or #value>32 then return false end
+  for index=1,#value do
+    local char=value:sub(index,index)
+    if not char:match("%w") and not bindingPunctuation[char] then return false end
+  end
+  return true
+end
 local function validId(value)
   local id = tonumber(value)
   if id and id == math.floor(id) and id > 0 and id < 2147483648 then return id end
@@ -124,7 +133,7 @@ local function cleanGlobal(value)
   if type(value.keybindings)=="table" then
     for _,key in ipairs(bindings) do
       local binding=value.keybindings[key]
-      if type(binding)=="string" and #binding<=32 and binding:match("^[%w%-]*$") then out.keybindings[key]=binding end
+      if validBinding(binding) then out.keybindings[key]=binding end
     end
   end
   local anchors={TOPLEFT=true,TOP=true,TOPRIGHT=true,LEFT=true,CENTER=true,RIGHT=true,BOTTOMLEFT=true,BOTTOM=true,BOTTOMRIGHT=true}
@@ -341,7 +350,7 @@ function Store:SetGlobalOption(key,value)
       addOrRemoveProfileInclusions=true,addOrRemoveProfileExclusions=true,addOrRemoveGlobalInclusions=true,addOrRemoveGlobalExclusions=true}
     local merged=copy(self.state.global.keybindings)
     for name,binding in pairs(value) do
-      if not names[name] or type(binding)~="string" or #binding>32 or not binding:match("^[%w%-]*$") then return false,"INVALID_OPTION" end
+      if not names[name] or not validBinding(binding) then return false,"INVALID_OPTION" end
       merged[name]=binding
     end
     self.state.global.keybindings=merged

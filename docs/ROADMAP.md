@@ -7,11 +7,12 @@ parity, with legacy API substitutions only. New settings, generalized rule
 languages, alternate screen flows and other redesigns are out of scope.
 
 The current branch is **not release-ready**. It has a read-only compatibility
-foundation, storage/evaluation scaffolding and user-observed previews. Some
-port-built UI and configuration options do not match upstream and must be
-replaced or removed. The Waffle engine alone does not constitute the original
-UI port. Live transaction calls remain behind the review/authorization gate in
-`AGENTS.md`.
+foundation, storage/evaluation scaffolding and user-observed previews. The five
+main navigation pages now exist, including offline keybinding capture and
+override support, but they still need original-client acceptance and several
+upstream integrations remain absent. The Waffle engine alone does not
+constitute the original UI port. Live transaction calls remain behind the
+review/authorization gate in `AGENTS.md`.
 
 The detailed source comparison is maintained in [PARITY.md](PARITY.md). That
 matrix is the current acceptance checklist; do not treat a saved option or a

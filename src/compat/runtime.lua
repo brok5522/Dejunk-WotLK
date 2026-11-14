@@ -93,6 +93,19 @@ function Runtime.New(environment)
   local mainWindowVisible=false
   local getWindowPoint,saveWindowPoint
   local configNavButtons={}
+  local keybindingFrame,keybindingPageComponent,keybindingListening,keybindingOwner,keybindingStatus
+  local keybindingRows,keybindingActionButtons={},{}
+  local keybindingActions={
+    {id="toggleMainWindow",label="Toggle Main Window",group="Windows"},
+    {id="toggleJunkFrame",label="Toggle Junk Frame",group="Windows"},
+    {id="toggleLootableFrame",label="Toggle Lootable Frame",group="Windows"},
+    {id="startSelling",label="Start Selling",group="Actions"},
+    {id="destroyNextItem",label="Destroy Next Item",group="Actions"},
+    {id="addOrRemoveProfileInclusions",label="Add or Remove Inclusions (Profile)",group="Profile Lists"},
+    {id="addOrRemoveProfileExclusions",label="Add or Remove Exclusions (Profile)",group="Profile Lists"},
+    {id="addOrRemoveGlobalInclusions",label="Add or Remove Inclusions (Global)",group="Global Lists"},
+    {id="addOrRemoveGlobalExclusions",label="Add or Remove Exclusions (Global)",group="Global Lists"}
+  }
   local configFooterProfile,configFooterJunk,configFooterLootable
   local optionsOptionCards,optionsCardDividers,optionsQualityRows,optionsResponsiveDescriptions
   local optionsGlobalControls,optionsGlobalChoices
@@ -361,6 +374,19 @@ function Runtime.New(environment)
       return itemId
     end
   end
+  local function getTooltipItemId()
+    local tooltip=api.GameTooltip
+    if not tooltip or type(tooltip.GetItem)~="function" then return nil end
+    local ok,name,link=pcall(tooltip.GetItem,tooltip)
+    if not ok or type(name)~="string" or type(link)~="string" then return nil end
+    if type(api.GetItemInfoFromHyperlink)=="function" then
+      local read,itemId=pcall(api.GetItemInfoFromHyperlink,link)
+      itemId=tonumber(itemId)
+      if read and itemId and itemId>0 and itemId<2147483648 and itemId==math.floor(itemId) then return itemId end
+    end
+    local itemId=tonumber(link:match("|Hitem:(%d+)"))
+    if itemId and itemId>0 and itemId<2147483648 and itemId==math.floor(itemId) then return itemId end
+  end
   function runtime:Stop()
     if frame then
       frame:SetScript("OnUpdate", nil)
@@ -382,6 +408,239 @@ function Runtime.New(environment)
     end
     local lootable=callbacks.lootableItems and callbacks.lootableItems()
     configFooterLootable:SetText("|cffffd100Lootable Items|r (|cffffffff"..tostring(type(lootable)=="table" and (lootable.count or #(lootable.items or {})) or 0).."|r)")
+  end
+
+  local function keybindingDisplay(key)
+    if type(key)~="string" or key=="" then return "Not bound" end
+    if type(api.GetBindingText)=="function" then
+      local ok,text=pcall(api.GetBindingText,key,"KEY_")
+      if ok and type(text)=="string" and text~="" then return text end
+    end
+    return key
+  end
+  local function readKeybindings(callbacks)
+    local current=callbacks and callbacks.keybindings and callbacks.keybindings()
+    return type(current)=="table" and current or {}
+  end
+  local function refreshKeybindingOverrides(callbacks)
+    callbacks=callbacks or runtime.configCallbacks or {}
+    if type(api.InCombatLockdown)=="function" and api.InCombatLockdown() then return false end
+    if type(api.ClearOverrideBindings)~="function" or type(api.SetOverrideBindingClick)~="function" then return false end
+    if not keybindingOwner then
+      keybindingOwner=api.CreateFrame("Frame","DejunkWotLKKeybindingOwner",api.UIParent)
+      if type(keybindingOwner.RegisterEvent)=="function" then
+        keybindingOwner:RegisterEvent("PLAYER_REGEN_ENABLED")
+        keybindingOwner:SetScript("OnEvent",function() refreshKeybindingOverrides(runtime.configCallbacks) end)
+      end
+      keybindingOwner:Hide()
+    end
+    api.ClearOverrideBindings(keybindingOwner)
+    local bindings=readKeybindings(callbacks)
+    for _,entry in ipairs(keybindingActions) do
+      local key=bindings[entry.id]
+      local button=keybindingActionButtons[entry.id]
+      if type(key)=="string" and key~="" and button and button.GetName then
+        api.SetOverrideBindingClick(keybindingOwner,true,key,button:GetName())
+      end
+    end
+    return true
+  end
+  local function keyWithModifiers(input)
+    if type(input)~="string" or input=="" then return nil end
+    input=input:upper()
+    if input=="UNKNOWN" then return nil end
+    local mouseKeys={LEFTBUTTON="BUTTON1",RIGHTBUTTON="BUTTON2",MIDDLEBUTTON="BUTTON3"}
+    input=mouseKeys[input] or input
+    if input=="BUTTON1" or input=="BUTTON2" then return nil end
+    if input=="ESCAPE" or input=="LSHIFT" or input=="RSHIFT" or input=="SHIFT" or
+        input=="LCTRL" or input=="RCTRL" or input=="CTRL" or input=="LALT" or input=="RALT" or input=="ALT" then return nil end
+    local parts={}
+    if type(api.IsShiftKeyDown)=="function" and api.IsShiftKeyDown() then table.insert(parts,1,"SHIFT") end
+    if type(api.IsControlKeyDown)=="function" and api.IsControlKeyDown() then table.insert(parts,1,"CTRL") end
+    if type(api.IsAltKeyDown)=="function" and api.IsAltKeyDown() then table.insert(parts,1,"ALT") end
+    parts[#parts+1]=input
+    local key=table.concat(parts,"-")
+    local punctuation={ ["-"]=true,["["]=true,["]"]=true,[";"]=true,["'"]=true,[","]=true,["."]=true,["/"]=true,["="]=true,["\\"]=true,["`"]=true }
+    if #key>32 then return nil end
+    for index=1,#key do
+      local char=key:sub(index,index)
+      if not char:match("%w") and not punctuation[char] then return nil end
+    end
+    return key
+  end
+  local function stopKeybindingListen()
+    keybindingListening=nil
+    if keybindingFrame then
+      keybindingFrame:EnableKeyboard(false)
+      keybindingFrame:EnableMouse(false)
+      if type(keybindingFrame.EnableMouseWheel)=="function" then keybindingFrame:EnableMouseWheel(false) end
+    end
+    if keybindingRows then
+      for _,row in pairs(keybindingRows) do
+        row.button:SetText(keybindingDisplay(readKeybindings(runtime.configCallbacks)[row.id]))
+      end
+    end
+  end
+  local function bindKey(bindingName,key)
+    if type(api.InCombatLockdown)=="function" and api.InCombatLockdown() then
+      stopKeybindingListen()
+      runtime:Print("Keybindings cannot be changed during combat.")
+      return false
+    end
+    local callbacks=runtime.configCallbacks or {}
+    local current=readKeybindings(callbacks)
+    local patch={[bindingName]=key or ""}
+    local replaced
+    if key and key~="" then
+      for otherName,otherKey in pairs(current) do
+        if otherName~=bindingName and otherKey==key then patch[otherName]=""; replaced=otherName end
+      end
+    end
+    local ok,reason=callbacks.setKeybindings and callbacks.setKeybindings(patch)
+    if not ok then runtime:Print("Keybinding update failed: "..tostring(reason or "UNAVAILABLE")); return false end
+    stopKeybindingListen()
+    refreshKeybindingOverrides(callbacks)
+    if keybindingStatus then
+      if replaced then
+        keybindingStatus:SetText("This key was removed from the other Dejunk action that used it.")
+        setTextColor(keybindingStatus,"red")
+      elseif key and key~="" and type(api.GetBindingAction)=="function" then
+        local ok,action=pcall(api.GetBindingAction,key,false)
+        if ok and type(action)=="string" and action~="" then
+          local gameName=type(api.GetBindingText)=="function" and api.GetBindingText(action,"BINDING_NAME_") or action
+          keybindingStatus:SetText("Also assigned to the game action: "..tostring(gameName)..". Dejunk takes priority while enabled.")
+          setTextColor(keybindingStatus,"gold")
+        else keybindingStatus:SetText("") end
+      else keybindingStatus:SetText("") end
+    end
+    return true
+  end
+  local function processCapturedInput(input)
+    if not keybindingListening then return false end
+    if type(api.InCombatLockdown)=="function" and api.InCombatLockdown() then
+      stopKeybindingListen()
+      return true
+    end
+    if type(input)=="string" and input:upper()=="ESCAPE" then stopKeybindingListen(); return true end
+    local key=keyWithModifiers(input)
+    if key then bindKey(keybindingListening,key) end
+    return true
+  end
+  local function invokeKeybinding(bindingName)
+    local callbacks=runtime.configCallbacks or {}
+    if bindingName=="toggleMainWindow" then runtime:ToggleConfig(callbacks)
+    elseif bindingName=="toggleJunkFrame" then
+      local items,reason=callbacks.junkItems and callbacks.junkItems()
+      if items then runtime:ToggleJunkFrame(items) else runtime:Print("Junk items unavailable: "..tostring(reason)) end
+    elseif bindingName=="toggleLootableFrame" then
+      local items,reason=callbacks.lootableItems and callbacks.lootableItems()
+      if items then runtime:ToggleLootableFrame(items) else runtime:Print("Lootable items unavailable: "..tostring(reason)) end
+    elseif bindingName=="startSelling" then runtime:Print("Selling is not connected in this development build.")
+    elseif bindingName=="destroyNextItem" then runtime:Print("Item destruction is not connected in this development build.")
+    elseif bindingName:find("Inclusions",1,true) or bindingName:find("Exclusions",1,true) then
+      local itemId=getTooltipItemId()
+      if not itemId then runtime:Print("Hover an item first so it appears in the game tooltip."); return end
+      local scope=bindingName:find("Global",1,true) and "global" or "profile"
+      local kind=bindingName:find("Exclusions",1,true) and "exclusions" or "inclusions"
+      local present=false
+      local rows=callbacks.listItems and callbacks.listItems(scope,kind) or {}
+      if type(rows)=="table" then
+        for _,entry in ipairs(rows) do if entry.id==itemId then present=true; break end end
+      elseif type(rows)=="string" then
+        for id in rows:gmatch("%d+") do if tonumber(id)==itemId then present=true; break end end
+      end
+      local ok,reason=callbacks.editItem and callbacks.editItem(scope,kind,itemId,not present)
+      runtime:Print(ok and ((present and "Removed from " or "Added to ")..scope.." "..kind..".") or ("List update failed: "..tostring(reason)))
+    end
+  end
+  local function ensureKeybindingPage(callbacks)
+    if not configContentComponent then return nil end
+    if keybindingPageComponent then return keybindingFrame end
+    keybindingFrame=api.CreateFrame("Frame","DejunkWotLKKeybindings",configContentComponent:GetFrame())
+    keybindingPageComponent=configContentComponent:AddColumn({frame=keybindingFrame,grow=1,gap=6,visibility="GONE"})
+    configScreens.keybindings=keybindingPageComponent
+    keybindingFrame:EnableMouse(false); keybindingFrame:EnableKeyboard(false)
+    local title=keybindingFrame:CreateFontString(nil,"ARTWORK","GameFontNormalLarge")
+    title:SetPoint("TOPLEFT",8,-8); title:SetText("Keybindings"); setTextColor(title,"white")
+    local help=keybindingFrame:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+    help:SetPoint("TOPLEFT",title,"BOTTOMLEFT",0,-6); help:SetWidth(520); help:SetJustifyH("LEFT")
+    help:SetText("Click a row and press a key. Escape cancels; right-click clears the binding. Changes take effect outside combat.")
+    setTextColor(help,"grey")
+    keybindingStatus=keybindingFrame:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+    keybindingStatus:SetPoint("TOPLEFT",help,"BOTTOMLEFT",0,-4); keybindingStatus:SetWidth(520); keybindingStatus:SetJustifyH("LEFT")
+    local scroll=api.CreateFrame("ScrollFrame","DejunkWotLKKeybindingScroll",keybindingFrame,"UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT",8,-68); scroll:SetPoint("BOTTOMRIGHT",-28,8)
+    local content=api.CreateFrame("Frame",nil,scroll); content:SetWidth(500); content:SetHeight(600); scroll:SetScrollChild(content)
+    keybindingRows={}
+    local groupOrder={"Windows","Actions","Profile Lists","Global Lists"}
+    local y=0
+    for _,group in ipairs(groupOrder) do
+      local heading=content:CreateFontString(nil,"ARTWORK","GameFontNormal")
+      heading:SetPoint("TOPLEFT",8,-y); heading:SetText(group); setTextColor(heading,"blue")
+      y=y+28
+      for _,entry in ipairs(keybindingActions) do
+        if entry.group==group then
+          local card=api.CreateFrame("Button",nil,content); card:SetPoint("TOPLEFT",4,-y); card:SetPoint("TOPRIGHT",-4,-y); card:SetHeight(42)
+          card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); card:SetBackdropColor(1,1,1,0.035)
+          local label=card:CreateFontString(nil,"ARTWORK","GameFontNormal")
+          label:SetPoint("LEFT",10,0); label:SetWidth(260); label:SetJustifyH("LEFT"); label:SetText(entry.label)
+          local button=styleThemedButton(api.CreateFrame("Button","DejunkWotLKKeybinding_"..entry.id,card))
+          button:SetWidth(170); button:SetHeight(28); button:SetPoint("RIGHT",-8,0)
+          if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("AnyUp") end
+          keybindingRows[entry.id]={id=entry.id,button=button,label=label,card=card}
+          card:EnableMouse(true)
+          if type(card.RegisterForClicks)=="function" then card:RegisterForClicks("AnyUp") end
+          local function handleBindingClick(mouseButton)
+            if keybindingListening and mouseButton~="LeftButton" and mouseButton~="RightButton" then
+              processCapturedInput(mouseButton)
+              return
+            end
+            if type(api.InCombatLockdown)=="function" and api.InCombatLockdown() then runtime:Print("Keybindings cannot be changed during combat."); return end
+            if mouseButton=="RightButton" then bindKey(entry.id,""); return end
+            keybindingListening=entry.id
+            button:SetText("Press a key…  (Esc cancels)")
+            keybindingFrame.ignoreMouseUntil=(type(api.GetTime)=="function" and api.GetTime() or 0)+0.2
+            keybindingFrame:EnableKeyboard(true); keybindingFrame:EnableMouse(true)
+            if type(keybindingFrame.EnableMouseWheel)=="function" then keybindingFrame:EnableMouseWheel(true) end
+          end
+          card:SetScript("OnClick",function(_,mouseButton) handleBindingClick(mouseButton) end)
+          button:SetScript("OnClick",function(_,mouseButton) handleBindingClick(mouseButton) end)
+          y=y+48
+        end
+      end
+      y=y+8
+    end
+    content:SetHeight(y+8)
+    keybindingFrame:SetScript("OnKeyDown",function(_,input)
+      processCapturedInput(input)
+    end)
+    keybindingFrame:SetScript("OnMouseDown",function(_,input)
+      if not keybindingListening then return end
+      local now=type(api.GetTime)=="function" and api.GetTime() or 0
+      if now<(keybindingFrame.ignoreMouseUntil or 0) then return end
+      local key=keyWithModifiers(input)
+      if key then bindKey(keybindingListening,key) end
+    end)
+    keybindingFrame:SetScript("OnMouseWheel",function(_,delta)
+      processCapturedInput(delta>0 and "MOUSEWHEELUP" or "MOUSEWHEELDOWN")
+    end)
+    local previousWheel=type(scroll.GetScript)=="function" and scroll:GetScript("OnMouseWheel") or nil
+    scroll:SetScript("OnMouseWheel",function(self,delta)
+      if keybindingListening then processCapturedInput(delta>0 and "MOUSEWHEELUP" or "MOUSEWHEELDOWN")
+      elseif previousWheel then previousWheel(self,delta) end
+    end)
+    keybindingFrame:SetScript("OnHide",stopKeybindingListen)
+    if type(keybindingFrame.RegisterEvent)=="function" then
+      keybindingFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+      keybindingFrame:SetScript("OnEvent",function() stopKeybindingListen() end)
+    end
+    for _,entry in ipairs(keybindingActions) do
+      local button=api.CreateFrame("Button","DejunkWotLKKeybindingAction_"..entry.id,api.UIParent)
+      button:SetScript("OnClick",function() invokeKeybinding(entry.id) end)
+      keybindingActionButtons[entry.id]=button
+    end
+    refreshKeybindingOverrides(callbacks)
+    return keybindingFrame
   end
 
   function runtime:ShowConfig(callbacks)
@@ -520,6 +779,9 @@ function Runtime.New(environment)
           nav:AttachComponent(Addon.Waffle:Flex(navButton("profiles","Profiles",function()
             self:ShowProfiles(runtime.configCallbacks)
           end)))
+          nav:AttachComponent(Addon.Waffle:Flex(navButton("keybindings","Keybindings",function()
+            self:ShowKeybindings(runtime.configCallbacks)
+          end)))
           overview:AttachComponent(Addon.Waffle:Flex(text(nil,"Dejunk",28,"blue")))
           overview:AttachComponent(Addon.Waffle:Flex(text(nil,"Settings and inventory previews are read-only. No item action will be taken.",46)))
           overview:AttachComponent(Addon.Waffle:Flex({height=26,frameFactory=function(parent)
@@ -554,7 +816,11 @@ function Runtime.New(environment)
           poorButton:SetText(callbacks.poorEnabled() and "Disable Poor rule" or "Enable Poor rule")
         end
       end)
-      if ok then self:ShowLists(callbacks); return end
+      if ok then
+        ensureKeybindingPage(callbacks)
+        self:ShowLists(callbacks)
+        return
+      end
       self:Print("Original Waffle configuration UI failed: "..tostring(waffleError).."; using the built-in fallback.")
     end
     local ok=pcall(function()
@@ -654,6 +920,27 @@ function Runtime.New(environment)
     local content=configContentComponent:GetFrame()
     if content then mainContentFrame=content end
     return content
+  end
+
+  function runtime:ShowKeybindings(callbacks)
+    callbacks=callbacks or runtime.configCallbacks or {}
+    runtime.configCallbacks=callbacks
+    if not configWaffleRoot then self:ShowConfig(callbacks) end
+    if not configContentComponent then return false end
+    local page=ensureKeybindingPage(callbacks)
+    if not page then return false end
+    if listFrame then setConfigPageVisible(listFrame,false) end
+    if profileFrame then setConfigPageVisible(profileFrame,false) end
+    if optionsFrame then setConfigPageVisible(optionsFrame,false) end
+    selectConfigScreen("keybindings")
+    local saved=readKeybindings(callbacks)
+    for _,entry in ipairs(keybindingActions) do
+      local row=keybindingRows[entry.id]
+      if row then row.button:SetText(keybindingDisplay(saved[entry.id])) end
+    end
+    refreshKeybindingOverrides(callbacks)
+    refreshConfigFooter(callbacks)
+    return true
   end
 
   function runtime:ShowProfiles(callbacks)

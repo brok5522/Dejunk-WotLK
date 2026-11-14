@@ -482,6 +482,11 @@ function Addon.NewApplication(runtime)
       setOption=function(key,value) return Addon.Config.SetOption(self.store,key,value) end,
       globalOptions=function() return Addon.Config.GetGlobalOptions(self.store) end,
       setGlobalOption=function(key,value) return Addon.Config.SetGlobalOption(self.store,key,value) end,
+      keybindings=function()
+        local state=self.store:GetState()
+        return state.global and state.global.keybindings or {}
+      end,
+      setKeybindings=function(patch) return Addon.Config.SetGlobalOption(self.store,"keybindings",patch) end,
       junkItems=function() return self:GetJunkItems() end,
       lootableItems=function() return self:GetLootableItems() end,
       preview=function(action)

@@ -9,6 +9,21 @@ local cursorItemId
 ui.GetCursorInfo=function() if cursorItemId then return "item",cursorItemId end end
 ui.ClearCursor=function() cursorItemId=nil end
 ui.InterfaceOptions_AddCategory=function(panel) ui.registeredOptionsCategory=panel end
+ui.overrideBindings={}
+ui.ClearOverrideBindings=function(owner) owner.overrides={}; ui.overrideBindings[owner]=owner.overrides end
+ui.SetOverrideBindingClick=function(owner,priority,key,buttonName)
+  owner.overrides=owner.overrides or {}; owner.overrides[key]=buttonName; ui.overrideBindings[owner]=owner.overrides
+end
+ui.InCombatLockdown=function() return ui.combatLocked==true end
+ui.GetTime=function() return ui.now or 10 end
+ui.GetBindingAction=function(key) return key=="K" and "TOGGLEBACKPACK" or "" end
+ui.GetBindingText=function(value,prefix)
+  if prefix=="BINDING_NAME_" and value=="TOGGLEBACKPACK" then return "Toggle Backpack" end
+  return value
+end
+ui.bindingWrites=0
+ui.SetBinding=function() ui.bindingWrites=ui.bindingWrites+1 end
+ui.SaveBindings=function() ui.bindingWrites=ui.bindingWrites+1 end
 
 local function object(kind,name,parent,template)
   local frame={kind=kind,name=name,parent=parent,template=template,scripts={},children={},enabled=true,text=""}
@@ -27,6 +42,7 @@ local function object(kind,name,parent,template)
   function frame:StartMoving() self.moving=true end
   function frame:StopMovingOrSizing() self.moving=false end
   function frame:EnableMouse(value) self.mouse=value end
+  function frame:EnableMouseWheel(value) self.mouseWheel=value end
   function frame:EnableKeyboard(value) self.keyboard=value end
   function frame:SetBackdrop(value) self.backdrop=value end
   function frame:SetBackdropColor(...) self.backdropColor={...} end
@@ -49,6 +65,7 @@ local function object(kind,name,parent,template)
   function frame:SetVerticalScroll(value) self.verticalScroll=value end
   function frame:SetScript(event,callback) self.scripts[event]=callback end
   function frame:RegisterForClicks(...) self.registeredClicks={...} end
+  function frame:RegisterEvent(event) self.registeredEvents=self.registeredEvents or {}; self.registeredEvents[event]=true end
   function frame:SetText(value)
     if self.kind=="CheckButton" then error("legacy CheckButton has no SetText method") end
     self.text=value
@@ -71,6 +88,7 @@ local function object(kind,name,parent,template)
   function frame:Hide() self.shown=false end
   function frame:IsShown() return self.shown==true end
   function frame:GetID() return self.id end
+  function frame:GetName() return self.name end
   function frame:ClearFocus() self.focused=false end
   function frame:SetFocus() self.focused=true; self.focusedWhileVisible=self.shown==true and self.parent and self.parent.shown==true end
   function frame:HighlightText() self.highlighted=true end
@@ -120,7 +138,8 @@ local runtime=Addon.Runtime.New(setmetatable({print=function(message) messages[#
 local bagTooltipHook,hookCount
 ui.GameTooltip={lines={},AddLine=function(self,text) self.lines[#self.lines+1]={text=text} end,
   AddDoubleLine=function(self,left,right) self.lines[#self.lines+1]={left=left,right=right} end,
-  Show=function(self) self.shown=true end}
+  Show=function(self) self.shown=true end,
+  GetItem=function(self) return self.itemName,self.itemLink end}
 ui.hooksecurefunc=function(target,name,hook)
   if target==ui.GameTooltip and name=="SetBagItem" then
     bagTooltipHook=hook; hookCount=(hookCount or 0)+1
@@ -340,6 +359,8 @@ local listCallbacks={
   previewListImport=function(scope,kind,text) return listStore:ImportPreview(scope,kind,text) end,
   commitListImport=function(preview) return listStore:CommitImport(preview) end,
   activeProfileName=function() return "Test" end,
+  keybindings=function() return listStore:GetState().global.keybindings end,
+  setKeybindings=function(patch) return listStore:SetGlobalOption("keybindings",patch) end,
   junkItems=function() return {sellable=6,destroyable=7,items={}} end,
   lootableItems=function() return {count=0,items={}} end
 }
@@ -348,8 +369,8 @@ local footerProfile,footerJunk,footerLootable,brandVersion
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="FontString" then
     if frame.text and frame.text:find("Active Profile:",1,true) then footerProfile=frame end
-    if frame.text and frame.text:find("Junk Items",1,true) then footerJunk=frame end
-    if frame.text and frame.text:find("Lootable Items",1,true) then footerLootable=frame end
+    if frame.text and frame.text:find("|cffffd100Junk Items|r",1,true) then footerJunk=frame end
+    if frame.text and frame.text:find("|cffffd100Lootable Items|r",1,true) then footerLootable=frame end
     if frame.text=="3.5.0" then brandVersion=frame end
   end
 end
@@ -373,13 +394,13 @@ local mainWindow=namedFrame("DejunkWotLK_MainWindow")
 local navOrder={}
 for _,candidate in ipairs(uiFrames) do
   if candidate.kind=="Button" and
-    (candidate.text=="Lists" or candidate.text=="Global Options" or candidate.text=="Profile Options" or candidate.text=="Profiles") then
+    (candidate.text=="Lists" or candidate.text=="Global Options" or candidate.text=="Profile Options" or candidate.text=="Profiles" or candidate.text=="Keybindings") then
     local ancestor=candidate.parent
     while ancestor and ancestor~=mainWindow do ancestor=ancestor.parent end
     if ancestor==mainWindow then navOrder[#navOrder+1]=candidate.text end
   end
 end
-assert(table.concat(navOrder,",")=="Lists,Global Options,Profile Options,Profiles",
+assert(table.concat(navOrder,",")=="Lists,Global Options,Profile Options,Profiles,Keybindings",
   "main navigation order does not match the upstream screen order")
 assert(listFrame and listFrame.width and listFrame.width>0 and listFrame.height and listFrame.height>0 and listFrame.shown,
   "Lists was not sized by the main Waffle layout")
@@ -442,6 +463,106 @@ assert(firstOptionsPage.shown and namedFrame("DejunkWotLKProfiles").shown==false
 control("Button","Lists"):Click()
 assert(mainWindow.shown and listFrame.shown and firstOptionsPage.shown==false,
   "Lists navigation did not restore Lists and hide the Options Waffle page")
+
+control("Button","Keybindings"):Click()
+local keybindingPage=namedFrame("DejunkWotLKKeybindings")
+local mainWindowBinding
+for _,frame in ipairs(uiFrames) do if frame.kind=="Button" and frame.name and frame.name:find("_toggleMainWindow",1,true) and not frame.name:find("Action_",1,true) then mainWindowBinding=frame; break end end
+assert(keybindingPage and keybindingPage.shown and mainWindowBinding,
+  "Keybindings screen or its controls were not created as a sibling page: "..tostring(keybindingPage and keybindingPage.shown).." / "..tostring(mainWindowBinding and mainWindowBinding.shown).." / "..tostring(mainWindowBinding and mainWindowBinding.kind))
+mainWindowBinding:Click("LeftButton")
+assert(keybindingPage.keyboard==true and mainWindowBinding.text:find("Press a key",1,true),
+  "left-click did not start key capture")
+keybindingPage.scripts.OnKeyDown(keybindingPage,"UNKNOWN")
+assert(keybindingPage.keyboard==true and listStore:GetState().global.keybindings.toggleMainWindow=="",
+  "unknown key input was bound instead of ignored")
+keybindingPage.scripts.OnKeyDown(keybindingPage,"K")
+local savedKeys=listStore:GetState().global.keybindings
+assert(savedKeys.toggleMainWindow=="K" and keybindingPage.keyboard==false,
+  "captured key was not saved or capture did not stop")
+local gameBindingWarning=false
+for _,child in ipairs(keybindingPage.children or {}) do if child.kind=="FontString" and child.text and child.text:find("Toggle Backpack",1,true) then gameBindingWarning=true end end
+assert(gameBindingWarning,"game binding conflict was not disclosed to the user")
+local owner=namedFrame("DejunkWotLKKeybindingOwner")
+assert(owner and owner.overrides.K=="DejunkWotLKKeybindingAction_toggleMainWindow",
+  "saved key was not installed as an owner-scoped override binding")
+assert(ui.bindingWrites==0,"keybinding changed the game's saved bindings")
+local junkWindowBinding
+for _,frame in ipairs(uiFrames) do if frame.kind=="Button" and frame.name and frame.name:find("_toggleJunkFrame",1,true) and not frame.name:find("Action_",1,true) then junkWindowBinding=frame; break end end
+junkWindowBinding:Click("LeftButton")
+keybindingPage.scripts.OnKeyDown(keybindingPage,"K")
+savedKeys=listStore:GetState().global.keybindings
+assert(savedKeys.toggleJunkFrame=="K" and savedKeys.toggleMainWindow=="" and owner.overrides.K=="DejunkWotLKKeybindingAction_toggleJunkFrame",
+  "duplicate key did not replace the older addon binding")
+junkWindowBinding:Click("RightButton")
+assert(listStore:GetState().global.keybindings.toggleJunkFrame=="" and owner.overrides.K==nil,
+  "right-click did not clear an addon binding")
+junkWindowBinding:Click("LeftButton")
+ui.controlDown=true; ui.shiftDown=true; ui.altDown=true
+keybindingPage.scripts.OnKeyDown(keybindingPage,"M")
+ui.controlDown=false; ui.shiftDown=false; ui.altDown=false
+assert(listStore:GetState().global.keybindings.toggleJunkFrame=="ALT-CTRL-SHIFT-M",
+  "modifier chord was not captured in legacy binding format")
+local lootWindowBinding
+for _,frame in ipairs(uiFrames) do if frame.kind=="Button" and frame.name and frame.name:find("_toggleLootableFrame",1,true) and not frame.name:find("Action_",1,true) then lootWindowBinding=frame; break end end
+lootWindowBinding:Click("LeftButton")
+assert(keybindingPage.mouseWheel==true,"mouse wheel capture was not enabled")
+keybindingPage.scripts.OnMouseWheel(keybindingPage,1)
+assert(listStore:GetState().global.keybindings.toggleLootableFrame=="MOUSEWHEELUP" and keybindingPage.mouseWheel==false,
+  "mouse wheel key was not captured or capture did not disable")
+lootWindowBinding:Click("LeftButton")
+lootWindowBinding:Click("Button4")
+assert(listStore:GetState().global.keybindings.toggleLootableFrame=="BUTTON4",
+  "mouse button input on a keybinding row was not captured")
+local globalListBinding
+for _,frame in ipairs(uiFrames) do if frame.kind=="Button" and frame.name and frame.name:find("_addOrRemoveGlobalInclusions",1,true) and not frame.name:find("Action_",1,true) then globalListBinding=frame; break end end
+globalListBinding:Click("LeftButton")
+keybindingPage.scripts.OnKeyDown(keybindingPage,"[")
+assert(listStore:GetState().global.keybindings.addOrRemoveGlobalInclusions=="[",
+  "punctuation key supported by the game binding UI was not saved")
+cursorItemId=7000
+ui.GameTooltip.itemName="Hearthstone"
+ui.GameTooltip.itemLink="|cffffffff|Hitem:6948:0:0:0:0:0:0:0:80|h[Hearthstone]|h|r"
+local globalInclusionAction
+for _,frame in ipairs(uiFrames) do if frame.name=="DejunkWotLKKeybindingAction_addOrRemoveGlobalInclusions" then globalInclusionAction=frame; break end end
+assert(globalInclusionAction,"global inclusion key action button was not created")
+globalInclusionAction:Click()
+assert(listStore:GetState().global.inclusions[6948]==nil and cursorItemId==7000,
+  "list keybinding did not toggle the tooltip item or changed the cursor item")
+cursorItemId=nil; ui.GameTooltip.itemName=nil; ui.GameTooltip.itemLink=nil
+assert(listStore:EditList("global","inclusions",6948,true),"test setup could not restore the original global list fixture")
+globalListBinding:Click("RightButton")
+mainWindowBinding:Click("LeftButton")
+keybindingPage.scripts.OnKeyDown(keybindingPage,"ESCAPE")
+assert(listStore:GetState().global.keybindings.toggleMainWindow=="" and keybindingPage.keyboard==false,
+  "Escape did not cancel key capture without changing the binding")
+ui.combatLocked=true
+mainWindowBinding:Click("LeftButton")
+assert(keybindingPage.keyboard==false,"key capture started during combat")
+ui.combatLocked=false
+mainWindowBinding:Click("LeftButton")
+assert(keybindingPage.keyboard==true,"key capture did not start after leaving combat")
+ui.combatLocked=true
+keybindingPage.scripts.OnEvent(keybindingPage,"PLAYER_REGEN_DISABLED")
+assert(keybindingPage.keyboard==false,"entering combat did not cancel active key capture")
+ui.combatLocked=false
+mainWindowBinding:Click("LeftButton")
+ui.combatLocked=true
+keybindingPage.scripts.OnKeyDown(keybindingPage,"Y")
+assert(listStore:GetState().global.keybindings.toggleMainWindow=="" and keybindingPage.keyboard==false,
+  "captured key changed SavedVariables after combat began")
+ui.combatLocked=false
+control("Button","Lists"):Click()
+assert(keybindingPage.shown==false and listFrame.shown==true,"Keybindings page remained visible after switching screens")
+ui.combatLocked=true
+assert(listStore:SetGlobalOption("keybindings",{toggleMainWindow="J"}))
+owner.scripts.OnEvent(owner,"PLAYER_REGEN_ENABLED")
+assert(owner.overrides.J==nil,"override binding was refreshed while combat locked")
+ui.combatLocked=false
+owner.scripts.OnEvent(owner,"PLAYER_REGEN_ENABLED")
+assert(owner.overrides.J=="DejunkWotLKKeybindingAction_toggleMainWindow",
+  "saved keybinding was not reinstalled after combat")
+
 local searchBox
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="EditBox" and frame.parent==listFrame and frame.maxLetters==64 then searchBox=frame; break end
@@ -872,7 +993,7 @@ assert(queries==50,"next metadata tick did not advance the bounded queue")
 listsWindow.scripts.OnUpdate(listsWindow,29.9)
 assert(listsWindow.scripts.OnUpdate==nil,"uncached item metadata polling did not time out")
 
-print("UI INTERACTION RESULT: options, item windows, list transport, metadata polling and report navigation passed")
+print("UI INTERACTION RESULT: options, keybindings, item windows, list transport, metadata polling and report navigation passed")
 
 -- Original 3.3.5 CheckButton:GetChecked may return 1/nil instead of booleans.
 globalOptionState.safeSell=false

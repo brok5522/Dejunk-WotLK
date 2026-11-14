@@ -1,6 +1,6 @@
 # Validation and completion report
 
-Date: 2026-11-13. This report describes the current working tree, not a release.
+Date: 2026-11-14. This report describes the current working tree, not a release.
 The exhaustive feature comparison is in [PARITY.md](PARITY.md).
 
 ## Current result
@@ -33,8 +33,9 @@ current UI has not been exercised in the original client at this revision.
   manual child-dialog sizing and hides the previous screen from layout. Interaction
   fixtures cover Lists → Profile Options → Global Options → Profiles → Profile
   Options → Lists. This is still not the pinned upstream UI port: original
-   keybindings, profile/global option coverage, item presentation and game
-   integrations remain incomplete, and some list controls are port scaffolding.
+   keybindings now have an offline screen/controller; profile/global option
+   coverage, item presentation and game integrations remain incomplete, and
+   some overview controls are still port scaffolding.
    The upstream cursor-item-to-list interaction is now restored in the UI
    adapter and covered by an isolated fixture. The generalized custom-rule
    editor has been retired from classification.
@@ -131,6 +132,18 @@ current UI has not been exercised in the original client at this revision.
     verify small/large appearance, disabled cleanup and classification-change
     cleanup. Third-party bag adapters and original-client rendering remain
     unverified.
+19. **Keybindings screen and runtime overrides:** added the fifth main-window
+   page with the upstream nine actions. Clicking a row starts capture; Escape
+   cancels, right click clears, modifier and mouse-wheel keys are supported,
+   and duplicate Dejunk assignments clear the older assignment. Changes are
+   SavedVariables-backed. An owner-scoped `SetOverrideBindingClick` layer
+   leaves the game's binding table alone, refreshes after combat, and stops
+   capture on combat entry or page hide. Game-binding conflicts are disclosed;
+   seller and destroy actions remain disconnected. Lua fixtures cover saving,
+   override target, duplicate resolution, clear/cancel, game conflict notice,
+   modifier/wheel/mouse input, tooltip-item list toggling without changing the
+   cursor, combat restrictions and screen switching. The actual client's
+   rendering and keyboard focus remain unverified.
 
 ## Checks run for this report
 
@@ -142,13 +155,14 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for revision `0.16.42-dev`:
+Results for current revision `0.16.43-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
-  local links, 39 source digests and 153 legacy API references).
+  local links, 41 source digests and 153 legacy API references).
 - `check.py`: PASS (20 ordered runtime files; Lua 5.1 syntax for 27 files;
   runtime 64/64, store 21/21, services 8/8, destroyer 11/11, UI model 62/62;
-  UI interaction fixtures passed; deterministic 24-entry ZIP verified).
+  UI interaction fixtures passed, including keybinding capture/overrides;
+  deterministic 27-entry ZIP verified).
 - `git diff --check`: PASS.
 - Original 3.3.5a client rendering/input check: NOT RUN in this environment.
 
@@ -171,7 +185,8 @@ Epic quality colors instead of a single blue, and all five quality names are
 written in full. Main option-card checkboxes now use their 18px layout size
 (chips remain 12px), major option labels stay white when unchecked, and section
 headings are white like the pinned upstream Option Builder. The main navigation
-now follows upstream order: Lists, Global Options, Profile Options, Profiles.
+now follows upstream order: Lists, Global Options, Profile Options, Profiles,
+Keybindings.
 Lua 5.1 and UI fixtures pass; a client screenshot is still needed to confirm
 WoW 3.3.5 rendering.
 
@@ -223,8 +238,8 @@ filter is disabled. Numeric inputs explicitly take mouse and keyboard focus.
 ## Still required to complete the upstream port
 
 1. Remaining non-transaction parity: exact upstream main/list/profile/options
-   presentation, keybinding screen and registration, merchant button,
-   third-party bag adapters, upstream parser progress/messaging, and several
+   presentation, merchant button, third-party bag adapters, parser
+   progress/messaging, and several
    command and state-migration details.
 2. Port and review seller, repair and one-stack destroy behavior. Current
    services are simulation-only. `AGENTS.md` requires review plus separate

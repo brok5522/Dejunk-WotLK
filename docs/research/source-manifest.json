@@ -1,5 +1,5 @@
 {
-  "inspectedOn": "2026-11-12",
+  "inspectedOn": "2026-11-14",
   "sources": [
     {
       "id": "dejunk",
@@ -51,7 +51,9 @@
         "MerchantFrame.lua": "c7d101ad0d8e54117762abf9c85616e53886b7bded36bfbf85b4f718e7dd1126",
         "MerchantFrame.xml": "9461bc6632ac04787b364373e876a9af810683e9d55c4b2cf8781435a0e4f529",
         "MailFrame.lua": "d97121320cc2cc7ee64ecc52708b968a199126382a0f20b6263d93f50c03e167",
-        "GlobalStrings.lua": "1d6662e6e77945a1d82d91dbc2fec70a5dffeb31e123c392e24adf7548d17dec"
+        "GlobalStrings.lua": "1d6662e6e77945a1d82d91dbc2fec70a5dffeb31e123c392e24adf7548d17dec",
+        "RestrictedFrames.lua": "4db2203bfab5d63fc5fb127b571476bf210153e6888b33b4794c80cf32b40059",
+        "Blizzard_BindingUI/Blizzard_BindingUI.lua": "e33c66b5e143425b3477c65c646e02c46db6e146e31620d24be858da2eb2d1a9"
       }
     }
   ]
