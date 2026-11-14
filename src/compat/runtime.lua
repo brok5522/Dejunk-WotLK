@@ -6,7 +6,7 @@ Addon.Runtime = Runtime
 function Runtime.New(environment)
   local api = environment or _G
   local runtime = { registration = {} }
-  local theme={blue={79/255,175/255,227/255},grey={157/255,157/255,157/255},white={1,1,1},dark={30/255,30/255,30/255},gold={1,209/255,0},black={0,0,0}}
+  local theme={backdrop={18/255,18/255,18/255},blue={79/255,175/255,227/255},grey={157/255,157/255,157/255},white={1,1,1},dark={30/255,30/255,30/255},gold={1,209/255,0},black={0,0,0}}
   local function setTextColor(region,color)
     if region and region.SetTextColor and theme[color] then region:SetTextColor(theme[color][1],theme[color][2],theme[color][3],1) end
   end
@@ -28,12 +28,18 @@ function Runtime.New(environment)
     button.SetText=function(self,value) self.text=value; text:SetText(value) end
     button:SetText(label or "")
     local function refresh(hovered)
-      button:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],hovered and 0.95 or 0.75)
+      button:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],hovered and 0.25 or 0.75)
       button:SetBackdropBorderColor(0,0,0,1)
       setTextColor(text,hovered and "white" or "gold")
     end
     button:SetScript("OnEnter",function() refresh(true) end)
     button:SetScript("OnLeave",function() refresh(false) end)
+    button:SetScript("OnEnable",function() refresh(false) end)
+    button:SetScript("OnDisable",function()
+      button:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],0.5)
+      button:SetBackdropBorderColor(theme.black[1],theme.black[2],theme.black[3],1)
+      setTextColor(text,"grey")
+    end)
     refresh(false)
     return button
   end
@@ -62,7 +68,7 @@ function Runtime.New(environment)
     local accent=card:CreateTexture(nil,"ARTWORK")
     accent:SetTexture("Interface\\Buttons\\WHITE8x8"); accent:SetWidth(3); accent:SetPoint("TOPLEFT"); accent:SetPoint("BOTTOMLEFT")
     local icon=card:CreateTexture(nil,"ARTWORK")
-    icon:SetWidth(32); icon:SetHeight(32); icon:SetPoint("LEFT",9,0)
+    icon:SetWidth(24); icon:SetHeight(24); icon:SetPoint("LEFT",9,0)
     local label=card:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
     label:SetPoint("TOPLEFT",icon,"TOPRIGHT",8,-4); label:SetWidth(width-64); label:SetJustifyH("LEFT")
     local detail=card:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
@@ -393,6 +399,8 @@ function Runtime.New(environment)
               local control=api.CreateFrame("Button",nil,owner)
               control:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"})
               control:SetBackdropBorderColor(0,0,0,0)
+              control:EnableMouse(true)
+              if type(control.RegisterForClicks)=="function" then control:RegisterForClicks("LeftButtonUp") end
               local region=control:CreateFontString(nil,"ARTWORK","GameFontNormal")
               region:SetPoint("LEFT",8,0); region:SetPoint("RIGHT",-8,0); region:SetJustifyH("LEFT")
               region:SetText(label)
@@ -403,7 +411,7 @@ function Runtime.New(environment)
                   control:SetBackdropColor(theme.blue[1],theme.blue[2],theme.blue[3],0.1)
                   setTextColor(region,"blue")
                 elseif hovered then
-                  control:SetBackdropColor(1,1,1,0.1)
+                  control:SetBackdropColor(1,1,1,0.06)
                   setTextColor(region,"white")
                 else
                   control:SetBackdropColor(0,0,0,0)
@@ -667,10 +675,10 @@ function Runtime.New(environment)
         popupEdit:SetWidth(220); popupEdit:SetHeight(26); popupEdit:SetPoint("TOP",profilePopup,"TOP",0,-50)
         popupEdit:SetAutoFocus(false); popupEdit:SetMaxLetters(32)
         raiseForMouseInput(popupEdit,10)
-        popupEdit:SetFontObject("GameFontHighlight")
+        popupEdit:SetFontObject("GameFontNormalSmall"); popupEdit:SetTextColor(1,1,1,1)
         popupEdit:SetTextInsets(8,8,0,0)
-        popupEdit:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
-        popupEdit:SetBackdropColor(0,0,0,0.9); popupEdit:SetBackdropBorderColor(0.55,0.55,0.55,1)
+        popupEdit:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1,insets={left=1,right=1,top=1,bottom=1}})
+        popupEdit:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],1); popupEdit:SetBackdropBorderColor(theme.black[1],theme.black[2],theme.black[3],1)
         popupEdit:EnableMouse(true)
         if type(popupEdit.RegisterForClicks)=="function" then popupEdit:RegisterForClicks("LeftButtonUp") end
         local executeProfileName
@@ -830,6 +838,10 @@ function Runtime.New(environment)
         listSearch=api.CreateFrame("EditBox",nil,listFrame,"InputBoxTemplate")
         listSearch:SetWidth(350); listSearch:SetHeight(24); listSearch:SetPoint("TOPLEFT",12,-14)
         listSearch:SetAutoFocus(false); listSearch:SetMaxLetters(64)
+        listSearch:SetFontObject("GameFontNormalSmall"); listSearch:SetTextColor(1,1,1,1)
+        listSearch:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1,insets={left=1,right=1,top=1,bottom=1}})
+        listSearch:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],1)
+        listSearch:SetBackdropBorderColor(theme.black[1],theme.black[2],theme.black[3],1)
         if listSearch.SetTextInsets then listSearch:SetTextInsets(24,24,0,0) end
         local searchIcon=listSearch:CreateTexture(nil,"ARTWORK")
         searchIcon:SetTexture("Interface\\Common\\UI-Searchbox-Icon"); searchIcon:SetWidth(14); searchIcon:SetHeight(14); searchIcon:SetPoint("LEFT",6,0)
@@ -856,6 +868,11 @@ function Runtime.New(environment)
         listInput=api.CreateFrame("EditBox",nil,listFrame,"InputBoxTemplate")
         listInput:SetWidth(72); listInput:SetHeight(24); listInput:SetPoint("LEFT",listKindButton,"RIGHT",8,0)
         listInput:SetAutoFocus(false); listInput:SetNumeric(true); listInput:SetMaxLetters(10)
+        listInput:SetFontObject("GameFontNormalSmall"); listInput:SetTextColor(1,1,1,1)
+        listInput:SetTextInsets(8,4,0,0)
+        listInput:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+        listInput:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],1)
+        listInput:SetBackdropBorderColor(0,0,0,1)
         listInput:SetScript("OnEscapePressed",function() listInput:ClearFocus() end)
         local function listButton(label,x,handler)
           local b=styleThemedButton(api.CreateFrame("Button",nil,listFrame))
@@ -900,14 +917,15 @@ function Runtime.New(environment)
           local rows={}
           for rowIndex=1,7 do
             local row=api.CreateFrame("Button",nil,box)
-            row:SetWidth(paneWidth-16); row:SetHeight(20); row:SetPoint("TOPLEFT",8,-27-(rowIndex-1)*21)
+            row:SetWidth(paneWidth-16); row:SetHeight(24); row:SetPoint("TOPLEFT",8,-27-(rowIndex-1)*25)
             row:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); row:SetBackdropBorderColor(0,0,0,0)
             local icon=row:CreateTexture(nil,"ARTWORK")
             icon:SetWidth(18); icon:SetHeight(18); icon:SetPoint("LEFT",3,0)
             local label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+            if type(label.SetFontObject)=="function" then label:SetFontObject("GameFontNormalSmall") end
             label:SetPoint("LEFT",icon,"RIGHT",5,0); label:SetWidth(paneWidth-52); label:SetJustifyH("LEFT"); setTextColor(label,"white")
             local accent=row:CreateTexture(nil,"ARTWORK")
-            accent:SetWidth(2); accent:SetPoint("TOPLEFT"); accent:SetPoint("BOTTOMLEFT")
+            accent:SetWidth(3); accent:SetPoint("TOPLEFT"); accent:SetPoint("BOTTOMLEFT")
             row.icon=icon; row.label=label; row.accent=accent; row.listScope=paneScope; row.listKind=paneKind
             row:SetScript("OnEnter",function(self) self:SetBackdropColor(1,1,1,0.06) end)
             row:SetScript("OnLeave",function(self) self:SetBackdropColor(1,1,1,0) end)
@@ -1020,9 +1038,10 @@ function Runtime.New(environment)
             if presentation.texture then row.icon:SetTexture(presentation.texture); row.icon:Show() else row.icon:Hide() end
             if type(api.GetItemQualityColor)=="function" and presentation.quality then
               local colorOk,r,g,b=pcall(api.GetItemQualityColor,presentation.quality)
-              if colorOk and type(r)=="number" and type(g)=="number" and type(b)=="number" then row.accent:SetVertexColor(r,g,b,1); row.accent:Show()
+              if colorOk and type(r)=="number" and type(g)=="number" and type(b)=="number" then
+                row.accent:SetVertexColor(r,g,b,1); row.accent:Show()
               else row.accent:Hide() end
-            else row.accent:Hide() end
+            else row.accent:Hide(); setTextColor(row.label,"white") end
             row:Show()
           else row:Hide() end
         end
@@ -1443,6 +1462,7 @@ function Runtime.New(environment)
           labelHit:EnableMouse(true)
           if type(labelHit.RegisterForClicks)=="function" then labelHit:RegisterForClicks("LeftButtonUp") end
           local label=labelHit:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+          if type(label.SetFontObject)=="function" then label:SetFontObject("GameFontNormalSmall") end
           label:SetPoint("LEFT",labelHit,"LEFT",0,0)
           check.labelRegion=label
           check.labelHit=labelHit
@@ -1682,6 +1702,9 @@ function Runtime.New(environment)
           for part,width in ipairs(editWidths) do
             local edit=api.CreateFrame("EditBox",nil,optionsContentFrame,"InputBoxTemplate")
             edit:SetWidth(width); edit:SetHeight(22); edit:SetAutoFocus(false); edit:SetNumeric(true); edit:SetMaxLetters(part==1 and isPrice and 6 or (isPrice and 2 or 10))
+            edit:SetFontObject("GameFontNormalSmall"); edit:SetTextColor(1,1,1,1); edit:SetTextInsets(4,4,0,0)
+            edit:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+            edit:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],1); edit:SetBackdropBorderColor(0,0,0,1)
             edit:EnableMouse(true); edit:EnableKeyboard(true)
             raiseForMouseInput(edit,10)
             edit:SetPoint("TOPLEFT",x,valueY)
@@ -2168,7 +2191,12 @@ function Runtime.New(environment)
       local destroy=item.destroy and item.destroy.reasonCode or "UNKNOWN"
       card.icon:SetTexture(item.texture or "Interface\\Icons\\INV_Misc_QuestionMark")
       local colors={[0]={1,0.35,0.35},[1]={0.85,0.85,0.85},[2]={0.25,0.85,0.3},[3]={0.25,0.55,1},[4]={0.7,0.35,1}}
-      local color=colors[item.quality] or {0.7,0.7,0.7}
+      local color
+      if type(api.GetItemQualityColor)=="function" and type(item.quality)=="number" then
+        local ok,r,g,b=pcall(api.GetItemQualityColor,item.quality)
+        if ok and type(r)=="number" and type(g)=="number" and type(b)=="number" then color={r,g,b} end
+      end
+      color=color or colors[item.quality] or {0.7,0.7,0.7}
       card.accent:SetVertexColor(color[1],color[2],color[3],1)
       card.label:SetText((item.name or ("Item #"..tostring(item.itemId))).." (#"..tostring(item.itemId)..") x"..tostring(item.count or 1))
       card.detail:SetText("Sell: "..tostring(sell).."   Destroy: "..tostring(destroy))
@@ -2246,6 +2274,12 @@ function Runtime.New(environment)
       end
       card.icon:SetTexture(item.texture or "Interface\\Icons\\INV_Misc_QuestionMark")
       card.label:SetText((item.name or ("Item #"..tostring(item.itemId))).." (#"..tostring(item.itemId)..") x"..tostring(item.count or 1))
+      if type(api.GetItemQualityColor)=="function" and type(item.quality)=="number" then
+        local ok,r,g,b=pcall(api.GetItemQualityColor,item.quality)
+        if ok and type(r)=="number" and type(g)=="number" and type(b)=="number" and type(card.accent.SetVertexColor)=="function" then
+          card.accent:SetVertexColor(r,g,b,1)
+        end
+      end
       card.detail:SetText("Bag "..tostring(item.bag).." / Slot "..tostring(item.slot))
       card:Show()
     end

@@ -63,7 +63,11 @@ returns to the configuration window. This screen is development scaffolding,
 not the original Dejunk main window. Its former custom-rule controls are being
 removed because they do not exist in upstream Dejunk. Options and reports also
 need to be replaced by/adapted from the pinned upstream screen components.
-The main window's exact upstream components, keybinding screen,
-item presentation, junk/lootable frames and game integrations remain unfinished.
+The shared color tokens now match upstream's pinned palette, legacy item
+cards use 24px icons and quality-colored accents, and the list/profile accents,
+input fields, navigation hover and item-frame cards use corresponding upstream
+sizes and colors. These are visual parity improvements, not a replacement for
+the still-port-built main window. The keybinding screen and several game
+integrations remain unfinished.
 Profile/list widgets are not accepted as full UI parity until original-client
 review.

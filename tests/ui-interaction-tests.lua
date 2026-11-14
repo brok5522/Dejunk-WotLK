@@ -31,6 +31,7 @@ local function object(kind,name,parent,template)
   function frame:SetBackdrop(value) self.backdrop=value end
   function frame:SetBackdropColor(...) self.backdropColor={...} end
   function frame:SetBackdropBorderColor(...) self.borderColor={...} end
+  function frame:SetBackdrop(value) self.backdrop=value end
   function frame:SetAutoFocus(value) self.autoFocus=value end
   function frame:SetMaxLetters(value) self.maxLetters=value end
   function frame:SetNumeric(value) self.numeric=value end
@@ -347,6 +348,12 @@ assert(lastControl("Button","Export").template==nil,"list export still uses a re
 assert(lastControl("Button","X").template==nil,"configuration close still uses a red Blizzard template")
 assert(lastControl("Button","X").labelRegion.textColor and lastControl("Button","X").labelRegion.textColor[1]>0.3,
   "Waffle grey close icon styling was not applied")
+local listSearch,lastListInput
+for _,candidate in ipairs(uiFrames) do
+  if candidate.kind=="EditBox" and candidate.parent==namedFrame("DejunkWotLKLists") then
+    if not listSearch then listSearch=candidate else lastListInput=candidate end
+  end
+end
 assert(lastControl("Button","Scope: global").template==nil,"list scope still uses a red Blizzard template")
 assert(lastControl("Button","Export").template==nil,"list export still uses a red Blizzard template")
 local listFrame=namedFrame("DejunkWotLKLists")
@@ -364,6 +371,12 @@ for _,frame in ipairs(uiFrames) do
 end
 assert(listPanelCount==4,"Lists screen should show four Waffle list panels")
 assert(listFrame.backdrop==nil,"Lists page retained the extra nested window frame")
+assert(listSearch.height==24 and listSearch.fontObject=="GameFontNormalSmall" and
+  listSearch.backdropColor and listSearch.backdropColor[1]==30/255,
+  "list search input does not match the upstream control size and palette")
+assert(lastListInput and lastListInput.fontObject=="GameFontNormalSmall" and lastListInput.backdrop and
+  lastListInput.borderColor and lastListInput.borderColor[1]==0,
+  "item ID input does not use the upstream dark field treatment")
 local ancestor=listFrame
 while ancestor and ancestor~=mainWindow do ancestor=ancestor.parent end
 assert(ancestor==mainWindow,"Lists screen was not embedded in the main Waffle window")
@@ -514,8 +527,10 @@ assert(profilePopup.blocker.shown and profilePopup.strata=="FULLSCREEN_DIALOG" a
   "profile prompt did not render above the main window as a modal")
 assert(profilePopup.editBox.focused and profilePopup.editBox.focusedWhileVisible,
   "profile name input did not receive focus after the modal became visible")
-assert(profilePopup.editBox.backdrop and profilePopup.editBox.fontObject=="GameFontHighlight",
+assert(profilePopup.editBox.backdrop and profilePopup.editBox.fontObject=="GameFontNormalSmall",
   "profile name input has no visible legacy edit field styling")
+assert(profilePopup.editBox.textColor and profilePopup.editBox.textColor[1]==1,
+  "profile name input text color does not match upstream")
 assert(profilePopup.acceptButton:GetFrameLevel()>profilePopup:GetFrameLevel() and
   profilePopup.cancelButton:GetFrameLevel()>profilePopup:GetFrameLevel(),
   "profile modal buttons do not sit above the full-screen mouse blocker")

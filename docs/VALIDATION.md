@@ -142,7 +142,7 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for revision `0.16.38-dev`:
+Results for revision `0.16.39-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 39 source digests and 153 legacy API references).
@@ -153,6 +153,22 @@ Results for revision `0.16.38-dev`:
 - Original 3.3.5a client rendering/input check: NOT RUN in this environment.
 
 The bag overlay fixture was also run directly with Lua 5.1 and passed.
+
+## UI visual parity pass
+
+Compared UI tokens against the pinned upstream `utils/colors.lua` and widget
+components: backdrop #121212, dark grey #1E1E1E, blue #4FAFE3, gold #FFD100,
+grey #9D9D9D; 24px item-card icons; 18px list/profile accent strips; normal
+selected/hover row alphas; GameFontNormalSmall controls; dark input fields and
+black borders. The UI now uses these values for legacy edit boxes, the
+navigation hover, option labels, list row spacing, and the read-only junk and
+lootable item cards. Item-card accents use the legacy quality color when the
+client API supplies one; item names remain white like upstream.
+
+The original 3.3.5a client visual check was not run. The main window still uses
+port-built native screens and some list/profile/action widgets are development
+scaffolding, so these changes improve shared component parity but do not claim
+that every screen is pixel-identical to upstream.
 
 The profile name field now requests focus after its modal ancestors are shown,
 has explicit legacy EditBox styling, and accepts Enter/Escape. Option
