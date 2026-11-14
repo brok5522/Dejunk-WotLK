@@ -445,11 +445,11 @@ function Addon.NewApplication(runtime)
     return Addon.LootableItems.Build(self.cache:GetSnapshot())
   end
 
-  function app:OpenConfig(initialScreen)
+  function app:BuildConfigCallbacks()
     local function profile()
       return self.store and self.store:GetActiveProfile() or nil
     end
-    runtime:ShowConfig({
+    return {
       summary=function() return Addon.Config.Summary(self.store) end,
       poorEnabled=function()
         local current=profile()
@@ -500,7 +500,11 @@ function Addon.NewApplication(runtime)
         if not report then runtime:Print("Preview unavailable: "..tostring(counts)); return end
         runtime:ShowReport(report,"Read-only preview: "..requested,"config")
       end
-    })
+    }
+  end
+
+  function app:OpenConfig(initialScreen)
+    runtime:ShowConfig(self:BuildConfigCallbacks())
     if initialScreen=="profiles" then runtime:ShowProfiles(runtime.configCallbacks) end
   end
 
@@ -660,6 +664,7 @@ function Addon.NewApplication(runtime)
     end
     self.actionsAttached=true
     self.transactions=transactionAdapter
+    runtime.configCallbacks=runtime.configCallbacks or self:BuildConfigCallbacks()
     local function readCurrent(item)
       local current=self.transactions:ReadItem(item.bag,item.slot)
       if current and current.state=="OCCUPIED" then current.bagGeneration=self.cache.generation end

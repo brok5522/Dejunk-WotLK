@@ -252,7 +252,11 @@ assert(junkWindow.width==350 and junkWindow.height==400 and junkWindow.settingsB
   junkWindow.startSellingButton and junkWindow.startSellingButton.enabled==false and
   junkWindow.destroyNextButton and junkWindow.destroyNextButton.enabled==false,
   "Junk window controls or upstream dimensions are missing / unsafe actions are enabled")
-assert(junkWindow.children[1]~=nil,"Junk window title bar was not created")
+local junkHeader
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="Frame" and frame.parent==junkWindow and frame.height==34 and frame.backdrop then junkHeader=frame end
+end
+assert(junkHeader,"Junk window title bar was not created")
 assert(junkWindow.point[1]=="TOPLEFT" and junkWindow.point[4]==25 and junkWindow.point[5]==-30,
   "Junk frame did not restore its saved point")
 junkWindow.point={"BOTTOMRIGHT",ui.UIParent,"BOTTOMRIGHT",-50,60}
@@ -291,6 +295,26 @@ end
 local totalPrice
 for _,frame in ipairs(uiFrames) do if frame.kind=="FontString" and frame.text=="6 copper" then totalPrice=frame end end
 assert(totalPrice,"Junk item stack value was not rendered")
+local junkValuePanel
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="Button" and frame.parent==junkWindow and frame.height==40 and frame.backdrop then junkValuePanel=frame end
+end
+assert(junkValuePanel and totalPrice.parent==junkValuePanel,"Junk total value is not in the upstream summary panel")
+local previousCallbacks=runtime.configCallbacks
+local listEdits={}
+runtime.configCallbacks={editItem=function(scope,kind,id,present)
+  listEdits[#listEdits+1]={scope=scope,kind=kind,id=id,present=present}; return true
+end,junkItems=function() return {sellable=1,destroyable=2,items={{itemId=123},{itemId=456}}} end}
+cursorItemId=999; local junkCard
+for _,frame in ipairs(uiFrames) do if frame.kind=="Frame" and frame.item and frame.item.itemId==123 then junkCard=frame end end
+assert(junkCard and junkCard.scripts.OnMouseUp,"Junk item row cannot accept a cursor item")
+junkCard.scripts.OnMouseUp(junkCard,"LeftButton")
+assert(listEdits[1] and listEdits[1].scope=="profile" and listEdits[1].kind=="inclusions" and
+  listEdits[1].id==999 and cursorItemId==nil,"Junk item row did not add and clear the cursor item safely")
+ui.controlDown=true; ui.altDown=true; junkValuePanel:Click("RightButton"); ui.controlDown=false; ui.altDown=false
+assert(listEdits[2] and listEdits[2].kind=="exclusions" and listEdits[2].id==123 and listEdits[3].id==456,
+  "Junk total bar did not add all candidates to exclusions")
+runtime.configCallbacks=previousCallbacks
 runtime:UpdateJunkFrame({sellable=0,destroyable=0,items={}})
 assert(staleJunkRow.parent.shown==false,"stale Junk frame cards were not cleared")
 local junkEmpty=false
@@ -307,7 +331,9 @@ assert(runtime:UpdateMerchantButton({merchantButton=true},merchantItems,true),"m
 local merchantButton=namedFrame("DejunkWotLKMerchantButton")
 assert(merchantButton and merchantButton.parent==ui.MerchantFrame and merchantButton.shown,
   "enabled merchant button did not appear on the open merchant frame")
-assert(merchantButton.children[2].text=="Dejunk (1)","merchant button did not show the current junk count")
+assert(merchantButton.width==108 and merchantButton.height==28 and
+  merchantButton.children[1].texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\dejunk-icon" and
+  merchantButton.children[2].text=="(1/1)","merchant button did not match upstream icon and count layout")
 merchantButton:SetPoint("BOTTOM",ui.MerchantFrame,"BOTTOM",25,18)
 merchantButton.scripts.OnDragStop(merchantButton)
 assert(savedMerchantPoint and savedMerchantPoint.point=="BOTTOM" and savedMerchantPoint.relativeTo=="MerchantFrame" and
@@ -343,11 +369,19 @@ for _,candidate in ipairs(uiFrames) do
 end
 assert(sellRowButton and destroyRowButton and sellRowButton.enabled and destroyRowButton.enabled,
   "eligible mock action callbacks did not enable their matching row controls")
+assert(junkWindow.destroyNextButton.labelRegion.textColor[1]>0.8 and
+  junkWindow.destroyNextButton.labelRegion.textColor[2]<0.4,
+  "Destroy Next Item button did not use the upstream red label color")
 sellRowButton:Click("LeftButton"); destroyRowButton:Click("LeftButton")
 junkWindow.startSellingButton:Click("LeftButton"); junkWindow.destroyNextButton:Click("LeftButton")
 assert(requestedActions.sellItem==778 and requestedActions.destroyItem==778 and
   requestedActions.startSelling==true and requestedActions.destroyNext==true,
   "Junk frame controls did not dispatch to their injected action handlers")
+runtime:UpdateMerchantButton({merchantButton=true},actionData,true)
+merchantButton:Click("LeftButton")
+ui.altDown=true; merchantButton:Click("RightButton"); ui.altDown=false
+assert(requestedActions.startSelling==true and requestedActions.destroyNext==true,
+  "merchant shortcut did not dispatch selling and destroy-next actions")
 assert(not runtime:ToggleLootableFrame({count=0,items={}}),"empty lootable window should not open")
 assert(runtime:ToggleLootableFrame({count=1,items={{itemId=6948,name="Hearthstone",count=1,bag=0,slot=1}}}),
   "read-only Lootable frame failed to open")

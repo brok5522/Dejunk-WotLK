@@ -80,10 +80,9 @@ def main():
     for entry in load_order:
         source = (ROOT / entry).read_text()
         if entry == 'src/compat/runtime.lua':
-            # Upstream ListItem clears a deliberately held cursor item after
-            # its ID is committed to a list. Keep this sole UI-only exception
-            # narrow; selling/deleting/picking up inventory remains forbidden.
-            if source.count('api.ClearCursor') != 2:
+            # Upstream Lists and Junk-frame list drops clear only after the item
+            # ID is committed to a list. Keep these exact UI paths narrow.
+            if source.count('api.ClearCursor') != 4:
                 raise ValueError('Unexpected cursor-clear path in the compatibility UI')
             source = source.replace('api.ClearCursor', '')
         if entry == 'src/compat/runtime.lua':

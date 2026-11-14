@@ -198,7 +198,7 @@ function Runtime.New(environment)
     local level=parent:GetFrameLevel()
     if type(level)=="number" then frame:SetFrameLevel(level+(offset or 10)) end
   end
-  local function styleThemedButton(button,label)
+  local function styleThemedButton(button,label,labelColor)
     button:EnableMouse(true)
     if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp") end
     raiseForMouseInput(button,10)
@@ -211,7 +211,7 @@ function Runtime.New(environment)
     local function refresh(hovered)
       button:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],hovered and 0.25 or 0.75)
       button:SetBackdropBorderColor(0,0,0,1)
-      setTextColor(text,hovered and "white" or "gold")
+      setTextColor(text,hovered and "white" or (labelColor or "gold"))
     end
     button:SetScript("OnEnter",function() refresh(true) end)
     button:SetScript("OnLeave",function() refresh(false) end)
@@ -244,7 +244,7 @@ function Runtime.New(environment)
   end
   local function createReadOnlyItemCard(parent,width,height,y,actions,onClick)
     local card=api.CreateFrame("Frame",nil,parent)
-    card:SetWidth(width); card:SetHeight(height); card:SetPoint("TOPLEFT",10,-y)
+    card:SetWidth(width); card:SetHeight(height); card:SetPoint("TOPLEFT",4,-y)
     if type(onClick)=="function" then
       if type(card.EnableMouse)=="function" then card:EnableMouse(true) end
       card:SetScript("OnMouseUp",function(_,button) if button=="LeftButton" and card.item then onClick(card.item) end end)
@@ -259,22 +259,22 @@ function Runtime.New(environment)
       end)
       card:SetScript("OnLeave",function() if api.GameTooltip and type(api.GameTooltip.Hide)=="function" then api.GameTooltip:Hide() end end)
     end
-    card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); card:SetBackdropColor(1,1,1,0.035)
+    card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); card:SetBackdropColor(1,1,1,0.06)
     local accent=card:CreateTexture(nil,"ARTWORK")
     accent:SetTexture("Interface\\Buttons\\WHITE8x8"); accent:SetWidth(3); accent:SetPoint("TOPLEFT"); accent:SetPoint("BOTTOMLEFT")
     local icon=card:CreateTexture(nil,"ARTWORK")
     icon:SetWidth(24); icon:SetHeight(24); icon:SetPoint("LEFT",9,0)
-    local label=card:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+    local label=card:CreateFontString(nil,"ARTWORK","GameFontNormal")
     local actionWidth=0
     card.actionButtons={}
     for index,action in ipairs(actions or {}) do
       local button=api.CreateFrame("Button",nil,card)
-      button:SetWidth(24); button:SetHeight(28); button:SetPoint("RIGHT",card,"RIGHT",-4-(index-1)*26,0)
+      button:SetWidth(32); button:SetHeight(32); button:SetPoint("RIGHT",card,"RIGHT",-4-(index-1)*32,0)
       button:EnableMouse(true)
       if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp") end
       local actionIcon=button:CreateTexture(nil,"OVERLAY")
       actionIcon:SetTexture(addonAssetPath(action.icon.."-icon"))
-      actionIcon:SetWidth(18); actionIcon:SetHeight(18); actionIcon:SetPoint("CENTER",button,"CENTER")
+      actionIcon:SetWidth(20); actionIcon:SetHeight(20); actionIcon:SetPoint("CENTER",button,"CENTER")
       if action.enabled==false then
         actionIcon:SetVertexColor(0.48,0.48,0.48,0.8)
       end
@@ -283,6 +283,10 @@ function Runtime.New(environment)
         if action.enabled~=false and card.item and action.onClick then action.onClick(card.item) end
       end)
       button:SetScript("OnEnter",function(self)
+        local highlight=action.icon=="coins" and theme.gold or action.icon=="ban" and theme.green or
+          action.icon=="trash" and theme.red or theme.blue
+        self:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"})
+        self:SetBackdropColor(highlight[1],highlight[2],highlight[3],0.18)
         local tooltip=api.GameTooltip
         if not tooltip or type(tooltip.SetOwner)~="function" then return end
         tooltip:SetOwner(self,"ANCHOR_RIGHT")
@@ -297,12 +301,16 @@ function Runtime.New(environment)
         if action.key=="sellItem" then
           if not merchantButtonOpen then tooltip:AddLine("Available at a merchant.",0.65,0.65,0.65)
           elseif type(runtime.itemActionHandlers.sellItem)~="function" then tooltip:AddLine("Seller is not connected yet.",0.65,0.65,0.65)
+          elseif not (card.item and card.item.sell and card.item.sell.result=="JUNK") then
+            tooltip:AddLine("Not eligible for selling: "..tostring(card.item and card.item.sell and card.item.sell.reasonCode or "UNKNOWN"),0.65,0.65,0.65)
           else tooltip:AddLine("Click to sell this stack.",1,0.82,0) end
           if card.item and card.item.sell and card.item.sell.reasonCode then
             tooltip:AddLine("Rule: "..tostring(card.item.sell.reasonCode),0.65,0.65,0.65)
           end
         elseif action.key=="destroyItem" then
           if type(runtime.itemActionHandlers.destroyItem)~="function" then tooltip:AddLine("Destroyer is not connected yet.",0.65,0.65,0.65)
+          elseif not (card.item and card.item.destroy and card.item.destroy.result=="JUNK") then
+            tooltip:AddLine("Not eligible for destruction: "..tostring(card.item and card.item.destroy and card.item.destroy.reasonCode or "UNKNOWN"),0.65,0.65,0.65)
           else tooltip:AddLine("Click to request a confirmed destroy.",1,0.82,0) end
           if card.item and card.item.destroy and card.item.destroy.reasonCode then
             tooltip:AddLine("Rule: "..tostring(card.item.destroy.reasonCode),0.65,0.65,0.65)
@@ -315,9 +323,12 @@ function Runtime.New(environment)
         end
         tooltip:Show()
       end)
-      button:SetScript("OnLeave",function() if api.GameTooltip then api.GameTooltip:Hide() end end)
+      button:SetScript("OnLeave",function(self)
+        self:SetBackdropColor(0,0,0,0)
+        if api.GameTooltip then api.GameTooltip:Hide() end
+      end)
       card.actionButtons[index]=button
-      actionWidth=actionWidth+26
+      actionWidth=actionWidth+32
     end
     label:SetPoint("TOPLEFT",icon,"TOPRIGHT",8,-4); label:SetWidth(width-64-actionWidth); label:SetJustifyH("LEFT")
     local detail=card:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
@@ -333,7 +344,7 @@ function Runtime.New(environment)
   local bagIconDecisionProvider
   local bagIconButtons={}
   local minimapButton,minimapAngle,minimapSetGlobalOption,minimapOpenConfig,minimapGetGlobalOptions
-  local junkFrame,junkTitle,junkSummary,junkScroll,junkRows,junkRowsContent,junkEmptyRow,junkVisible
+  local junkFrame,junkTitle,junkSummary,junkSummaryPanel,junkListPanel,junkScroll,junkRows,junkRowsContent,junkEmptyRow,junkVisible
   local lootableFrame,lootableTitle,lootableSummary,lootableScroll,lootableRows,lootableRowsContent,lootableEmptyRow,lootableVisible
   local lootableIgnoredIds,lootableSourceData={},nil
   local configWaffleRoot
@@ -617,7 +628,7 @@ function Runtime.New(environment)
       button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
       button:SetBackdropColor(18/255,18/255,18/255,0.92); button:SetBackdropBorderColor(0,0,0,1)
       merchantButtonIcon=button:CreateTexture(nil,"ARTWORK")
-      merchantButtonIcon:SetTexture(addonAssetPath("dejunk-icon")); merchantButtonIcon:SetWidth(20); merchantButtonIcon:SetHeight(20)
+      merchantButtonIcon:SetTexture(addonAssetPath("dejunk-icon")); merchantButtonIcon:SetWidth(24); merchantButtonIcon:SetHeight(24)
       merchantButtonIcon:SetPoint("LEFT",5,0)
       merchantButtonLabel=button:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
       merchantButtonLabel:SetPoint("LEFT",merchantButtonIcon,"RIGHT",4,0); merchantButtonLabel:SetPoint("RIGHT",-4,0)
@@ -643,19 +654,27 @@ function Runtime.New(environment)
         saveCurrentPoint(self,"merchantButton")
       end)
       button:SetScript("OnEnter",function(self)
+        self:SetBackdropColor(theme.blue[1],theme.blue[2],theme.blue[3],0.25)
+        self:SetBackdropBorderColor(theme.blue[1],theme.blue[2],theme.blue[3],1)
+        setTextColor(merchantButtonLabel,"white")
         if api.GameTooltip then
-          api.GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); api.GameTooltip:SetText("Dejunk")
+          api.GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); api.GameTooltip:SetText("Dejunk ("..tostring(sellable or 0).."/"..tostring(destroyable or 0)..")")
           api.GameTooltip:AddLine("Left-click: Start Selling"..(type(runtime.itemActionHandlers.startSelling)=="function" and "" or " (unavailable)"),1,1,1)
           api.GameTooltip:AddLine("Right-click: Toggle Junk Items",0.65,0.65,0.65)
           api.GameTooltip:AddLine("Alt-right-click: Destroy Next Item"..(type(runtime.itemActionHandlers.destroyNext)=="function" and "" or " (unavailable)"),0.65,0.65,0.65)
           api.GameTooltip:AddLine("Shift-right-click: Reset position",0.65,0.65,0.65); api.GameTooltip:Show()
         end
       end)
-      button:SetScript("OnLeave",function() if api.GameTooltip then api.GameTooltip:Hide() end end)
+      button:SetScript("OnLeave",function(self)
+        self:SetBackdropColor(18/255,18/255,18/255,0.92); self:SetBackdropBorderColor(0,0,0,1)
+        setTextColor(merchantButtonLabel,"blue")
+        if api.GameTooltip then api.GameTooltip:Hide() end
+      end)
       setSavedPoint(button,"merchantButton")
     end
-    local count=type(junkData)=="table" and tonumber(junkData.sellable) or 0
-    merchantButtonLabel:SetText("Dejunk ("..tostring(count or 0)..")")
+    local sellable=type(junkData)=="table" and tonumber(junkData.sellable) or 0
+    local destroyable=type(junkData)=="table" and tonumber(junkData.destroyable) or 0
+    merchantButtonLabel:SetText("("..tostring(sellable or 0).."/"..tostring(destroyable or 0)..")")
     local merchantFrameShown=type(api.MerchantFrame.IsShown)~="function" or api.MerchantFrame:IsShown()
     if globalOptions.merchantButton==true and merchantButtonOpen and merchantFrameShown then
       merchantButton:Show()
@@ -2929,7 +2948,7 @@ function Runtime.New(environment)
       if junkFrame.destroyNextButton then junkFrame.destroyNextButton:Disable() end
       return false
     end
-    junkTitle:SetText("Junk Items |cffffffff("..tostring(data.sellable or 0).."/"..tostring(data.destroyable or 0)..")|r")
+    junkTitle:SetText("|cffffd100Junk Items|r |cffffffff("..tostring(data.sellable or 0).."|cffff4040/|r"..tostring(data.destroyable or 0)..")|r")
     local totalValue=0
     for _,item in ipairs(data.items) do
       if type(item.unitVendorPrice)=="number" and item.unitVendorPrice>0 then
@@ -2945,7 +2964,7 @@ function Runtime.New(environment)
     if #data.items==0 then
       if not junkEmptyRow then
         junkEmptyRow=junkRowsContent:CreateFontString(nil,"ARTWORK","GameFontHighlight")
-        junkEmptyRow:SetPoint("TOPLEFT",12,-8); junkEmptyRow:SetWidth(500); junkEmptyRow:SetJustifyH("LEFT")
+        junkEmptyRow:SetPoint("TOPLEFT",12,-8); junkEmptyRow:SetWidth(280); junkEmptyRow:SetJustifyH("LEFT")
       end
       junkEmptyRow:SetText("No junk items."); junkEmptyRow:Show(); junkRowsContent:SetHeight(32)
       if junkFrame.startSellingButton then junkFrame.startSellingButton:Disable() end
@@ -2953,6 +2972,22 @@ function Runtime.New(environment)
       return true
     end
     if junkEmptyRow then junkEmptyRow:Hide() end
+    local function addCursorItemToInclusions()
+      if type(api.GetCursorInfo)~="function" then return false end
+      local ok,cursorType,itemId=pcall(api.GetCursorInfo)
+      itemId=tonumber(itemId)
+      if not ok or cursorType~="item" or not itemId then return false end
+      local callbacks=runtime.configCallbacks or {}
+      local scope=type(api.IsShiftKeyDown)=="function" and api.IsShiftKeyDown() and "global" or "profile"
+      local added,reason=callbacks.editItem and callbacks.editItem(scope,"inclusions",itemId,true)
+      if not added then runtime:Print("List update failed: "..tostring(reason or "UNAVAILABLE")); return true end
+      -- Match upstream ItemList: clear only the item that was committed to a list.
+      if type(api.ClearCursor)=="function" then pcall(api.ClearCursor) end
+      runtime:Print("Added cursor item to "..scope.." inclusions.")
+      local current=callbacks.junkItems and callbacks.junkItems()
+      if current then runtime:UpdateJunkFrame(current) end
+      return true
+    end
     for index,item in ipairs(data.items) do
       local card=junkRows[index]
       if not card then
@@ -2972,7 +3007,9 @@ function Runtime.New(environment)
             runtime:RequestItemAction("sellItem",target)
           end}
         }
-        card=createReadOnlyItemCard(junkRowsContent,300,36,(index-1)*38+4,actions)
+        card=createReadOnlyItemCard(junkRowsContent,300,36,(index-1)*38+4,actions,function()
+          addCursorItemToInclusions()
+        end)
         junkRows[index]=card
       end
       local sell=item.sell and item.sell.reasonCode or "UNKNOWN"
@@ -3037,29 +3074,75 @@ function Runtime.New(environment)
       junkFrame:SetScript("OnHide",function() junkVisible=false end)
       local header=api.CreateFrame("Frame",nil,junkFrame); header:SetHeight(34); header:SetPoint("TOPLEFT",0,0); header:SetPoint("TOPRIGHT",0,0)
       header:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); header:SetBackdropColor(30/255,30/255,30/255,1)
-      junkTitle=header:CreateFontString(nil,"ARTWORK","GameFontNormal")
+      junkTitle=header:CreateFontString(nil,"ARTWORK","GameFontNormalLarge")
       junkTitle:SetPoint("LEFT",12,0); junkTitle:SetWidth(240); junkTitle:SetJustifyH("LEFT"); junkTitle:SetText("Junk Items"); setTextColor(junkTitle,"gold")
       local close=api.CreateFrame("Button",nil,header); close:SetWidth(26); close:SetHeight(26); close:SetPoint("RIGHT",-5,0)
       styleCloseButton(close); close:SetScript("OnClick",function() junkFrame:Hide(); junkVisible=false end)
       local settings=api.CreateFrame("Button",nil,header); settings:SetWidth(26); settings:SetHeight(26); settings:SetPoint("RIGHT",close,"LEFT",0,0); settings:EnableMouse(true)
       if type(settings.RegisterForClicks)=="function" then settings:RegisterForClicks("LeftButtonUp") end
+      settings:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"})
+      settings:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],0.9)
       local gear=settings:CreateTexture(nil,"OVERLAY"); gear:SetTexture(addonAssetPath("gear-icon"))
-      gear:SetWidth(16); gear:SetHeight(16); gear:SetPoint("CENTER",settings,"CENTER")
+      gear:SetWidth(18); gear:SetHeight(18); gear:SetPoint("CENTER",settings,"CENTER")
+      settings:SetScript("OnEnter",function(self)
+        self:SetBackdropColor(theme.blue[1],theme.blue[2],theme.blue[3],0.3)
+        if api.GameTooltip then api.GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); api.GameTooltip:SetText("Profile Options"); api.GameTooltip:Show() end
+      end)
+      settings:SetScript("OnLeave",function(self)
+        self:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],0.9)
+        if api.GameTooltip then api.GameTooltip:Hide() end
+      end)
       settings:SetScript("OnClick",function()
         local callbacks=runtime.configCallbacks or {}
         runtime:ShowConfig(callbacks); runtime:ShowOptions(callbacks,"profile")
       end)
-      junkSummary=junkFrame:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
-      junkSummary:SetPoint("TOPLEFT",14,-45); junkSummary:SetText("Scanning bags…")
+      junkSummaryPanel=api.CreateFrame("Button",nil,junkFrame)
+      junkSummaryPanel:SetPoint("TOPLEFT",12,-43); junkSummaryPanel:SetPoint("TOPRIGHT",-12,-43); junkSummaryPanel:SetHeight(40)
+      junkSummaryPanel:EnableMouse(true)
+      if type(junkSummaryPanel.RegisterForClicks)=="function" then junkSummaryPanel:RegisterForClicks("LeftButtonUp","RightButtonUp") end
+      junkSummaryPanel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+      junkSummaryPanel:SetBackdropColor(30/255,30/255,30/255,1); junkSummaryPanel:SetBackdropBorderColor(0,0,0,1)
+      junkSummaryPanel:SetScript("OnClick",function(_,mouseButton)
+        if mouseButton~="RightButton" or not (api.IsControlKeyDown and api.IsControlKeyDown()) or
+            not (api.IsAltKeyDown and api.IsAltKeyDown()) or type(junkDataSource)~="table" then return end
+        local callbacks=runtime.configCallbacks or {}
+        local scope=api.IsShiftKeyDown and api.IsShiftKeyDown() and "global" or "profile"
+        local added=0
+        for _,item in ipairs(junkDataSource.items or {}) do
+          local ok=callbacks.editItem and callbacks.editItem(scope,"exclusions",item.itemId,true)
+          if ok then added=added+1 end
+        end
+        runtime:Print("Added "..tostring(added).." junk items to "..scope.." exclusions.")
+        local current=callbacks.junkItems and callbacks.junkItems()
+        if current then runtime:UpdateJunkFrame(current) end
+      end)
+      junkSummaryPanel:SetScript("OnEnter",function(self)
+        self:SetBackdropColor(theme.blue[1],theme.blue[2],theme.blue[3],0.16)
+        if api.GameTooltip then
+          api.GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); api.GameTooltip:SetText("Junk Items value")
+          api.GameTooltip:AddLine("Ctrl+Alt+Right-click: add all items to exclusions.",1,1,1)
+          api.GameTooltip:AddLine("Hold Shift to use global exclusions.",0.65,0.65,0.65); api.GameTooltip:Show()
+        end
+      end)
+      junkSummaryPanel:SetScript("OnLeave",function(self)
+        self:SetBackdropColor(30/255,30/255,30/255,1)
+        if api.GameTooltip then api.GameTooltip:Hide() end
+      end)
+      junkSummary=junkSummaryPanel:CreateFontString(nil,"ARTWORK","GameFontNormal")
+      junkSummary:SetAllPoints(junkSummaryPanel); junkSummary:SetJustifyH("CENTER"); junkSummary:SetText("Scanning bags…"); setTextColor(junkSummary,"white")
+      junkListPanel=api.CreateFrame("Frame",nil,junkFrame)
+      junkListPanel:SetPoint("TOPLEFT",12,-90); junkListPanel:SetPoint("BOTTOMRIGHT",-12,46)
+      junkListPanel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+      junkListPanel:SetBackdropColor(0,0,0,1); junkListPanel:SetBackdropBorderColor(0.22,0.22,0.22,1)
       junkScroll=api.CreateFrame("ScrollFrame","DejunkWotLKJunkScroll",junkFrame,"UIPanelScrollFrameTemplate")
-      junkScroll:SetPoint("TOPLEFT",12,-66); junkScroll:SetPoint("BOTTOMRIGHT",-30,46)
+      junkScroll:SetPoint("TOPLEFT",junkListPanel,"TOPLEFT",7,-7); junkScroll:SetPoint("BOTTOMRIGHT",junkListPanel,"BOTTOMRIGHT",-22,7)
       junkRowsContent=api.CreateFrame("Frame",nil,junkScroll); junkRowsContent:SetWidth(300); junkRowsContent:SetHeight(1)
       junkScroll:SetScrollChild(junkRowsContent); junkRows={}
       local startSelling=styleThemedButton(api.CreateFrame("Button",nil,junkFrame),"Start Selling")
-      startSelling:SetWidth(150); startSelling:SetHeight(30); startSelling:SetPoint("BOTTOMLEFT",8,8); startSelling:Disable()
+      startSelling:SetWidth(160); startSelling:SetHeight(30); startSelling:SetPoint("BOTTOMLEFT",8,8); startSelling:Disable()
       startSelling:SetScript("OnClick",function() runtime:RequestItemAction("startSelling") end)
-      local destroyNext=styleThemedButton(api.CreateFrame("Button",nil,junkFrame),"Destroy Next Item")
-      destroyNext:SetWidth(150); destroyNext:SetHeight(30); destroyNext:SetPoint("BOTTOMRIGHT",-8,8); destroyNext:Disable()
+      local destroyNext=styleThemedButton(api.CreateFrame("Button",nil,junkFrame),"Destroy Next Item","red")
+      destroyNext:SetWidth(160); destroyNext:SetHeight(30); destroyNext:SetPoint("BOTTOMRIGHT",-8,8); destroyNext:Disable()
       destroyNext:SetScript("OnClick",function() runtime:RequestItemAction("destroyNext") end)
       junkFrame.startSellingButton=startSelling; junkFrame.destroyNextButton=destroyNext; junkFrame.settingsButton=settings
     end
