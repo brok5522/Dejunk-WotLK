@@ -129,6 +129,13 @@ an issue, include your addon version, client build, the exact error, the action
 that triggered it, `/djw report`, and a screenshot when layout is involved.
 Never include account credentials or personal SavedVariables in public reports.
 
+## Reusable development skill
+
+The portable **addons wow 3.3.5a** skill captures this project's original-client
+research, debugging lessons and reusable tools. It is separate from the game addon.
+[Skill source](.agents/skills/addons-wow-3-3-5a/SKILL.md) ·
+[Download skill 1.0.0](https://github.com/brok5522/Dejunk-WotLK/releases/tag/skill-addons-wow-3-3-5a-v1.0.0).
+
 ## Development
 
 ```sh
