@@ -582,6 +582,7 @@ assert(listFrame.backdrop==nil,"Lists page retained the extra nested window fram
 assert(listSearch.height==28 and listSearch.fontObject=="GameFontNormal" and listSearch.width>400 and
   listSearch.backdropColor and listSearch.backdropColor[1]==30/255,
   "list search input does not match the upstream control size and palette")
+assert(listSearch.template==nil,"search still inherits the Blizzard input border")
 assert(not lastListInput,"Lists page still shows the non-upstream numeric item ID control")
 local ancestor=listFrame
 while ancestor and ancestor~=mainWindow do ancestor=ancestor.parent end
@@ -592,7 +593,8 @@ for _,frame in ipairs(uiFrames) do
 end
 assert(inclusionRow and inclusionRow.scripts.OnMouseDown,"list item rows do not accept cursor items")
 cursorItemId=6949
-inclusionRow.scripts.OnMouseDown(inclusionRow)
+assert(inclusionRow.scripts.OnReceiveDrag,"list row has no actual drop receiver")
+inclusionRow.scripts.OnReceiveDrag(inclusionRow)
 assert(listStore:GetState().global.inclusions[6949]==true,"cursor item was not added to the list")
 assert(cursorItemId==nil,"successful list drop did not clear the cursor item")
 for id=7000,7008 do assert(listStore:EditList("global","inclusions",id,true)) end
@@ -756,6 +758,12 @@ runtime:SetWindowPointHandlers(function(key) return key=="transportFrame" and sa
   function(key,value) if key=="transportFrame" then savedTransportPoint=value; return true end return false end)
 listPanes["global:inclusions"].transportButton:Click()
 local transportFrame=namedFrame("DejunkWotLKListImport")
+local transportClose=namedFrame("DejunkWotLKListTransportClose")
+assert(transportClose.width==24 and transportClose.height==24,"transport close button has no click area")
+local escapeNames={}
+for _,name in ipairs(runtime.api.UISpecialFrames) do escapeNames[name]=true end
+assert(escapeNames.DejunkWotLK_MainWindow and escapeNames.DejunkWotLKListImport and
+  escapeNames.DejunkWotLKJunkFrame,"windows were not registered with the legacy Escape handler")
 assert(transportFrame.shown and listFrame.shown==false and transportFrame.movable and
   transportFrame.dragButtons[1]=="LeftButton","transport frame is not movable like the upstream window")
 assert(transportFrame.width==325 and transportFrame.height==375,"transport frame does not match upstream dimensions")
@@ -767,6 +775,9 @@ assert(namedFrame("DejunkWotLKListImport").shown and listFrame.shown==false)
 local exported=lastControl("EditBox","6948,6949")
 assert(exported.focused,"transport export did not select the chosen list")
 assert(exported.highlighted,"transport export did not select the IDs for copying")
+exported.scripts.OnEscapePressed(exported)
+assert(not transportFrame.shown and listFrame.shown,"Escape in the transport input did not dismiss the window")
+listPanes["global:inclusions"].transportButton:Click()
 namedFrame("DejunkWotLKListTransportClose"):Click()
 assert(listFrame.shown==true)
 

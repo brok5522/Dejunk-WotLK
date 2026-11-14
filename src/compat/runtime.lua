@@ -182,6 +182,12 @@ function Runtime.New(environment)
   local api = environment or _G
   local runtime = { registration = {}, itemActionHandlers = {}, api = api }
   local junkDataSource
+  local function registerEscapeWindow(target,name)
+    api.UISpecialFrames=api.UISpecialFrames or {}
+    api[name]=target
+    for _,entry in ipairs(api.UISpecialFrames) do if entry==name then return end end
+    api.UISpecialFrames[#api.UISpecialFrames+1]=name
+  end
   local function addonAssetPath(file)
     -- WoW's texture resolver expects the same extensionless asset path used by
     -- the original addon, even though the packaged source files are TGA.
@@ -251,6 +257,7 @@ function Runtime.New(environment)
       card:SetScript("OnMouseUp",function(_,button)
         if button=="LeftButton" and card.item and card.item.locked~=true and card.item.enabled~=false then onClick(card.item) end
       end)
+      if not clickHint then card:SetScript("OnReceiveDrag",function() if card.item then onClick(card.item) end end) end
       card:SetScript("OnEnter",function(self)
         self:SetBackdropColor(1,1,1,0.06)
         local tooltip=api.GameTooltip
@@ -570,7 +577,7 @@ function Runtime.New(environment)
       if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp","RightButtonUp") end
       if type(button.RegisterForDrag)=="function" then button:RegisterForDrag("LeftButton") end
       local border=button:CreateTexture(nil,"OVERLAY")
-      border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder"); border:SetWidth(54); border:SetHeight(54); border:SetPoint("CENTER",0,0)
+      border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder"); border:SetWidth(54); border:SetHeight(54); border:SetPoint("TOPLEFT",0,0)
       local icon=button:CreateTexture(nil,"BACKGROUND")
       icon:SetTexture(addonAssetPath("dejunk-icon")); icon:SetWidth(18); icon:SetHeight(18); icon:SetPoint("CENTER",0,0)
       button.icon=icon
@@ -1124,6 +1131,8 @@ function Runtime.New(environment)
             frameFactory=function()
               local panel=api.CreateFrame("Frame", "DejunkWotLK_MainWindow", api.UIParent)
               panel:SetFrameStrata("HIGH"); panel:EnableMouse(true); panel:SetMovable(true)
+              registerEscapeWindow(panel,"DejunkWotLK_MainWindow")
+              panel:SetScript("OnHide",function() mainWindowVisible=false end)
               panel:RegisterForDrag("LeftButton")
               panel:SetScript("OnDragStart",function(self) self:StartMoving() end)
               panel:SetScript("OnDragStop",function(self) self:StopMovingOrSizing(); saveCurrentPoint(self,"mainWindow") end)
@@ -1406,9 +1415,11 @@ function Runtime.New(environment)
         profilePopup:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],0.98)
         profilePopup:SetBackdropBorderColor(1,1,1,0.3); profilePopup:Hide()
         local function hideProfilePopup() profilePopup:Hide(); popupBlocker:Hide() end
+        registerEscapeWindow(profilePopup,"DejunkWotLKProfilePopup")
+        profilePopup:SetScript("OnHide",function() popupBlocker:Hide() end)
         local popupMessage=profilePopup:CreateFontString(nil,"OVERLAY","GameFontNormal")
         popupMessage:SetPoint("TOPLEFT",14,-14); popupMessage:SetWidth(332); popupMessage:SetJustifyH("CENTER"); setTextColor(popupMessage,"white")
-        local popupEdit=api.CreateFrame("EditBox",nil,profilePopup,"InputBoxTemplate")
+        local popupEdit=api.CreateFrame("EditBox",nil,profilePopup)
         popupEdit:SetWidth(220); popupEdit:SetHeight(26); popupEdit:SetPoint("TOP",profilePopup,"TOP",0,-50)
         popupEdit:SetAutoFocus(false); popupEdit:SetMaxLetters(32)
         raiseForMouseInput(popupEdit,10)
@@ -1616,7 +1627,7 @@ function Runtime.New(environment)
         end
         if not mainContentFrame then listFrame:SetWidth(540); listFrame:SetHeight(540); listFrame:SetPoint("CENTER") end
         listFrame:EnableMouse(true)
-        listSearch=api.CreateFrame("EditBox",nil,listFrame,"InputBoxTemplate")
+        listSearch=api.CreateFrame("EditBox",nil,listFrame)
         local initialListWidth=type(listFrame.GetWidth)=="function" and listFrame:GetWidth() or 560
         if not initialListWidth or initialListWidth<100 then initialListWidth=560 end
         listSearch:SetWidth(math.max(350,initialListWidth-12)); listSearch:SetHeight(28); listSearch:SetPoint("TOPLEFT",4,-4)
@@ -1689,6 +1700,9 @@ function Runtime.New(environment)
             return true
           end
           box:SetScript("OnMouseDown",function() addCursorItem() end)
+          box:SetScript("OnReceiveDrag",addCursorItem)
+          titleBar:EnableMouse(true)
+          titleBar:SetScript("OnReceiveDrag",addCursorItem)
           box:SetScript("OnMouseUp",function(_,mouseButton)
             if mouseButton~="RightButton" or not (api.IsControlKeyDown and api.IsControlKeyDown()) or
                 not (api.IsAltKeyDown and api.IsAltKeyDown()) or not callbacks.editItem then return end
@@ -1739,6 +1753,9 @@ function Runtime.New(environment)
           scroll:SetPoint("TOPLEFT",box,"TOPLEFT",2,-29); scroll:SetPoint("BOTTOMRIGHT",box,"BOTTOMRIGHT",-18,2)
           scroll:EnableMouse(true); if type(scroll.EnableMouseWheel)=="function" then scroll:EnableMouseWheel(true) end
           local rowContent=api.CreateFrame("Frame",nil,scroll)
+          scroll:SetScript("OnReceiveDrag",addCursorItem)
+          rowContent:EnableMouse(true)
+          rowContent:SetScript("OnReceiveDrag",addCursorItem)
           rowContent:SetWidth(paneWidth-28); rowContent:SetHeight(196); scroll:SetScrollChild(rowContent)
           local scrollTrack=api.CreateFrame("Frame",nil,box)
           scrollTrack:SetWidth(6); scrollTrack:SetPoint("TOPRIGHT",box,"TOPRIGHT",-6,-31); scrollTrack:SetPoint("BOTTOMRIGHT",box,"BOTTOMRIGHT",-6,4)
@@ -1802,6 +1819,7 @@ function Runtime.New(environment)
             row:SetScript("OnMouseDown",function()
               if getCursorItemId() then row.cursorHandled=addCursorItem() end
             end)
+            row:SetScript("OnReceiveDrag",addCursorItem)
             row:SetScript("OnClick",function(_,mouseButton)
               if row.cursorHandled then row.cursorHandled=false; return end
               if mouseButton=="RightButton" and row.itemId and callbacks.editItem then
@@ -1986,6 +2004,7 @@ function Runtime.New(environment)
         importFrame=importFrame or api.CreateFrame("Frame",nil,api.UIParent)
         importFrame:SetWidth(325); importFrame:SetHeight(375); importFrame:SetPoint("CENTER")
         importFrame:SetFrameStrata("HIGH"); importFrame:EnableMouse(true)
+        registerEscapeWindow(importFrame,"DejunkWotLKListImport")
         importFrame:SetMovable(true); importFrame:RegisterForDrag("LeftButton")
         importFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
         importFrame:SetScript("OnDragStop",function(self)
@@ -1993,10 +2012,13 @@ function Runtime.New(environment)
           saveCurrentPoint(self,"transportFrame")
         end)
         setSavedPoint(importFrame,"transportFrame")
-        importFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
+        importFrame:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
+        importFrame:SetBackdropColor(theme.backdrop[1],theme.backdrop[2],theme.backdrop[3],1)
+        importFrame:SetBackdropBorderColor(0,0,0,1)
         importTitle=importFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
         importTitle:SetPoint("TOPLEFT",20,-18); setTextColor(importTitle,"gold")
         local close=styleCloseButton(api.CreateFrame("Button","DejunkWotLKListTransportClose",importFrame))
+        close:SetWidth(24); close:SetHeight(24)
         close:SetPoint("TOPRIGHT",-4,-4)
         close:SetScript("OnClick",function()
           importFrame:Hide()
@@ -2010,7 +2032,7 @@ function Runtime.New(environment)
         local scroll=api.CreateFrame("ScrollFrame","DejunkWotLKListImportScroll",importFrame,"UIPanelScrollFrameTemplate")
         scroll:SetPoint("TOPLEFT",importFrame,"TOPLEFT",18,-120); scroll:SetPoint("BOTTOMRIGHT",importFrame,"BOTTOMRIGHT",-40,54)
         scroll:EnableMouse(true)
-        scroll:SetBackdrop({bgFile="Interface\\Tooltips\\UI-Tooltip-Background",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",tile=true,tileSize=16,edgeSize=12,insets={left=4,right=4,top=4,bottom=4}})
+        scroll:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
         scroll:SetBackdropColor(0,0,0,0.9)
         importEdit=api.CreateFrame("EditBox",nil,scroll)
         importEdit:SetMultiLine(true); importEdit:SetAutoFocus(false); importEdit:SetMaxLetters(65536)
@@ -2018,7 +2040,10 @@ function Runtime.New(environment)
         importEdit:SetFontObject(api.ChatFontNormal); importEdit:SetTextColor(1,1,1,1); importEdit:SetTextInsets(2,2,2,2)
         importEdit:EnableMouse(true); importEdit:EnableKeyboard(true)
         importEdit:SetScript("OnMouseDown",function() importEdit:SetFocus() end)
-        importEdit:SetScript("OnEscapePressed",function() importEdit:ClearFocus() end)
+        importEdit:SetScript("OnEscapePressed",function()
+          importEdit:ClearFocus(); importFrame:Hide()
+          if listFrame then listFrame:Show() end
+        end)
         scroll:SetScrollChild(importEdit)
         importCommitButton=styleThemedButton(api.CreateFrame("Button",nil,importFrame))
         importCommitButton:SetWidth(132); importCommitButton:SetHeight(26); importCommitButton:SetPoint("BOTTOMLEFT",importFrame,"BOTTOMLEFT",18,14); importCommitButton:SetText("Import")
@@ -2605,7 +2630,7 @@ function Runtime.New(environment)
           local coinIcons={"Interface\\MoneyFrame\\UI-GoldIcon","Interface\\MoneyFrame\\UI-SilverIcon","Interface\\MoneyFrame\\UI-CopperIcon"}
           local x=110
           for part,width in ipairs(editWidths) do
-            local edit=api.CreateFrame("EditBox",nil,optionsContentFrame,"InputBoxTemplate")
+            local edit=api.CreateFrame("EditBox",nil,optionsContentFrame)
             edit:SetWidth(width); edit:SetHeight(22); edit:SetAutoFocus(false); edit:SetNumeric(true); edit:SetMaxLetters(part==1 and isPrice and 6 or (isPrice and 2 or 10))
             edit:SetFontObject("GameFontNormalSmall"); edit:SetTextColor(1,1,1,1); edit:SetTextInsets(4,4,0,0)
             edit:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
@@ -3201,6 +3226,7 @@ function Runtime.New(environment)
     if not junkFrame then
       junkFrame=api.CreateFrame("Frame","DejunkWotLKJunkFrame",api.UIParent)
       junkFrame:SetFrameStrata("HIGH"); junkFrame:SetWidth(350); junkFrame:SetHeight(400)
+      registerEscapeWindow(junkFrame,"DejunkWotLKJunkFrame")
       setSavedPoint(junkFrame,"junkFrame"); junkFrame:EnableMouse(true); junkFrame:SetMovable(true)
       junkFrame:RegisterForDrag("LeftButton")
       junkFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)

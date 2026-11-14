@@ -1,5 +1,18 @@
 # Validation and completion report
 
+## Client feedback fixes: 0.16.55-dev
+
+The owner reported missing Escape dismissal, a displaced/double-looking minimap
+icon, failed item drops, doubled input borders and an uncloseable Transport
+window on 0.16.54. Windows now register in legacy UISpecialFrames; the Transport
+close button has an explicit 24px click area; list panels, scroll children and
+rows handle OnReceiveDrag. Search, profile-name and threshold inputs use one
+custom border without InputBoxTemplate. The minimap tracking border uses its
+stock TOPLEFT anchor. Transport uses a flat border instead of a dialog border.
+Offline UI tests cover registration, the close click area and actual drop events.
+Original-client retest is pending. Modifier transfers passed the owner's test;
+Lootable was not tested because no lootable item was available.
+
 Date: 2026-11-14. This report describes the current working tree, not a release.
 The exhaustive feature comparison is in [PARITY.md](PARITY.md).
 
