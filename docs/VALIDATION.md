@@ -5,10 +5,12 @@ The exhaustive feature comparison is in [PARITY.md](PARITY.md).
 
 ## Current result
 
-The automated compatibility and regression checks pass. The addon is **not
-complete and is not release-ready**: the original Dejunk screens are not fully
-ported, live selling/repair/destruction are intentionally disconnected, and the
-current UI has not been exercised in the original client at this revision.
+The automated compatibility and regression checks pass. Sale, repair, loot and
+confirmed destroy are connected through the guarded legacy transaction adapter.
+The addon is still **not complete or release-ready**: several screens and
+upstream interaction details differ, and the current build has not been
+accepted in the original client. The numbered history below contains older
+entries; the current feature-by-feature status is in `PARITY.md`.
 
 ### Steps completed in this development branch
 
