@@ -133,7 +133,7 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for revision `0.16.35-dev`:
+Results for revision `0.16.36-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 39 source digests and 153 legacy API references).
@@ -162,6 +162,13 @@ modal inputs/buttons above the modal blocker. New UI integration fixtures use
 the real store/config callbacks to toggle both flags and apply an item level,
 then assert persisted values and rendered checked state. The actual client
 click path remains to be confirmed.
+
+The follow-up screenshot showed that the lower filter controls appeared
+inactive because their parent filter checkbox was off. Scope and quality
+selectors are now editable while the filter is off, and Apply remains
+clickable; applying a numeric threshold saves the entered value and enables
+that filter. Store-backed UI fixtures verify scope and quality edits while
+disabled and persistence after Apply.
 
 ## Still required to complete the upstream port
 

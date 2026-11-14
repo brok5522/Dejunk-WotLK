@@ -815,14 +815,27 @@ persistedRepair:Click()
 assert(persistedUiStore:GetActiveProfile().autoRepair==true and lastControl("CheckButton","Auto Repair"):GetChecked()==true,
   "Auto Repair visual state did not follow the persisted profile value")
 local persistedLevelToggle=lastControl("CheckButton","Include below item level")
-persistedLevelToggle:Click()
+assert(persistedLevelToggle:GetChecked()==false,"new threshold filter should start disabled")
+local persistedLevelScope,persistedLevelQuality
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="CheckButton" and frame.scopeKey=="includeBelowItemLevel" and frame.scopeValue=="SELL" then persistedLevelScope=frame end
+  if frame.kind=="CheckButton" and frame.optionGroup=="includeBelowItemLevel" and frame.optionQuality=="poor" then persistedLevelQuality=frame end
+end
+assert(persistedLevelScope and persistedLevelScope.enabled~=false and persistedLevelQuality and persistedLevelQuality.enabled~=false,
+  "disabled threshold filter blocked configuration of its scope or qualities")
+persistedLevelScope:Click(); persistedLevelQuality:Click()
+local offState=persistedUiStore:GetActiveProfile().options.includeBelowItemLevel
+assert(offState.enabled==false and offState.scope=="SELL" and offState.qualities.poor==false,
+  "threshold scope and qualities could not be edited while the filter was disabled")
 local persistedLevelEdit,persistedLevelApply
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="EditBox" and frame.thresholdKey=="includeBelowItemLevel" then persistedLevelEdit=frame end
   if frame.kind=="Button" and frame.thresholdKey=="includeBelowItemLevel" then persistedLevelApply=frame end
 end
 assert(persistedLevelEdit and persistedLevelApply,"item-level input or Apply button is missing")
+assert(persistedLevelApply.enabled~=false,"Apply is disabled while the threshold filter is off")
 persistedLevelEdit:SetText("47")
 persistedLevelApply:Click()
-assert(persistedUiStore:GetActiveProfile().options.includeBelowItemLevel.value==47,
-  "Profile Options Apply did not persist the entered item level")
+local appliedThreshold=persistedUiStore:GetActiveProfile().options.includeBelowItemLevel
+assert(appliedThreshold.value==47 and appliedThreshold.enabled==true and appliedThreshold.scope=="SELL" and appliedThreshold.qualities.poor==false,
+  "Profile Options Apply did not persist and enable the configured threshold")

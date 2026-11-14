@@ -1702,7 +1702,7 @@ function Runtime.New(environment)
             end
             local current=currentCallbacks.options and currentCallbacks.options() or {}
             local previous=current[row.key] or {scope=(row.key=="excludeAbovePrice" or row.key=="includeBelowPrice") and "DESTROY" or "BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}}
-            local value={enabled=previous.enabled==true,scope=previous.scope or "BOTH",value=number or previous.value or 0,qualities=previous.qualities or {poor=true,common=true,uncommon=true,rare=true,epic=true}}
+            local value={enabled=true,scope=previous.scope or "BOTH",value=number or previous.value or 0,qualities=previous.qualities or {poor=true,common=true,uncommon=true,rare=true,epic=true}}
             local changed,reason=currentCallbacks.setOption and currentCallbacks.setOption(row.key,value)
             self:Print(changed and (row.label.." updated.") or ("Option update failed: "..tostring(reason)))
             self:ShowOptions(currentCallbacks,"profile")
@@ -1921,7 +1921,7 @@ function Runtime.New(environment)
       end
       for _,button in ipairs(optionsQualityButtons) do
         if scope=="profile" then button:Show() else button:Hide() end
-        setOptionCheckEnabled(button,qualityRule.enabled~=false)
+        setOptionCheckEnabled(button,true)
       end
       for _,entry in ipairs(optionsThresholdFields) do
         if scope=="profile" then entry.label:Show(); entry.apply:Show()
@@ -1933,10 +1933,9 @@ function Runtime.New(environment)
           entry.key=="excludeAboveItemLevel" and "Exclude above item level" or "Exclude above price"
         setOptionCheckChecked(entry.label,type(option)=="table" and option.enabled==true)
         setOptionCheckText(entry.label,thresholdLabel)
-        if type(option)=="table" and option.enabled then entry.apply:Enable()
-        else entry.apply:Disable() end
-        -- WoW 3.3.5 EditBox has no Enable/Disable/SetEnabled methods. Keep
-        -- threshold inputs editable; Apply remains disabled until enabled.
+        entry.apply:Enable()
+        -- Settings remain editable while their filter is off. Apply saves the
+        -- value and enables the filter, matching the visible button's behavior.
         local storedValue=type(option)=="table" and tonumber(option.value) or 0
         if entry.isPrice then
           local gold=math.floor(storedValue/10000)
@@ -1950,7 +1949,7 @@ function Runtime.New(environment)
         for _,control in ipairs(entry.scopeChoices) do
           setOptionCheckChecked(control,control.scopeValue==optionScope)
           if scope=="profile" then control:Show() else control:Hide() end
-          setOptionCheckEnabled(control,type(option)=="table" and option.enabled==true)
+          setOptionCheckEnabled(control,true)
         end
         for quality,button in ipairs(entry.qualityButtons) do
           local name=({"poor","common","uncommon","rare","epic"})[quality]
@@ -1958,7 +1957,7 @@ function Runtime.New(environment)
           setOptionCheckChecked(button,enabled)
           setOptionCheckText(button,({"Poor","Com","Unc","Rare","Epic"})[quality])
           if scope=="profile" then button:Show() else button:Hide() end
-          setOptionCheckEnabled(button,type(option)=="table" and option.enabled==true)
+          setOptionCheckEnabled(button,true)
         end
       end
       for _,entry in ipairs(optionsScopeFields) do
@@ -1967,7 +1966,7 @@ function Runtime.New(environment)
         for _,control in ipairs(entry.choices) do
           setOptionCheckChecked(control,control.scopeValue==selectedScope)
           if scope=="profile" then control:Show() else control:Hide() end
-          setOptionCheckEnabled(control,type(option)=="table" and option.enabled==true)
+          setOptionCheckEnabled(control,true)
         end
       end
       setOptionCheckChecked(optionsFrame.qualityTitle,qualityRule.enabled~=false)
@@ -1979,7 +1978,7 @@ function Runtime.New(environment)
         setOptionCheckChecked(button,enabled)
         setOptionCheckText(button,({"Poor","Com","Unc","Rare","Epic"})[quality])
         if scope=="profile" then button:Show() else button:Hide() end
-        setOptionCheckEnabled(button,type(unbound)=="table" and unbound.enabled==true)
+        setOptionCheckEnabled(button,true)
       end
       for _,entry in ipairs(optionsEquipmentTypeFields or {}) do
         local option=opts[entry.key] or {enabled=false,scope="BOTH",qualities={},armor={},weapons={}}
@@ -1990,7 +1989,7 @@ function Runtime.New(environment)
         for _,control in ipairs(entry.scopeChoices) do
           setOptionCheckChecked(control,control.scopeValue==(option.scope or "BOTH"))
           if scope=="profile" then control:Show() else control:Hide() end
-          setOptionCheckEnabled(control,option.enabled==true)
+          setOptionCheckEnabled(control,true)
         end
         for _,frame in ipairs(entry.labels) do if scope=="profile" then frame:Show() else frame:Hide() end end
         for _,control in ipairs(entry.typeButtons) do
@@ -1999,14 +1998,14 @@ function Runtime.New(environment)
           setOptionCheckChecked(control.button,enabled)
           setOptionCheckText(control.button,control.item.name)
           if scope=="profile" then control.button:Show() else control.button:Hide() end
-          setOptionCheckEnabled(control.button,option.enabled==true)
+          setOptionCheckEnabled(control.button,true)
         end
         for _,control in ipairs(entry.qualityButtons) do
           local enabled=type(option.qualities)~="table" or option.qualities[control.name]~=false
           setOptionCheckChecked(control.button,enabled)
           setOptionCheckText(control.button,({poor="Poor",common="Com",uncommon="Unc",rare="Rare",epic="Epic"})[control.name] or control.name)
           if scope=="profile" then control.button:Show() else control.button:Hide() end
-          setOptionCheckEnabled(control.button,option.enabled==true)
+          setOptionCheckEnabled(control.button,true)
         end
       end
       local labels={"Poor","Common","Uncommon","Rare","Epic"}
