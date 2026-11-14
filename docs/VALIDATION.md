@@ -144,6 +144,13 @@ current UI has not been exercised in the original client at this revision.
    modifier/wheel/mouse input, tooltip-item list toggling without changing the
    cursor, combat restrictions and screen switching. The actual client's
    rendering and keyboard focus remain unverified.
+   Follow-up client screenshots exposed the stock 3.3.5 scroll template error:
+   three ScrollFrames (Lists and the junk/lootable windows) had no frame names,
+   but the 3.3.5 `ScrollFrame_OnLoad` concatenates `self:GetName()` to resolve
+   its scrollbar controls. They now have unique names. Keybinding labels also
+   now call `GetBindingText(key)` exactly as the pinned upstream does; the
+   `KEY_` argument was a localization prefix and could render a wrong label.
+   Lua tests and syntax checks pass; this fix still needs a client screenshot.
 
 ## Checks run for this report
 
@@ -155,7 +162,7 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for current revision `0.16.43-dev`:
+Results for current working tree `0.16.43-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 41 source digests and 153 legacy API references).

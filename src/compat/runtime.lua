@@ -413,7 +413,9 @@ function Runtime.New(environment)
   local function keybindingDisplay(key)
     if type(key)~="string" or key=="" then return "Not bound" end
     if type(api.GetBindingText)=="function" then
-      local ok,text=pcall(api.GetBindingText,key,"KEY_")
+      -- GetBindingText's second argument is a localization prefix, not a key
+      -- formatting hint. The upstream addon passes only the key here.
+      local ok,text=pcall(api.GetBindingText,key)
       if ok and type(text)=="string" and text~="" then return text end
     end
     return key
@@ -1244,7 +1246,7 @@ function Runtime.New(environment)
           box.titleBar=titleBar; box.heading=heading; box.transportButton=transport
           local empty=box:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
           empty:SetPoint("TOPLEFT",8,-36); empty:SetWidth(paneWidth-16); empty:SetJustifyH("LEFT"); setTextColor(empty,"grey")
-          local scroll=api.CreateFrame("ScrollFrame",nil,box,"UIPanelScrollFrameTemplate")
+          local scroll=api.CreateFrame("ScrollFrame","DejunkWotLKListScroll_"..paneScope.."_"..paneKind,box,"UIPanelScrollFrameTemplate")
           scroll:SetPoint("TOPLEFT",box,"TOPLEFT",2,-29); scroll:SetPoint("BOTTOMRIGHT",box,"BOTTOMRIGHT",-24,2)
           scroll:EnableMouse(true); if type(scroll.EnableMouseWheel)=="function" then scroll:EnableMouseWheel(true) end
           local rowContent=api.CreateFrame("Frame",nil,scroll)
@@ -2600,7 +2602,7 @@ function Runtime.New(environment)
       styleCloseButton(close); close:SetScript("OnClick",function() junkFrame:Hide(); junkVisible=false end)
       junkSummary=junkFrame:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
       junkSummary:SetPoint("TOPLEFT",14,-43); junkSummary:SetText("Scanning bags…")
-      junkScroll=api.CreateFrame("ScrollFrame",nil,junkFrame,"UIPanelScrollFrameTemplate")
+      junkScroll=api.CreateFrame("ScrollFrame","DejunkWotLKJunkScroll",junkFrame,"UIPanelScrollFrameTemplate")
       junkScroll:SetPoint("TOPLEFT",12,-66); junkScroll:SetPoint("BOTTOMRIGHT",-30,12)
       junkRowsContent=api.CreateFrame("Frame",nil,junkScroll); junkRowsContent:SetWidth(510); junkRowsContent:SetHeight(1)
       junkScroll:SetScrollChild(junkRowsContent); junkRows={}
@@ -2681,7 +2683,7 @@ function Runtime.New(environment)
       styleCloseButton(close); close:SetScript("OnClick",function() lootableFrame:Hide(); lootableVisible=false end)
       lootableSummary=lootableFrame:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
       lootableSummary:SetPoint("TOPLEFT",14,-43); lootableSummary:SetText("Scanning bags…")
-      lootableScroll=api.CreateFrame("ScrollFrame",nil,lootableFrame,"UIPanelScrollFrameTemplate")
+      lootableScroll=api.CreateFrame("ScrollFrame","DejunkWotLKLootableScroll",lootableFrame,"UIPanelScrollFrameTemplate")
       lootableScroll:SetPoint("TOPLEFT",12,-66); lootableScroll:SetPoint("BOTTOMRIGHT",-30,12)
       lootableRowsContent=api.CreateFrame("Frame",nil,lootableScroll); lootableRowsContent:SetWidth(300); lootableRowsContent:SetHeight(1)
       lootableScroll:SetScrollChild(lootableRowsContent); lootableRows={}
