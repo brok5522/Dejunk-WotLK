@@ -1,0 +1,6 @@
+interface:
+  display_name: "addons wow 3.3.5a"
+  short_description: "Build and debug original WoW 3.3.5a addons"
+  default_prompt: "Use $addons-wow-3-3-5a to inspect this addon for original WoW build 12340, implement the requested changes, and verify them with Lua 5.1 and appropriate client evidence."
+policy:
+  allow_implicit_invocation: true
