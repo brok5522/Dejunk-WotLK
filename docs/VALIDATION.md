@@ -172,10 +172,10 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for current working tree `0.16.50-dev`:
+Results for current working tree `0.16.51-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
-  local links, 41 source digests and 153 legacy API references).
+  local links, 54 source digests and 153 legacy API references).
 - `check.py`: PASS (21 ordered runtime files; Lua 5.1 syntax for 29 files;
   runtime 64/64, store 21/21, services 8/8, destroyer 11/11, UI model 62/62;
   transaction adapter fake-API tests and UI interaction fixtures passed,
@@ -315,13 +315,17 @@ revision and limitations before relying on it. The screenshots in the project
 history exposed real UI errors and layout problems, which is why current
 automated model checks are not treated as proof of client correctness.
 
-## Visual parity follow-up (`0.16.50-dev`)
+## Visual parity follow-up (`0.16.51-dev`)
 
-Compared the current screenshots against the reference: keybinding labels are
-white and key controls grey, profile rename/duplicate/reset/delete controls are
-compact icon buttons with hover tooltips, the main header logo is 24px, and
-Lootable rows use a 32px item icon plus a 24px ignore icon. Lootable title
-counting uses the gold/white reference colors. `python3 tools/check.py` passed
+Compared all available screen implementations with the pinned UI sources:
+Lists uses the exact search and transport icons; close controls use the upstream
+X artwork; profile actions use the exact pencil/copy/reset/trash artwork in the
+reference order; profile summaries color active inclusion/exclusion counts;
+Keybindings use grey key boxes, white labels, red/green list names and the
+reference descriptions; Lootable rows use the upstream 24px item icon, 32px
+action button with a 14px ignore icon, five-row sizing, low frame strata and
+gold/white title counts. Normal windows use high frame strata. The main header
+logo uses the upstream 20px size. `python3 tools/check.py` passed
 with actual Lua 5.1, all 64 runtime, 21 store, 8 service, 11 destroyer, 62 UI
 model and UI interaction fixtures; ZIP reproducibility and layout checks passed.
 Original-client rendering remains unverified in this environment.

@@ -229,13 +229,14 @@ function Runtime.New(environment)
     if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp") end
     raiseForMouseInput(button,10)
     button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"})
-    local text=button:CreateFontString(nil,"ARTWORK","GameFontNormal")
-    text:SetPoint("CENTER"); text:SetText("X")
-    button.text="X"; button.labelRegion=text
+    local icon=button:CreateTexture(nil,"ARTWORK")
+    icon:SetTexture(addonAssetPath("x-icon")); icon:SetWidth(14); icon:SetHeight(14); icon:SetPoint("CENTER")
+    button.text="X"; button.icon=icon
     local function refresh(hovered)
       button:SetBackdropColor(227/255,79/255,79/255,hovered and 0.75 or 0)
       button:SetBackdropBorderColor(0,0,0,0)
-      setTextColor(text,hovered and "white" or "grey")
+      local tint=hovered and theme.white or theme.grey
+      icon:SetVertexColor(tint[1],tint[2],tint[3],1)
     end
     button:SetScript("OnEnter",function() refresh(true) end)
     button:SetScript("OnLeave",function() refresh(false) end)
@@ -274,7 +275,7 @@ function Runtime.New(environment)
       if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp") end
       local actionIcon=button:CreateTexture(nil,"OVERLAY")
       actionIcon:SetTexture(addonAssetPath(action.icon.."-icon"))
-      actionIcon:SetWidth(24); actionIcon:SetHeight(24); actionIcon:SetPoint("CENTER",button,"CENTER")
+      actionIcon:SetWidth(14); actionIcon:SetHeight(14); actionIcon:SetPoint("CENTER",button,"CENTER")
       if action.enabled==false then
         actionIcon:SetVertexColor(0.48,0.48,0.48,0.8)
       end
@@ -360,12 +361,12 @@ function Runtime.New(environment)
     {id="toggleMainWindow",label="Toggle Main Window",group="Windows"},
     {id="toggleJunkFrame",label="Toggle Junk Frame",group="Windows"},
     {id="toggleLootableFrame",label="Toggle Lootable Frame",group="Windows"},
-    {id="startSelling",label="Start Selling",group="Actions"},
+    {id="startSelling",label="Start Selling",description="Sells junk items while a merchant window is open.",group="Actions"},
     {id="destroyNextItem",label="Destroy Next Item",group="Actions"},
-    {id="addOrRemoveProfileInclusions",label="Add or Remove Inclusions (Profile)",group="Profile Lists"},
-    {id="addOrRemoveProfileExclusions",label="Add or Remove Exclusions (Profile)",group="Profile Lists"},
-    {id="addOrRemoveGlobalInclusions",label="Add or Remove Inclusions (Global)",group="Global Lists"},
-    {id="addOrRemoveGlobalExclusions",label="Add or Remove Exclusions (Global)",group="Global Lists"}
+    {id="addOrRemoveProfileInclusions",label="Add or Remove |cffe34f4fInclusions|r (Profile)",group="Profile Lists"},
+    {id="addOrRemoveProfileExclusions",label="Add or Remove |cff4fe34fExclusions|r (Profile)",group="Profile Lists"},
+    {id="addOrRemoveGlobalInclusions",label="Add or Remove |cffe34f4fInclusions|r (Global)",group="Global Lists"},
+    {id="addOrRemoveGlobalExclusions",label="Add or Remove |cff4fe34fExclusions|r (Global)",group="Global Lists"}
   }
   local configFooterProfile,configFooterJunk,configFooterLootable
   local optionsOptionCards,optionsCardDividers,optionsQualityRows,optionsResponsiveDescriptions
@@ -721,7 +722,7 @@ function Runtime.New(environment)
       local component=Addon.Waffle:Flex({width=width,height=height,direction="COLUMN",visibility="GONE",
         frameFactory=function()
           local panel=api.CreateFrame("Frame",name,api.UIParent)
-          panel:SetFrameStrata("DIALOG"); panel:EnableMouse(true); panel:SetPoint("CENTER")
+          panel:SetFrameStrata("HIGH"); panel:EnableMouse(true); panel:SetPoint("CENTER")
           panel:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
           return panel
         end})
@@ -939,21 +940,38 @@ function Runtime.New(environment)
     local content=api.CreateFrame("Frame",nil,scroll); content:SetWidth(500); content:SetHeight(600); scroll:SetScrollChild(content)
     keybindingRows={}
     local groupOrder={"Windows","Actions","Profile Lists","Global Lists"}
+    local groupDescriptions={
+      ["Profile Lists"]="Each key adds the item shown in the game tooltip to its list, or removes it if it is already there.",
+      ["Global Lists"]="Each key adds the item shown in the game tooltip to its list, or removes it if it is already there."
+    }
     local y=0
     for _,group in ipairs(groupOrder) do
       local heading=content:CreateFontString(nil,"ARTWORK","GameFontNormal")
       heading:SetPoint("TOPLEFT",8,-y); heading:SetText(group); setTextColor(heading,"blue")
       y=y+28
+      if groupDescriptions[group] then
+        local description=content:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+        description:SetPoint("TOPLEFT",8,-y); description:SetWidth(480); description:SetJustifyH("LEFT")
+        description:SetText(groupDescriptions[group]); setTextColor(description,"grey")
+        y=y+26
+      end
       for _,entry in ipairs(keybindingActions) do
         if entry.group==group then
           local card=api.CreateFrame("Button",nil,content); card:SetPoint("TOPLEFT",4,-y); card:SetPoint("TOPRIGHT",-4,-y); card:SetHeight(42)
           card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); card:SetBackdropColor(1,1,1,0.035)
           local label=card:CreateFontString(nil,"ARTWORK","GameFontNormal")
-          label:SetPoint("LEFT",10,0); label:SetWidth(260); label:SetJustifyH("LEFT"); label:SetText(entry.label); setTextColor(label,"white")
+          label:SetPoint(entry.description and "TOPLEFT" or "LEFT",entry.description and 10 or 10,entry.description and -5 or 0)
+          label:SetWidth(260); label:SetJustifyH("LEFT"); label:SetText(entry.label); setTextColor(label,"white")
+          local detail
+          if entry.description then
+            detail=card:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+            detail:SetPoint("TOPLEFT",label,"BOTTOMLEFT",0,-1); detail:SetWidth(320); detail:SetJustifyH("LEFT")
+            detail:SetText(entry.description); setTextColor(detail,"grey")
+          end
           local button=styleThemedButton(api.CreateFrame("Button","DejunkWotLKKeybinding_"..entry.id,card),nil,"grey")
           button:SetWidth(170); button:SetHeight(28); button:SetPoint("RIGHT",-8,0)
           if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("AnyUp") end
-          keybindingRows[entry.id]={id=entry.id,button=button,label=label,card=card}
+          keybindingRows[entry.id]={id=entry.id,button=button,label=label,detail=detail,card=card}
           card:EnableMouse(true)
           if type(card.RegisterForClicks)=="function" then card:RegisterForClicks("AnyUp") end
           local function handleBindingClick(mouseButton)
@@ -1080,7 +1098,7 @@ function Runtime.New(environment)
             defaultFrameFactory=function(parent) return api.CreateFrame("Frame",nil,parent) end,
             frameFactory=function()
               local panel=api.CreateFrame("Frame", "DejunkWotLK_MainWindow", api.UIParent)
-              panel:SetFrameStrata("DIALOG"); panel:EnableMouse(true); panel:SetMovable(true)
+              panel:SetFrameStrata("HIGH"); panel:EnableMouse(true); panel:SetMovable(true)
               panel:RegisterForDrag("LeftButton")
               panel:SetScript("OnDragStart",function(self) self:StartMoving() end)
               panel:SetScript("OnDragStop",function(self) self:StopMovingOrSizing(); saveCurrentPoint(self,"mainWindow") end)
@@ -1193,7 +1211,7 @@ function Runtime.New(environment)
       if not configFrame then
         configFrame=api.CreateFrame("Frame",nil,api.UIParent)
         configFrame:SetWidth(500); configFrame:SetHeight(300); setSavedPoint(configFrame,"mainWindow")
-        configFrame:SetFrameStrata("DIALOG"); configFrame:EnableMouse(true); configFrame:SetMovable(true)
+        configFrame:SetFrameStrata("HIGH"); configFrame:EnableMouse(true); configFrame:SetMovable(true)
         configFrame:RegisterForDrag("LeftButton")
         configFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
         configFrame:SetScript("OnDragStop",function(self) if self.StopMovingOrSizing then self:StopMovingOrSizing() end; saveCurrentPoint(self,"mainWindow") end)
@@ -1335,7 +1353,7 @@ function Runtime.New(environment)
           profileFrame=profileFrame or api.CreateFrame("Frame",nil,api.UIParent)
         end
         if not mainContentFrame then
-          profileFrame:SetWidth(420); profileFrame:SetHeight(360); profileFrame:SetPoint("CENTER"); profileFrame:SetFrameStrata("DIALOG")
+          profileFrame:SetWidth(420); profileFrame:SetHeight(360); profileFrame:SetPoint("CENTER"); profileFrame:SetFrameStrata("HIGH")
         end
         profileFrame:EnableMouse(true)
         if not mainContentFrame then profileFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}}) end
@@ -1347,9 +1365,9 @@ function Runtime.New(environment)
           close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() profileFrame:Hide() end)
         end
         profileSummary=profileFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-        profileSummary:SetPoint("TOPLEFT",22,-50); profileSummary:SetWidth(360); profileSummary:SetJustifyH("LEFT"); setTextColor(profileSummary,"grey")
+        profileSummary:SetPoint("TOPLEFT",22,-50); profileSummary:SetWidth(560); profileSummary:SetJustifyH("LEFT"); setTextColor(profileSummary,"grey")
         profileScroll=api.CreateFrame("ScrollFrame","DejunkWotLKProfileScrollFrame",profileFrame,"UIPanelScrollFrameTemplate")
-        profileScroll:SetPoint("TOPLEFT",22,-72); profileScroll:SetPoint("BOTTOMRIGHT",-18,75)
+        profileScroll:SetPoint("TOPLEFT",22,-100); profileScroll:SetPoint("BOTTOMRIGHT",-18,75)
         profileList=api.CreateFrame("Frame",nil,profileScroll); profileList:SetWidth(500); profileList:SetHeight(175); profileScroll:SetScrollChild(profileList); profileButtons={}
         local popupBlocker=api.CreateFrame("Frame","DejunkWotLKProfilePopupBlocker",api.UIParent)
         popupBlocker:SetAllPoints(api.UIParent); popupBlocker:SetFrameStrata("FULLSCREEN_DIALOG"); popupBlocker:SetFrameLevel(1000)
@@ -1455,15 +1473,17 @@ function Runtime.New(environment)
         accent:SetWidth(3); accent:SetPoint("TOPLEFT"); accent:SetPoint("BOTTOMLEFT")
         accent:SetVertexColor(theme.blue[1],theme.blue[2],theme.blue[3],profile.active and 1 or 0)
         local name=button:CreateFontString(nil,"ARTWORK","GameFontNormal")
-        name:SetPoint("TOPLEFT",12,-7); name:SetPoint("RIGHT",-172,0); name:SetJustifyH("LEFT")
+        name:SetPoint("TOPLEFT",12,-7); name:SetPoint("RIGHT",-132,0); name:SetJustifyH("LEFT")
         name:SetText(profile.name); setTextColor(name,profile.active and "blue" or "white")
         local summary=button:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
-        summary:SetPoint("BOTTOMLEFT",name,"BOTTOMLEFT",0,-15); summary:SetPoint("RIGHT",-280,0); summary:SetJustifyH("LEFT")
+        summary:SetPoint("BOTTOMLEFT",name,"BOTTOMLEFT",0,-15); summary:SetPoint("RIGHT",-132,0); summary:SetJustifyH("LEFT")
         local bits={}
-        if profile.autoSell then bits[#bits+1]="Auto Sell" end
-        bits[#bits+1]="Inclusions: "..tostring(profile.numInclusions or 0)
-        bits[#bits+1]="Exclusions: "..tostring(profile.numExclusions or 0)
-        summary:SetText(table.concat(bits,"  ·  ")); setTextColor(summary,"grey")
+        if profile.autoSell then bits[#bits+1]=(profile.active and "|cffffd100" or "|cff9d9d9d").."Auto Sell|r" end
+        local inclusionColor=profile.active and "|cffe34f4f" or "|cff9d9d9d"
+        local exclusionColor=profile.active and "|cff4fe34f" or "|cff9d9d9d"
+        bits[#bits+1]=inclusionColor.."Inclusions|r: |cffffffff"..tostring(profile.numInclusions or 0).."|r"
+        bits[#bits+1]=exclusionColor.."Exclusions|r: |cffffffff"..tostring(profile.numExclusions or 0).."|r"
+        summary:SetText(table.concat(bits,"  ·  "))
         button:SetScript("OnEnter",function(self) self:SetBackdropColor(1,1,1,0.06) end)
         button:SetScript("OnLeave",function(self) self:SetBackdropColor(1,1,1,0.03) end)
         button:SetScript("OnClick",function()
@@ -1472,15 +1492,15 @@ function Runtime.New(environment)
           self:Print(switched and ("Active profile: "..profileEntry.name) or ("Profile switch failed: "..tostring(reason)))
           self:ShowProfiles(callbacks)
         end)
-        local actions={{"Rename","rename","Interface\\Buttons\\UI-GuildButton-PublicNote-Up"},
-          {"Duplicate","duplicate","Interface\\Buttons\\UI-GroupLoot-Pass-Up"},
-          {"Reset","reset","Interface\\Buttons\\UI-RefreshButton"},
-          {"Delete","delete",addonAssetPath("trash-icon")}}
+        local actions={{"Delete","delete",addonAssetPath("trash-icon")},
+          {"Reset","reset",addonAssetPath("reset-icon")},
+          {"Duplicate","duplicate",addonAssetPath("copy-icon")},
+          {"Rename","rename",addonAssetPath("pencil-icon")}}
         local right=-5
         for _,entry in ipairs(actions) do
           local action,label,iconPath=entry[2],entry[1],entry[3]
           local actionButton=api.CreateFrame("Button",nil,button)
-          actionButton:SetWidth(28); actionButton:SetHeight(28); actionButton:SetPoint("RIGHT",button,"RIGHT",right,0)
+          actionButton:SetWidth(32); actionButton:SetHeight(32); actionButton:SetPoint("RIGHT",button,"RIGHT",right,0)
           actionButton:EnableMouse(true)
           actionButton:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); actionButton:SetBackdropColor(0,0,0,0)
           local actionIcon=actionButton:CreateTexture(nil,"ARTWORK"); actionIcon:SetTexture(iconPath)
@@ -1503,13 +1523,13 @@ function Runtime.New(environment)
             if action=="rename" or action=="duplicate" then profileFrame.showNamePrompt(action,profileEntry)
             else profileFrame.confirmProfileAction(action,profileEntry) end
           end)
-          right=right-30
+          right=right-32
         end
         profileButtons[#profileButtons+1]=button
         row=row+1
       end
       profileList:SetHeight(math.max(175,row*52))
-      profileSummary:SetText("Select a profile to activate it:")
+      profileSummary:SetText("A profile holds a character's options and lists, and characters can share one.\nDefault is where characters start and return when their profile is deleted. It cannot be renamed or deleted.")
       refreshConfigFooter(callbacks)
       setConfigPageVisible(listFrame,false)
       setConfigPageVisible(optionsFrame,false)
@@ -1557,7 +1577,7 @@ function Runtime.New(environment)
         listSearch:SetBackdropBorderColor(theme.black[1],theme.black[2],theme.black[3],1)
         if listSearch.SetTextInsets then listSearch:SetTextInsets(24,24,0,0) end
         local searchIcon=listSearch:CreateTexture(nil,"ARTWORK")
-        searchIcon:SetTexture("Interface\\Common\\UI-Searchbox-Icon"); searchIcon:SetWidth(14); searchIcon:SetHeight(14); searchIcon:SetPoint("LEFT",6,0)
+        searchIcon:SetTexture(addonAssetPath("search-icon")); searchIcon:SetWidth(14); searchIcon:SetHeight(14); searchIcon:SetPoint("LEFT",6,0)
         listSearchPlaceholder=listSearch:CreateFontString(nil,"OVERLAY","GameFontDisableSmall")
         listSearchPlaceholder:SetPoint("LEFT",24,0); listSearchPlaceholder:SetText("Search Lists"); setTextColor(listSearchPlaceholder,"grey")
         listSearchClear=styleCloseButton(api.CreateFrame("Button",nil,listSearch))
@@ -1628,7 +1648,18 @@ function Runtime.New(environment)
             importScope,importKind=paneScope,paneKind
             self:ShowListImport(callbacks,"import")
           end)
-          box.titleBar=titleBar; box.heading=heading; box.transportButton=transport; box.transportIcon=transportIcon
+          local spinner=titleBar:CreateTexture(nil,"OVERLAY")
+          spinner:SetTexture(addonAssetPath("spinner-icon")); spinner:SetWidth(14); spinner:SetHeight(14)
+          spinner:SetPoint("RIGHT",transport,"LEFT",-2,0); spinner:Hide()
+          if type(spinner.CreateAnimationGroup)=="function" then
+            local animationGroup=spinner:CreateAnimationGroup()
+            if animationGroup and type(animationGroup.SetLooping)=="function" and type(animationGroup.CreateAnimation)=="function" then
+              animationGroup:SetLooping("REPEAT")
+              local rotation=animationGroup:CreateAnimation("Rotation")
+              if rotation then rotation:SetDegrees(-360); rotation:SetDuration(1); animationGroup:Play() end
+            end
+          end
+          box.titleBar=titleBar; box.heading=heading; box.transportButton=transport; box.transportIcon=transportIcon; box.spinner=spinner
           local empty=box:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
           empty:SetPoint("TOPLEFT",8,-36); empty:SetWidth(paneWidth-16); empty:SetJustifyH("LEFT"); setTextColor(empty,"grey")
           local scrollName="DejunkWotLKListScroll_"..paneScope.."_"..paneKind
@@ -1790,6 +1821,12 @@ function Runtime.New(environment)
           return itemPresentationCache[id]
         end)
         local total=#filtered
+        local paneMetadataPending=false
+        for _,item in ipairs(filtered) do
+          local presentation=itemPresentationCache[item.id]
+          if not (presentation and presentation.name) then paneMetadataPending=true; break end
+        end
+        if paneMetadataPending then pane.frame.spinner:Show() else pane.frame.spinner:Hide() end
         pane.content:SetHeight(math.max(196,total*28))
         pane.updateThumb()
         for rowIndex=1,total do if not pane.rows[rowIndex] then pane.createRow(rowIndex) end end
@@ -1816,7 +1853,11 @@ function Runtime.New(environment)
           listMetadataElapsed=listMetadataElapsed+elapsed
           if listMetadataElapsed<0.1 then return end
           listMetadataAge=listMetadataAge+listMetadataElapsed; listMetadataElapsed=0
-          if listMetadataAge>=30 then listFrame:SetScript("OnUpdate",nil); return end
+          if listMetadataAge>=30 then
+            listFrame:SetScript("OnUpdate",nil)
+            for _,pane in ipairs(listPanels) do pane.frame.spinner:Hide() end
+            return
+          end
           self:ShowLists(callbacks)
         end)
       else
@@ -1852,7 +1893,7 @@ function Runtime.New(environment)
         importWaffleRoot,importFrame=createWaffleWindow("DejunkWotLKListImport",520,420)
         importFrame=importFrame or api.CreateFrame("Frame",nil,api.UIParent)
         importFrame:SetWidth(560); importFrame:SetHeight(390); importFrame:SetPoint("CENTER")
-        importFrame:SetFrameStrata("DIALOG"); importFrame:EnableMouse(true)
+        importFrame:SetFrameStrata("HIGH"); importFrame:EnableMouse(true)
         importFrame:SetMovable(true); importFrame:RegisterForDrag("LeftButton")
         importFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
         importFrame:SetScript("OnDragStop",function(self)
@@ -2192,7 +2233,7 @@ function Runtime.New(environment)
           optionsFrame=optionsFrame or api.CreateFrame("Frame",nil,api.UIParent)
         end
         if not mainContentFrame then
-          optionsFrame:SetWidth(560); optionsFrame:SetHeight(440); optionsFrame:SetPoint("CENTER"); optionsFrame:SetFrameStrata("DIALOG")
+          optionsFrame:SetWidth(560); optionsFrame:SetHeight(440); optionsFrame:SetPoint("CENTER"); optionsFrame:SetFrameStrata("HIGH")
         end
         optionsFrame:EnableMouse(true)
         if not mainContentFrame then optionsFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
@@ -3080,7 +3121,7 @@ function Runtime.New(environment)
   function runtime:ToggleJunkFrame(data)
     if not junkFrame then
       junkFrame=api.CreateFrame("Frame","DejunkWotLKJunkFrame",api.UIParent)
-      junkFrame:SetFrameStrata("DIALOG"); junkFrame:SetWidth(350); junkFrame:SetHeight(400)
+      junkFrame:SetFrameStrata("HIGH"); junkFrame:SetWidth(350); junkFrame:SetHeight(400)
       setSavedPoint(junkFrame,"junkFrame"); junkFrame:EnableMouse(true); junkFrame:SetMovable(true)
       junkFrame:RegisterForDrag("LeftButton")
       junkFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
@@ -3213,10 +3254,9 @@ function Runtime.New(environment)
           runtime:Print("Ignored this item type for the current session.")
           runtime:UpdateLootableFrame(lootableSourceData)
         end}}
-        card=createReadOnlyItemCard(lootableRowsContent,210,48,(index-1)*52+4,actions,function(target)
+        card=createReadOnlyItemCard(lootableRowsContent,210,34,(index-1)*40+4,actions,function(target)
           runtime:RequestItemAction("lootItem",target)
         end)
-        card.icon:SetWidth(32); card.icon:SetHeight(32)
         lootableRows[index]=card
       end
       card.item=item
@@ -3231,7 +3271,7 @@ function Runtime.New(environment)
       card.detail:SetText("")
       card:Show()
     end
-    lootableRowsContent:SetHeight(math.max(32,#visibleItems*52))
+    lootableRowsContent:SetHeight(math.max(32,#visibleItems*40))
     return true
   end
 
@@ -3243,7 +3283,7 @@ function Runtime.New(environment)
     if available==0 then return false end
     if not lootableFrame then
       lootableFrame=api.CreateFrame("Frame","DejunkWotLKLootableFrame",api.UIParent)
-      lootableFrame:SetFrameStrata("DIALOG"); lootableFrame:SetWidth(250); lootableFrame:SetHeight(250)
+      lootableFrame:SetFrameStrata("LOW"); lootableFrame:SetWidth(250); lootableFrame:SetHeight(250)
       setSavedPoint(lootableFrame,"lootableFrame"); lootableFrame:EnableMouse(true); lootableFrame:SetMovable(true)
       lootableFrame:RegisterForDrag("LeftButton")
       lootableFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)

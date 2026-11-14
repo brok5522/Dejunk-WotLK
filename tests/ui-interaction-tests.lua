@@ -248,7 +248,7 @@ assert(runtime:ToggleJunkFrame({sellable=1,destroyable=2,items={{itemId=123,name
   "read-only Junk frame failed to open")
 local junkWindow=namedFrame("DejunkWotLKJunkFrame")
 assert(junkWindow and junkWindow.shown,"Junk frame did not become visible")
-assert(junkWindow.width==350 and junkWindow.height==400 and junkWindow.settingsButton and
+assert(junkWindow.width==350 and junkWindow.height==400 and junkWindow.strata=="HIGH" and junkWindow.settingsButton and
   junkWindow.startSellingButton and junkWindow.startSellingButton.enabled==false and
   junkWindow.destroyNextButton and junkWindow.destroyNextButton.enabled==false,
   "Junk window controls or upstream dimensions are missing / unsafe actions are enabled")
@@ -387,14 +387,15 @@ assert(runtime:ToggleLootableFrame({count=1,items={{itemId=6948,name="Hearthston
   "read-only Lootable frame failed to open")
 local lootableWindow=namedFrame("DejunkWotLKLootableFrame")
 assert(lootableWindow and lootableWindow.shown and runtime:IsLootableFrameVisible(),"Lootable frame did not become visible")
-assert(lootableWindow.width==250 and lootableWindow.height==250,"Lootable frame does not use the upstream dimensions")
+assert(lootableWindow.width==250 and lootableWindow.height==250 and lootableWindow.strata=="LOW",
+  "Lootable frame does not use the upstream dimensions or frame strata")
 local ignoreIcon
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="Texture" and frame.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\eye-slash-icon" then ignoreIcon=frame end
 end
 assert(ignoreIcon and ignoreIcon.parent.parent.enabled==true,"Lootable row ignore control is missing")
-assert(ignoreIcon.width==24 and ignoreIcon.height==24 and ignoreIcon.parent.width==32 and
-  ignoreIcon.parent.height==32 and ignoreIcon.parent.parent.icon.width==32,
+assert(ignoreIcon.width==14 and ignoreIcon.height==14 and ignoreIcon.parent.width==32 and
+  ignoreIcon.parent.height==32 and ignoreIcon.parent.parent.icon.width==24 and ignoreIcon.parent.parent.height==34,
   "Lootable item or ignore icons do not match the reference sizing")
 ignoreIcon.parent.scripts.OnClick(ignoreIcon.parent)
 assert(not ignoreIcon.parent.parent.shown,"ignoring a lootable item did not remove its row")
@@ -499,10 +500,16 @@ assert(footerProfile and footerProfile.text:find("Test",1,true) and footerJunk a
   footerLootable and footerLootable.text:find("0",1,true) and brandVersion,
   "main-window upstream header/version or status footer is missing: "..tostring(footerProfile and footerProfile.text).." / "..
   tostring(footerJunk and footerJunk.text).." / "..tostring(footerLootable and footerLootable.text).." / "..tostring(brandVersion and brandVersion.text))
+local brandIcon
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="Texture" and frame.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\dejunk-icon" and frame.width==20 then brandIcon=frame end
+end
+assert(brandIcon,"main window is missing the upstream 20px brand icon")
 control("Button","Lists"):Click()
 assert(namedFrame("DejunkWotLKLists"),"Lists page frame was not created")
 assert(lastControl("Button","X").template==nil,"configuration close still uses a red Blizzard template")
-assert(lastControl("Button","X").labelRegion.textColor and lastControl("Button","X").labelRegion.textColor[1]>0.3,
+assert(lastControl("Button","X").icon and lastControl("Button","X").icon.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\x-icon" and
+  lastControl("Button","X").icon.vertexColor and lastControl("Button","X").icon.vertexColor[1]>0.3,
   "Waffle grey close icon styling was not applied")
 local listSearch,lastListInput
 for _,candidate in ipairs(uiFrames) do
@@ -533,6 +540,8 @@ for _,frame in ipairs(uiFrames) do
     listPanelCount=listPanelCount+1
     assert(frame.backdrop and frame.backdrop.edgeSize==1,"list panel is not a square Waffle panel")
     assert(frame.heading and frame.transportButton,"list panel is missing its title or transport control")
+    assert(frame.spinner and frame.spinner.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\spinner-icon" and
+      frame.spinner.width==14 and frame.spinner.height==14,"list panel is missing the upstream loading spinner")
     local transportIcon
     for _,child in ipairs(frame.transportButton.children or {}) do
       if child.kind=="Texture" then transportIcon=child; break end
@@ -602,6 +611,15 @@ local mainWindowBinding
 for _,frame in ipairs(uiFrames) do if frame.kind=="Button" and frame.name and frame.name:find("_toggleMainWindow",1,true) and not frame.name:find("Action_",1,true) then mainWindowBinding=frame; break end end
 assert(keybindingPage and keybindingPage.shown and mainWindowBinding,
   "Keybindings screen or its controls were not created as a sibling page: "..tostring(keybindingPage and keybindingPage.shown).." / "..tostring(mainWindowBinding and mainWindowBinding.shown).." / "..tostring(mainWindowBinding and mainWindowBinding.kind))
+local listBindingLabel,startSellingDetail
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="FontString" and frame.text and frame.text:find("Inclusions|r",1,true) then listBindingLabel=frame end
+  if frame.kind=="FontString" and frame.text=="Sells junk items while a merchant window is open." then startSellingDetail=frame end
+end
+assert(listBindingLabel and listBindingLabel.text:find("|cffe34f4f",1,true),"keybinding inclusion label is missing upstream red coloring")
+assert(startSellingDetail,"Start Selling keybinding description is missing")
+assert(mainWindowBinding.labelRegion and mainWindowBinding.labelRegion.textColor[1]<0.8,
+  "unbound key display is not grey like upstream")
 mainWindowBinding:Click("LeftButton")
 assert(keybindingPage.keyboard==true and mainWindowBinding.text:find("Press a key",1,true),
   "left-click did not start key capture")
@@ -705,6 +723,11 @@ for _,frame in ipairs(uiFrames) do
   if frame.kind=="EditBox" and frame.parent==listFrame and frame.maxLetters==64 then searchBox=frame; break end
 end
 assert(searchBox,"Lists search box was not created")
+local searchIcon
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="Texture" and frame.parent==searchBox and frame.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\search-icon" then searchIcon=frame end
+end
+assert(searchIcon and searchIcon.width==14,"Lists is missing the upstream search icon")
 searchBox:SetFocus(); searchBox:SetText("2"); searchBox:SetText("23")
 assert(searchBox:GetText()=="23" and searchBox.focused and listFrame.shown,
   "refreshing Lists while typing lost the search text, focus or selected page")
@@ -802,6 +825,12 @@ assert(profilesPage.alpha~=0,"Profiles page was made transparent by the legacy p
 assert(profilesPage.backdrop==nil,"Profiles page retained its own dialog backdrop")
 assert(profilesPage.shown,"Profiles page was not visible when selected")
 assert(profilesPage.pageTitle.text=="Dejunk | Profiles (Default)","Profiles panel title did not show the active profile")
+assert(profilesPage.width>0,"Profiles screen did not receive a layout width")
+local profilesDescription
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="FontString" and frame.text and frame.text:find("A profile holds a character's options and lists",1,true) then profilesDescription=frame end
+end
+assert(profilesDescription,"Profiles page is missing the upstream explanation")
 local expectedQualityColors={
   poor={157/255,157/255,157/255}, common={1,1,1}, uncommon={30/255,1,0},
   rare={0,112/255,221/255}, epic={163/255,53/255,238/255}
@@ -828,17 +857,24 @@ assert(protectedRename and protectedRename.enabled==false,"default profile renam
 assert(protectedDelete and protectedDelete.enabled==false,"default profile delete must be disabled")
 for _,action in ipairs({"rename","duplicate","reset","delete"}) do
   local control=assert(profileActionControls[action],"profile icon action is missing: "..action)
-  assert(control.icon and control.icon.texture and control.width==28,"profile action did not render as an icon: "..action)
+  assert(control.icon and control.icon.texture and control.width==32,"profile action did not render as an icon: "..action)
 end
+assert(profileActionControls.rename.point[4]<profileActionControls.duplicate.point[4] and
+  profileActionControls.duplicate.point[4]<profileActionControls.reset.point[4] and
+  profileActionControls.reset.point[4]<profileActionControls.delete.point[4],
+  "profile icons are not ordered Rename, Duplicate, Reset, Delete from left to right")
 local testProfileCard
 for _,frame in ipairs(uiFrames) do if frame.kind=="Button" and frame.parent and frame.parent.kind=="Frame" and frame.profileId=="profile-1" and frame.height==48 then testProfileCard=frame end end
 assert(testProfileCard,"profile selection card was not created")
 local testProfileSummary
 for _,frame in ipairs(uiFrames) do
-  if frame.kind=="FontString" and frame.parent==testProfileCard and frame.text:find("Inclusions:",1,true) then testProfileSummary=frame; break end
+  if frame.kind=="FontString" and frame.parent==testProfileCard and frame.text:find("Inclusions",1,true) then testProfileSummary=frame; break end
 end
-assert(testProfileSummary and testProfileSummary.point and testProfileSummary.point[2]==-280,
+assert(testProfileSummary and testProfileSummary.point and testProfileSummary.point[2]==-132,
   "profile summary does not leave clear space for its action buttons")
+assert(testProfileSummary.text:find("|cff9d9d9dInclusions|r: |cffffffff1|r",1,true) and
+  testProfileSummary.text:find("|cff9d9d9dExclusions|r: |cffffffff2|r",1,true),
+  "inactive profile summary does not use upstream grey labels and white counts")
 testProfileCard:Click()
 assert(selectedProfile=="profile-1","profile card did not activate the profile represented by that card")
 local function profileAction(action,id)
@@ -850,7 +886,7 @@ local function profileAction(action,id)
 end
 for _,action in ipairs({"rename","duplicate","reset","delete"}) do
   local control=profileAction(action,"profile-1")
-  assert(control.icon and control.icon.texture and control.width==28,
+  assert(control.icon and control.icon.texture and control.width==32,
     "profile action is missing its upstream-style icon: "..action)
 end
 local createProfileButton=lastControl("Button","New Profile")
@@ -1142,10 +1178,13 @@ local listsWindow=namedFrame("DejunkWotLKLists")
 assert(listsWindow and listsWindow.scripts.OnUpdate)
 assert(profilesPage.shown==false,"Profiles page remained visible while Lists was selected")
 assert(queries==25,"metadata query batch exceeded 25 items")
+assert(listPanes["global:inclusions"].spinner.shown and not listPanes["global:exclusions"].spinner.shown,
+  "list metadata spinner did not match the pane that is still loading")
 listsWindow.scripts.OnUpdate(listsWindow,0.1)
 assert(queries==50,"next metadata tick did not advance the bounded queue")
 listsWindow.scripts.OnUpdate(listsWindow,29.9)
 assert(listsWindow.scripts.OnUpdate==nil,"uncached item metadata polling did not time out")
+assert(not listPanes["global:inclusions"].spinner.shown,"list loading indicator stayed active after metadata timeout")
 
 print("UI INTERACTION RESULT: options, keybindings, item windows, list transport, metadata polling and report navigation passed")
 
