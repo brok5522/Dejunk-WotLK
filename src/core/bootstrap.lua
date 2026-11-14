@@ -445,11 +445,11 @@ function Addon.NewApplication(runtime)
     return Addon.LootableItems.Build(self.cache:GetSnapshot())
   end
 
-  function app:OpenConfig(initialScreen)
+  function app:BuildConfigCallbacks()
     local function profile()
       return self.store and self.store:GetActiveProfile() or nil
     end
-    runtime:ShowConfig({
+    return {
       summary=function() return Addon.Config.Summary(self.store) end,
       poorEnabled=function()
         local current=profile()
@@ -460,6 +460,7 @@ function Addon.NewApplication(runtime)
         runtime:Print(ok and ("Poor quality rule "..(enabled and "enabled." or "disabled.")) or ("Rule update failed: "..tostring(reason)))
       end,
       profiles=function() return Addon.Config.ListProfiles(self.store) end,
+      currentCharacterKey=function() return runtime:CharacterKey() end,
       createProfile=function(name) return Addon.Config.CreateProfile(self.store,name) end,
       duplicateProfile=function(name) return Addon.Config.DuplicateProfile(self.store,name) end,
       duplicateProfileFrom=function(id,name) return Addon.Config.DuplicateProfileFrom(self.store,id,name) end,
@@ -500,7 +501,11 @@ function Addon.NewApplication(runtime)
         if not report then runtime:Print("Preview unavailable: "..tostring(counts)); return end
         runtime:ShowReport(report,"Read-only preview: "..requested,"config")
       end
-    })
+    }
+  end
+
+  function app:OpenConfig(initialScreen)
+    runtime:ShowConfig(self:BuildConfigCallbacks())
     if initialScreen=="profiles" then runtime:ShowProfiles(runtime.configCallbacks) end
   end
 
@@ -660,6 +665,7 @@ function Addon.NewApplication(runtime)
     end
     self.actionsAttached=true
     self.transactions=transactionAdapter
+    runtime.configCallbacks=runtime.configCallbacks or self:BuildConfigCallbacks()
     local function readCurrent(item)
       local current=self.transactions:ReadItem(item.bag,item.slot)
       if current and current.state=="OCCUPIED" then current.bagGeneration=self.cache.generation end
@@ -726,8 +732,11 @@ function Addon.NewApplication(runtime)
         self.saleTimer=self.scheduler:After(0.1,nextSale); return true
       end,
       destroyNext=function()
-        local built=self:GetJunkItems(); local target=built and built.items and built.items[1]
-        return target and destroy(target) or false,"NO_JUNK_ITEMS"
+        local built=self:GetJunkItems()
+        for _,item in ipairs(built and built.items or {}) do
+          if item.destroy and item.destroy.result=="JUNK" and item.locked~=true then return destroy(item) end
+        end
+        return false,"NO_JUNK_ITEMS"
       end,
       lootItem=function(item)
         local current=readCurrent(item)

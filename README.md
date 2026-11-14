@@ -15,6 +15,7 @@ what is implemented, simulated, missing or not applicable. The port is not yet
 ready for normal use.
 
 ## Documentation
+- [Comprehensive client test for 0.16.54-dev (Persian)](docs/CLIENT-TEST-0.16.54.fa.md)
 - [Phase 2 Persian install and test guide](docs/PHASE2.fa.md)
 - [Phase 3 Persian install and preview guide](docs/PHASE3.fa.md)
 - [Phase 4 Persian simulation-only guide](docs/PHASE4.fa.md)

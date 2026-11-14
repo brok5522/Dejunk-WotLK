@@ -172,16 +172,16 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for current working tree `0.16.48-dev`:
+Results for current working tree `0.16.54-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
-  local links, 41 source digests and 153 legacy API references).
-- `check.py`: PASS (21 ordered runtime files; Lua 5.1 syntax for 29 files;
+  local links, 54 source digests and 153 legacy API references).
+- `check.py`: PASS (20 ordered runtime files; Lua 5.1 syntax for 28 files;
   runtime 64/64, store 21/21, services 8/8, destroyer 11/11, UI model 62/62;
   transaction adapter fake-API tests and UI interaction fixtures passed,
   including seller/destroyer dispatch, slash-command routing, keybinding
   capture/overrides, merchant-button behavior and transport positioning; the
-  deterministic 33-entry ZIP verified).
+  deterministic 38-entry ZIP verified).
 - `git diff --check`: PASS.
 - Original 3.3.5a client rendering/input check: NOT RUN in this environment.
 
@@ -314,3 +314,38 @@ legacy-client evidence remains in `docs/research/CLIENT-12340-*.md`; consult its
 revision and limitations before relying on it. The screenshots in the project
 history exposed real UI errors and layout problems, which is why current
 automated model checks are not treated as proof of client correctness.
+
+## Visual parity follow-up (`0.16.53-dev`)
+
+Compared all available screen implementations with the pinned UI sources:
+Lists uses the exact search and transport icons; close controls use the upstream
+X artwork; profile actions use the exact pencil/copy/reset/trash artwork in the
+reference order; profile summaries color active inclusion/exclusion counts;
+Keybindings use grey key boxes, white labels, red/green list names and the
+reference descriptions; Lootable rows use the upstream 24px item icon, 32px
+action button with a 14px ignore icon, five-row sizing, low frame strata and
+gold/white title counts. The main window uses the reference 800×640 component
+dimensions and 20px logo; the transport frame uses its 325×375 dimensions and two-button
+Import/Export flow. Item quality stripes, locked-item handling and the merchant
+button's count/version and Alt-destroy tooltips now follow the reference more
+closely. `python3 tools/check.py` passed with actual Lua 5.1, all 64 runtime,
+21 store, 8 service, 11 destroyer, 62 UI model and UI interaction fixtures;
+ZIP reproducibility and layout checks passed. Exact styling/localization and
+original-client rendering remain unverified in this environment.
+
+Further UI corrections: Escape clears Lists search; profile action icons use
+14px reference sizing and action-specific hover colors; quality/price options
+show the reference pink caution text; right-click on an option card no longer
+toggles it. Bag overlays use Dejunk artwork and small/large dark backgrounds,
+cleared together with stale overlays. The minimap icon uses Dejunk artwork;
+right-click requests Junk Items, Alt-right-click requests Destroy Next, and
+Alt-left-click does not open settings. Lua 5.1 interaction and regression checks
+passed; no original-client operation was performed.
+
+## Comprehensive test candidate 0.16.54-dev
+
+Destroy Next now skips sale-only and locked candidates instead of choosing the
+first combined-list row. The Persian client test guide records installation,
+UI/storage/keybinding/list checks, low-value sale/repair/loot checks, and
+cancel-only destroy confirmation checks. No live inventory operation was run.
+GitHub distribution uses an isolated test-candidate branch; main is not merged.

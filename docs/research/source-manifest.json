@@ -33,7 +33,20 @@
         "libs/Waffle.lua": "bd668fb59160f4f9bc4b2b13298c7ca93cbad9be017892b21eac089a3015d396",
         "libs/Wux.lua": "87fc57d80574bdf0078191af07fc76f1997f2577f247dfba2cec8418197bf6e3",
         "src/ui/components/item-list.lua": "34f4431e2212bd297d0b5012c97f081f09ebc47a5dd5d1fb142b49e462f39f7b",
-        "src/ui/components/list-panel.lua": "6ad3f564ae3a953ca141d6304887e0ea09fdb9ab28171d4cdfe0cbc8b1a96151"
+        "src/ui/components/list-panel.lua": "6ad3f564ae3a953ca141d6304887e0ea09fdb9ab28171d4cdfe0cbc8b1a96151",
+        "assets/ban-icon.tga": "22147283c959501b5ab733ed56aa0c0ab9aa411782d90f6b5239301f29c73ae6",
+        "assets/coins-icon.tga": "cda77f84fc21a507cdc0cad483e86173491c9af9967bd48979684dd3a84f17d4",
+        "assets/copy-icon.tga": "0f331d1b91d8db8505f49c5c02408fd5f87f4e602713f61b20d88274633103b7",
+        "assets/dejunk-icon.tga": "d02c7b7aa27af171d60817fefe95d47cc9af9898ecd1593ce912bc296838f588",
+        "assets/eye-slash-icon.tga": "833d7b941d4e7236cf7ea7403038f28eb71b7070735b9e6cfb3af14577dcfb65",
+        "assets/gear-icon.tga": "cab8430c43bdc53073b5818dae854246e43354c9328fb0716c7007415ab42eee",
+        "assets/pencil-icon.tga": "baef79defac12d74bf414bac7a872509f5f14a73bcd2903436b972834245c170",
+        "assets/reset-icon.tga": "e6b8ec95d3c83d72e71e87cb92f747a83ec31b7cad11831fc4c99167273a785b",
+        "assets/search-icon.tga": "89265d3ccd97f5bd3c96ce2bab36a88a2757101f6d92bd120b119c89f47fe9df",
+        "assets/spinner-icon.tga": "9241815429271cfb38a9bb7a1ed0a01790b0ef23da53aa20a1a7e20c2d68a6a9",
+        "assets/transport-icon.tga": "27ebfaec820edfae0bb5212697b08f0b0e74bdd8051f52e71434a2540012b6f6",
+        "assets/trash-icon.tga": "d39768745fb2bc1b70925ddabda807e7b00bd8e819461e679de9b3f933c27f74",
+        "assets/x-icon.tga": "0460fda8d11fd19e4b9efbfb005cec238b24cbaa464769ab1aa49b37787e5771"
       }
     },
     {

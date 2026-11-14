@@ -80,10 +80,9 @@ def main():
     for entry in load_order:
         source = (ROOT / entry).read_text()
         if entry == 'src/compat/runtime.lua':
-            # Upstream ListItem clears a deliberately held cursor item after
-            # its ID is committed to a list. Keep this sole UI-only exception
-            # narrow; selling/deleting/picking up inventory remains forbidden.
-            if source.count('api.ClearCursor') != 2:
+            # Upstream Lists and Junk-frame list drops clear only after the item
+            # ID is committed to a list. Keep these exact UI paths narrow.
+            if source.count('api.ClearCursor') != 4:
                 raise ValueError('Unexpected cursor-clear path in the compatibility UI')
             source = source.replace('api.ClearCursor', '')
         if entry == 'src/compat/runtime.lua':
@@ -130,13 +129,21 @@ def main():
                                      'Dejunk-WotLK/assets/coins-icon.tga',
                                      'Dejunk-WotLK/assets/ban-icon.tga',
                                      'Dejunk-WotLK/assets/trash-icon.tga',
-                                     'Dejunk-WotLK/assets/eye-slash-icon.tga'})
+                                     'Dejunk-WotLK/assets/eye-slash-icon.tga',
+                                     'Dejunk-WotLK/assets/pencil-icon.tga',
+                                     'Dejunk-WotLK/assets/copy-icon.tga',
+                                     'Dejunk-WotLK/assets/reset-icon.tga',
+                                     'Dejunk-WotLK/assets/search-icon.tga',
+                                     'Dejunk-WotLK/assets/spinner-icon.tga',
+                                     'Dejunk-WotLK/assets/x-icon.tga'})
             if set(archive.namelist()) != expected_entries or archive.testzip() is not None:
                 raise ValueError('ZIP content/layout/CRC check failed')
             for entry in load_order + ['Dejunk-WotLK.toc', 'LICENSE', 'libs/Waffle-LICENSE.txt',
                                        'assets/LICENSE.txt', 'assets/dejunk-icon.tga', 'assets/transport-icon.tga',
                                        'assets/gear-icon.tga', 'assets/coins-icon.tga', 'assets/ban-icon.tga',
-                                       'assets/trash-icon.tga', 'assets/eye-slash-icon.tga']:
+                                       'assets/trash-icon.tga', 'assets/eye-slash-icon.tga',
+                                       'assets/pencil-icon.tga', 'assets/copy-icon.tga', 'assets/reset-icon.tga',
+                                       'assets/search-icon.tga', 'assets/spinner-icon.tga', 'assets/x-icon.tga']:
                 if archive.read('Dejunk-WotLK/' + entry) != (ROOT / entry).read_bytes():
                     raise ValueError(f'Packaged file mismatch: {entry}')
         try:

@@ -50,3 +50,22 @@ local runtime=alwaysLoaded.addon.Runtime.New(alwaysLoaded.api)
 local adapter,reason=runtime:NewTransactionAdapter({},function() return 1 end)
 assert(type(adapter)=="table"); eq(reason,nil)
 print("PASS: transaction adapter is initialized by the always-loaded runtime")
+local selectionWorld=H.New()
+selectionWorld.api.StaticPopupDialogs={}
+local shownPopup
+selectionWorld.api.StaticPopup_Show=function(id) shownPopup=selectionWorld.api.StaticPopupDialogs[id] end
+selectionWorld:Load():Ready()
+local candidates={
+  {itemId=1,name="Sale only",count=1,destroy={result="KEEP"}},
+  {itemId=2,name="Locked candidate",count=1,locked=true,destroy={result="JUNK"}},
+  {itemId=3,name="Destroy eligible",count=1,locked=false,destroy={result="JUNK"}}
+}
+selectionWorld.app.GetJunkItems=function() return {items=candidates} end
+local selected=selectionWorld.app.runtime.itemActionHandlers.destroyNext()
+assert(selected and shownPopup and shownPopup.text:find("Destroy eligible",1,true),
+  "Destroy Next did not skip sale-only and locked rows")
+shownPopup=nil; candidates={candidates[1],candidates[2]}
+local empty,emptyReason=selectionWorld.app.runtime.itemActionHandlers.destroyNext()
+assert(empty==false and emptyReason=="NO_JUNK_ITEMS" and shownPopup==nil)
+assert(selectionWorld.mutations==0,"selection test mutated the fake inventory")
+print("PASS: Destroy Next selects an eligible unlocked row without inventory mutations")
