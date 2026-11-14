@@ -170,15 +170,16 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for current working tree `0.16.44-dev`:
+Results for current working tree `0.16.45-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 41 source digests and 153 legacy API references).
 - `check.py`: PASS (20 ordered runtime files; Lua 5.1 syntax for 27 files;
   runtime 64/64, store 21/21, services 8/8, destroyer 11/11, UI model 62/62;
-  UI interaction fixtures passed, including keybinding capture/overrides and
-  merchant-button visibility, clicks and position persistence; deterministic
-  32-entry ZIP verified).
+  UI interaction fixtures passed, including injected seller/destroyer mock
+  dispatch, slash-command routing, keybinding capture/overrides, merchant-button
+  visibility/clicks/position persistence and transport-window position; the
+  deterministic 32-entry ZIP verified).
 - `git diff --check`: PASS.
 - Original 3.3.5a client rendering/input check: NOT RUN in this environment.
 

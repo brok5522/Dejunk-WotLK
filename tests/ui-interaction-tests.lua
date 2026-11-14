@@ -582,6 +582,11 @@ local owner=namedFrame("DejunkWotLKKeybindingOwner")
 assert(owner and owner.overrides.K=="DejunkWotLKKeybindingAction_toggleMainWindow",
   "saved key was not installed as an owner-scoped override binding")
 assert(ui.bindingWrites==0,"keybinding changed the game's saved bindings")
+requestedActions.startSelling=nil; requestedActions.destroyNext=nil
+namedFrame("DejunkWotLKKeybindingAction_startSelling").scripts.OnClick()
+namedFrame("DejunkWotLKKeybindingAction_destroyNextItem").scripts.OnClick()
+assert(requestedActions.startSelling==true and requestedActions.destroyNext==true,
+  "seller/destroyer keybindings did not dispatch through their injected action handlers")
 local junkWindowBinding
 for _,frame in ipairs(uiFrames) do if frame.kind=="Button" and frame.name and frame.name:find("_toggleJunkFrame",1,true) and not frame.name:find("Action_",1,true) then junkWindowBinding=frame; break end end
 junkWindowBinding:Click("LeftButton")

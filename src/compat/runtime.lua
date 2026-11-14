@@ -687,8 +687,8 @@ function Runtime.New(environment)
     elseif bindingName=="toggleLootableFrame" then
       local items,reason=callbacks.lootableItems and callbacks.lootableItems()
       if items then runtime:ToggleLootableFrame(items) else runtime:Print("Lootable items unavailable: "..tostring(reason)) end
-    elseif bindingName=="startSelling" then runtime:Print("Selling is not connected in this development build.")
-    elseif bindingName=="destroyNextItem" then runtime:Print("Item destruction is not connected in this development build.")
+    elseif bindingName=="startSelling" then runtime:RequestItemAction("startSelling")
+    elseif bindingName=="destroyNextItem" then runtime:RequestItemAction("destroyNext")
     elseif bindingName:find("Inclusions",1,true) or bindingName:find("Exclusions",1,true) then
       local itemId=getTooltipItemId()
       if not itemId then runtime:Print("Hover an item first so it appears in the game tooltip."); return end
