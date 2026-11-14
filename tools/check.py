@@ -116,10 +116,14 @@ def main():
             expected_entries = {'Dejunk-WotLK/' + entry for entry in load_order}
             expected_entries.update({'Dejunk-WotLK/Dejunk-WotLK.toc',
                                      'Dejunk-WotLK/LICENSE', 'Dejunk-WotLK/README.txt',
-                                     'Dejunk-WotLK/libs/Waffle-LICENSE.txt'})
+                                     'Dejunk-WotLK/libs/Waffle-LICENSE.txt',
+                                     'Dejunk-WotLK/assets/LICENSE.txt',
+                                     'Dejunk-WotLK/assets/dejunk-icon.tga',
+                                     'Dejunk-WotLK/assets/transport-icon.tga'})
             if set(archive.namelist()) != expected_entries or archive.testzip() is not None:
                 raise ValueError('ZIP content/layout/CRC check failed')
-            for entry in load_order + ['Dejunk-WotLK.toc', 'LICENSE', 'libs/Waffle-LICENSE.txt']:
+            for entry in load_order + ['Dejunk-WotLK.toc', 'LICENSE', 'libs/Waffle-LICENSE.txt',
+                                       'assets/LICENSE.txt', 'assets/dejunk-icon.tga', 'assets/transport-icon.tga']:
                 if archive.read('Dejunk-WotLK/' + entry) != (ROOT / entry).read_bytes():
                     raise ValueError(f'Packaged file mismatch: {entry}')
         try:

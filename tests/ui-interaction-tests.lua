@@ -338,13 +338,27 @@ local listCallbacks={
   listItems=function(scope,kind) return listStore:ExportList(scope,kind) end,
   editItem=function(scope,kind,id,present) return listStore:EditList(scope,kind,id,present) end,
   previewListImport=function(scope,kind,text) return listStore:ImportPreview(scope,kind,text) end,
-  commitListImport=function(preview) return listStore:CommitImport(preview) end
+  commitListImport=function(preview) return listStore:CommitImport(preview) end,
+  activeProfileName=function() return "Test" end,
+  junkItems=function() return {sellable=6,destroyable=7,items={}} end,
+  lootableItems=function() return {count=0,items={}} end
 }
 runtime:ShowConfig(listCallbacks)
+local footerProfile,footerJunk,footerLootable,brandVersion
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="FontString" then
+    if frame.text and frame.text:find("Active Profile:",1,true) then footerProfile=frame end
+    if frame.text and frame.text:find("Junk Items",1,true) then footerJunk=frame end
+    if frame.text and frame.text:find("Lootable Items",1,true) then footerLootable=frame end
+    if frame.text=="3.5.0" then brandVersion=frame end
+  end
+end
+assert(footerProfile and footerProfile.text:find("Test",1,true) and footerJunk and footerJunk.text:find("6/7",1,true) and
+  footerLootable and footerLootable.text:find("0",1,true) and brandVersion,
+  "main-window upstream header/version or status footer is missing: "..tostring(footerProfile and footerProfile.text).." / "..
+  tostring(footerJunk and footerJunk.text).." / "..tostring(footerLootable and footerLootable.text).." / "..tostring(brandVersion and brandVersion.text))
 control("Button","Lists"):Click()
 assert(namedFrame("DejunkWotLKLists"),"Lists page frame was not created")
-assert(lastControl("Button","Scope: global").template==nil,"list scope still uses a red Blizzard template")
-assert(lastControl("Button","Export").template==nil,"list export still uses a red Blizzard template")
 assert(lastControl("Button","X").template==nil,"configuration close still uses a red Blizzard template")
 assert(lastControl("Button","X").labelRegion.textColor and lastControl("Button","X").labelRegion.textColor[1]>0.3,
   "Waffle grey close icon styling was not applied")
@@ -354,8 +368,6 @@ for _,candidate in ipairs(uiFrames) do
     if not listSearch then listSearch=candidate else lastListInput=candidate end
   end
 end
-assert(lastControl("Button","Scope: global").template==nil,"list scope still uses a red Blizzard template")
-assert(lastControl("Button","Export").template==nil,"list export still uses a red Blizzard template")
 local listFrame=namedFrame("DejunkWotLKLists")
 local mainWindow=namedFrame("DejunkWotLK_MainWindow")
 local navOrder={}
@@ -373,21 +385,25 @@ assert(listFrame and listFrame.width and listFrame.width>0 and listFrame.height 
   "Lists was not sized by the main Waffle layout")
 assert(listFrame.alpha~=0,"Lists was made transparent by the legacy page visibility path")
 local listPanelCount=0
+local listPanes={}
 for _,frame in ipairs(uiFrames) do
-  if frame.kind=="Frame" and frame.parent==listFrame and frame.height==192 then
+  if frame.kind=="Frame" and frame.parent==listFrame and frame.titleBar then
     listPanelCount=listPanelCount+1
     assert(frame.backdrop and frame.backdrop.edgeSize==1,"list panel is not a square Waffle panel")
-    assert(frame.backdropColor and frame.backdropColor[4]==0.03,"list panel background does not use the Waffle surface tint")
+    assert(frame.heading and frame.transportButton,"list panel is missing its title or transport control")
+    assert(frame.heading.textColor and frame.heading.textColor[1]~=1,
+      "list panel title does not use its inclusion/exclusion color")
+    listPanes[frame.listScope..":"..frame.listKind]=frame
   end
 end
-assert(listPanelCount==4,"Lists screen should show four Waffle list panels")
+assert(listPanelCount==4,"Lists screen should show four Waffle list panels (found "..listPanelCount..")")
+assert(listPanes["global:inclusions"] and listPanes["global:exclusions"] and
+  listPanes["profile:inclusions"] and listPanes["profile:exclusions"],"list panels are missing a scope or kind")
 assert(listFrame.backdrop==nil,"Lists page retained the extra nested window frame")
-assert(listSearch.height==24 and listSearch.fontObject=="GameFontNormalSmall" and
+assert(listSearch.height==28 and listSearch.fontObject=="GameFontNormal" and listSearch.width>400 and
   listSearch.backdropColor and listSearch.backdropColor[1]==30/255,
   "list search input does not match the upstream control size and palette")
-assert(lastListInput and lastListInput.fontObject=="GameFontNormalSmall" and lastListInput.backdrop and
-  lastListInput.borderColor and lastListInput.borderColor[1]==0,
-  "item ID input does not use the upstream dark field treatment")
+assert(not lastListInput,"Lists page still shows the non-upstream numeric item ID control")
 local ancestor=listFrame
 while ancestor and ancestor~=mainWindow do ancestor=ancestor.parent end
 assert(ancestor==mainWindow,"Lists screen was not embedded in the main Waffle window")
@@ -400,6 +416,17 @@ cursorItemId=6949
 inclusionRow.scripts.OnMouseDown(inclusionRow)
 assert(listStore:GetState().global.inclusions[6949]==true,"cursor item was not added to the list")
 assert(cursorItemId==nil,"successful list drop did not clear the cursor item")
+for id=7000,7008 do assert(listStore:EditList("global","inclusions",id,true)) end
+runtime:ShowLists(listCallbacks)
+local visibleListRows=0
+for _,frame in ipairs(uiFrames) do
+  if frame.kind=="Button" and frame.listScope=="global" and frame.listKind=="inclusions" and frame.itemId then
+    visibleListRows=visibleListRows+1
+  end
+end
+assert(visibleListRows>=11,"scrollable list did not create rows for entries beyond the first seven")
+for id=7000,7008 do assert(listStore:EditList("global","inclusions",id,false)) end
+runtime:ShowLists(listCallbacks)
 control("Button","Profile Options"):Click()
 assert(mainWindow.shown and listFrame.shown==false,"Profile Options navigation did not leave Lists")
 local firstOptionsPage=namedFrame("DejunkWotLKOptions")
@@ -424,6 +451,8 @@ searchBox:SetFocus(); searchBox:SetText("2"); searchBox:SetText("23")
 assert(searchBox:GetText()=="23" and searchBox.focused and listFrame.shown,
   "refreshing Lists while typing lost the search text, focus or selected page")
 searchBox:SetText("")
+listPanes["global:inclusions"].transportButton:Click()
+assert(namedFrame("DejunkWotLKListImport").shown and listFrame.shown==false)
 control("Button","Export"):Click()
 assert(namedFrame("DejunkWotLKListImport").shown and listFrame.shown==false)
 local exported=lastControl("EditBox","6948,6949")
@@ -433,7 +462,7 @@ assert(exported.highlighted,"transport export did not select the IDs for copying
 control("Button","Close"):Click()
 assert(listFrame.shown==true)
 
-control("Button","Import"):Click()
+listPanes["global:inclusions"].transportButton:Click()
 assert(namedFrame("DejunkWotLKListImport"),"import window did not use the Waffle window factory")
 assert(listFrame.shown==false)
 local importInput

@@ -142,7 +142,7 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for revision `0.16.41-dev`:
+Results for revision `0.16.42-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 39 source digests and 153 legacy API references).
@@ -174,6 +174,17 @@ headings are white like the pinned upstream Option Builder. The main navigation
 now follows upstream order: Lists, Global Options, Profile Options, Profiles.
 Lua 5.1 and UI fixtures pass; a client screenshot is still needed to confirm
 WoW 3.3.5 rendering.
+
+The Lists screen now follows the reference layout: a full-width “Search Lists”
+field, four independently scrollable panels, red inclusion and green exclusion
+title bars, quality-tinted item names and icons, and a per-panel transport icon
+that switches between import and export. Manual scope/kind/ID controls were
+removed from the screen; adding is done by dropping a cursor item into a list,
+and right-click removes or moves entries. The window now also has the upstream
+logo/version header and active-profile, junk-count, and lootable-count footer.
+Upstream logo/transport artwork is included under its MIT attribution. Offline
+UI fixtures check panel order/colors, transport flow, scrolling rows, and footer
+rendering. Original-client rendering still requires the user's next check.
 
 The original 3.3.5a client visual check was not run. The main window still uses
 port-built native screens and some list/profile/action widgets are development

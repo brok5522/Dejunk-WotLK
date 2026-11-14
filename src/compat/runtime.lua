@@ -6,7 +6,7 @@ Addon.Runtime = Runtime
 function Runtime.New(environment)
   local api = environment or _G
   local runtime = { registration = {} }
-  local theme={backdrop={18/255,18/255,18/255},blue={79/255,175/255,227/255},grey={157/255,157/255,157/255},white={1,1,1},dark={30/255,30/255,30/255},gold={1,209/255,0},black={0,0,0},quality={{157/255,157/255,157/255},{1,1,1},{30/255,1,0},{0,112/255,221/255},{163/255,53/255,238/255}}}
+  local theme={backdrop={18/255,18/255,18/255},blue={79/255,175/255,227/255},grey={157/255,157/255,157/255},white={1,1,1},dark={30/255,30/255,30/255},gold={1,209/255,0},black={0,0,0},red={227/255,79/255,79/255},green={79/255,227/255,79/255},quality={{157/255,157/255,157/255},{1,1,1},{30/255,1,0},{0,112/255,221/255},{163/255,53/255,238/255}}}
   local function setTextColor(region,color)
     if region and region.SetTextColor and theme[color] then region:SetTextColor(theme[color][1],theme[color][2],theme[color][3],1) end
   end
@@ -93,11 +93,12 @@ function Runtime.New(environment)
   local mainWindowVisible=false
   local getWindowPoint,saveWindowPoint
   local configNavButtons={}
+  local configFooterProfile,configFooterJunk,configFooterLootable
   local optionsOptionCards,optionsCardDividers,optionsQualityRows,optionsResponsiveDescriptions
   local optionsGlobalControls,optionsGlobalChoices
   local profileFrame,profileSummary,profileList,profileButtons,profileScroll
   local profileWaffleRoot,listsWaffleRoot,importWaffleRoot,optionsWaffleRoot,reportWaffleRoot
-  local listFrame,listSummary,listInput,listScopeButton,listKindButton,listSearch,listSearchPlaceholder,listSearchClear,listPanels
+  local listFrame,listSearch,listSearchPlaceholder,listSearchClear,listPanels,listSelectedScope,listSelectedKind,transportSwitchButton,listLayoutUpdater
   local importFrame,importTitle,importHelp,importEdit,importStatus,importCommitButton,importReviewButton,importSelectButton,importCancelButton,importPreview,importScope,importKind
   local reportReturnTarget
   local rulesFrame,rulesSummary,ruleIdInput,ruleValueInput,ruleScopeButton,ruleResultButton,ruleFieldButton,ruleOpButton,ruleGroupButton
@@ -368,6 +369,21 @@ function Runtime.New(environment)
     end
   end
 
+  local function refreshConfigFooter(callbacks)
+    callbacks=callbacks or runtime.configCallbacks or {}
+    if not (configFooterProfile and configFooterJunk and configFooterLootable) then return end
+    local profileName=callbacks.activeProfileName and callbacks.activeProfileName() or "Default"
+    configFooterProfile:SetText("|cffffd100Active Profile:|r |cffffffff"..tostring(profileName).."|r")
+    local junk=callbacks.junkItems and callbacks.junkItems()
+    if type(junk)=="table" then
+      configFooterJunk:SetText("|cffffd100Junk Items|r (|cffe34f4f"..tostring(junk.sellable or 0).."/"..tostring(junk.destroyable or 0).."|r)")
+    else
+      configFooterJunk:SetText("|cffffd100Junk Items|r (|cffe34f4f–/–|r)")
+    end
+    local lootable=callbacks.lootableItems and callbacks.lootableItems()
+    configFooterLootable:SetText("|cffffd100Lootable Items|r (|cffffffff"..tostring(type(lootable)=="table" and (lootable.count or #(lootable.items or {})) or 0).."|r)")
+  end
+
   function runtime:ShowConfig(callbacks)
     callbacks=callbacks or {}
     runtime.configCallbacks=callbacks
@@ -449,9 +465,19 @@ function Runtime.New(environment)
             end
           })
           local title=configWaffleRoot:AddRow({height=32,padding=8,justify="SPACE_BETWEEN",frameFactory=function(parent)
-            local bar=api.CreateFrame("Frame",nil,parent); bar:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); bar:SetBackdropColor(30/255,30/255,30/255,1); return bar
+            local bar=api.CreateFrame("Frame",nil,parent); bar:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); bar:SetBackdropColor(30/255,30/255,30/255,1)
+            local version=bar:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+            version:SetPoint("CENTER",bar,"CENTER",0,0); version:SetText("3.5.0"); setTextColor(version,"grey")
+            return bar
           end})
-          title:AddChild(text(nil,"Dejunk",30,"blue"))
+          local brand=title:AddRow({width=150,height=28,gap=4,align="CENTER"})
+          brand:AddChild({width=20,height=20,frameFactory=function(parent)
+            local icon=parent:CreateTexture(nil,"ARTWORK")
+            icon:SetTexture("Interface\\AddOns\\Dejunk-WotLK\\assets\\dejunk-icon.tga")
+            icon:SetWidth(20); icon:SetHeight(20)
+            return icon
+          end})
+          brand:AddChild(text(nil,"Dejunk",30,"blue"))
           title:AddChild({width=28,height=28,frameFactory=function(parent)
             local close=styleCloseButton(api.CreateFrame("Button",nil,parent))
             close:SetWidth(24); close:SetHeight(24)
@@ -464,6 +490,19 @@ function Runtime.New(environment)
           end})
           local main=content:AddColumn({grow=1,padding=8,gap=8,frameFactory=function(parent)
             return api.CreateFrame("Frame",nil,parent)
+          end})
+          local footer=configWaffleRoot:AddRow({height=24,padding=4,justify="SPACE_BETWEEN"})
+          footer:AddChild({width="33%",height=20,frameFactory=function(parent)
+            configFooterProfile=parent:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+            configFooterProfile:SetJustifyH("LEFT"); return configFooterProfile
+          end})
+          footer:AddChild({width="34%",height=20,frameFactory=function(parent)
+            configFooterJunk=parent:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+            configFooterJunk:SetJustifyH("CENTER"); return configFooterJunk
+          end})
+          footer:AddChild({width="33%",height=20,frameFactory=function(parent)
+            configFooterLootable=parent:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+            configFooterLootable:SetJustifyH("RIGHT"); return configFooterLootable
           end})
           configContentComponent=main
           local overview=main:AddColumn({grow=1,gap=8})
@@ -505,6 +544,7 @@ function Runtime.New(environment)
         configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout(); mainWindowVisible=true
         configFrame=configWaffleRoot:GetFrame()
         mainContentFrame=configContentComponent and configContentComponent:GetFrame() or nil
+        refreshConfigFooter(callbacks)
         if configOverviewComponent then configOverviewComponent:SetVisibility("GONE") end
         if listFrame then listFrame:Hide() end
         if profileFrame then profileFrame:Hide() end
@@ -800,6 +840,7 @@ function Runtime.New(environment)
       end
       profileList:SetHeight(math.max(175,row*52))
       profileSummary:SetText("Select a profile to activate it:")
+      refreshConfigFooter(callbacks)
       setConfigPageVisible(listFrame,false)
       setConfigPageVisible(optionsFrame,false)
       if profilePageComponent and configWaffleRoot then
@@ -836,9 +877,11 @@ function Runtime.New(environment)
         if not mainContentFrame then listFrame:SetWidth(540); listFrame:SetHeight(540); listFrame:SetPoint("CENTER") end
         listFrame:EnableMouse(true)
         listSearch=api.CreateFrame("EditBox",nil,listFrame,"InputBoxTemplate")
-        listSearch:SetWidth(350); listSearch:SetHeight(24); listSearch:SetPoint("TOPLEFT",12,-14)
+        local initialListWidth=type(listFrame.GetWidth)=="function" and listFrame:GetWidth() or 560
+        if not initialListWidth or initialListWidth<100 then initialListWidth=560 end
+        listSearch:SetWidth(math.max(350,initialListWidth-12)); listSearch:SetHeight(28); listSearch:SetPoint("TOPLEFT",4,-4)
         listSearch:SetAutoFocus(false); listSearch:SetMaxLetters(64)
-        listSearch:SetFontObject("GameFontNormalSmall"); listSearch:SetTextColor(1,1,1,1)
+        listSearch:SetFontObject("GameFontNormal"); listSearch:SetTextColor(1,1,1,1)
         listSearch:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1,insets={left=1,right=1,top=1,bottom=1}})
         listSearch:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],1)
         listSearch:SetBackdropBorderColor(theme.black[1],theme.black[2],theme.black[3],1)
@@ -846,56 +889,42 @@ function Runtime.New(environment)
         local searchIcon=listSearch:CreateTexture(nil,"ARTWORK")
         searchIcon:SetTexture("Interface\\Common\\UI-Searchbox-Icon"); searchIcon:SetWidth(14); searchIcon:SetHeight(14); searchIcon:SetPoint("LEFT",6,0)
         listSearchPlaceholder=listSearch:CreateFontString(nil,"OVERLAY","GameFontDisableSmall")
-        listSearchPlaceholder:SetPoint("LEFT",24,0); listSearchPlaceholder:SetText("Search by item name or ID"); setTextColor(listSearchPlaceholder,"grey")
+        listSearchPlaceholder:SetPoint("LEFT",24,0); listSearchPlaceholder:SetText("Search Lists"); setTextColor(listSearchPlaceholder,"grey")
         listSearchClear=styleCloseButton(api.CreateFrame("Button",nil,listSearch))
         listSearchClear:SetWidth(18); listSearchClear:SetHeight(18); listSearchClear:SetPoint("RIGHT",-3,0)
         listSearchClear:SetScript("OnClick",function() listSearch:SetText(""); listSearch:ClearFocus() end)
         listSearchClear:Hide()
         listSearch:SetScript("OnEscapePressed",function() listSearch:ClearFocus() end)
         listSearch:SetScript("OnTextChanged",function() self:ShowLists(callbacks) end)
-        listScopeButton=styleThemedButton(api.CreateFrame("Button",nil,listFrame))
-        listScopeButton:SetWidth(100); listScopeButton:SetHeight(24); listScopeButton:SetPoint("TOPLEFT",12,-48)
-        listScopeButton:SetScript("OnClick",function()
-          listScopeButton.scope=listScopeButton.scope=="global" and "profile" or "global"
-          self:ShowLists(callbacks)
-        end)
-        listKindButton=styleThemedButton(api.CreateFrame("Button",nil,listFrame))
-        listKindButton:SetWidth(110); listKindButton:SetHeight(24); listKindButton:SetPoint("LEFT",listScopeButton,"RIGHT",8,0)
-        listKindButton:SetScript("OnClick",function()
-          listKindButton.kind=listKindButton.kind=="inclusions" and "exclusions" or "inclusions"
-          self:ShowLists(callbacks)
-        end)
-        listInput=api.CreateFrame("EditBox",nil,listFrame,"InputBoxTemplate")
-        listInput:SetWidth(72); listInput:SetHeight(24); listInput:SetPoint("LEFT",listKindButton,"RIGHT",8,0)
-        listInput:SetAutoFocus(false); listInput:SetNumeric(true); listInput:SetMaxLetters(10)
-        listInput:SetFontObject("GameFontNormalSmall"); listInput:SetTextColor(1,1,1,1)
-        listInput:SetTextInsets(8,4,0,0)
-        listInput:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
-        listInput:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],1)
-        listInput:SetBackdropBorderColor(0,0,0,1)
-        listInput:SetScript("OnEscapePressed",function() listInput:ClearFocus() end)
-        local function listButton(label,x,handler)
-          local b=styleThemedButton(api.CreateFrame("Button",nil,listFrame))
-          b:SetWidth(label=="Add" and 60 or 66); b:SetHeight(24); b:SetPoint("LEFT",listInput,"RIGHT",x,0); b:SetText(label); b:SetScript("OnClick",handler); return b
-        end
-        listButton("Add",8,function() self:EditList(callbacks,true) end)
-        listButton("Remove",76,function() self:EditList(callbacks,false) end)
+        local searchDivider=api.CreateFrame("Frame",nil,listFrame)
+        searchDivider:SetPoint("TOPLEFT",listFrame,"TOPLEFT",0,-38)
+        searchDivider:SetPoint("TOPRIGHT",listFrame,"TOPRIGHT",0,-38)
+        searchDivider:SetHeight(1); searchDivider:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"})
+        searchDivider:SetBackdropColor(1,1,1,0.1)
+        listSelectedScope="global"; listSelectedKind="inclusions"
         listPanels={}
-        local listWidth=listFrame:GetWidth() or 540
-        local paneWidth=math.max(220,math.floor((listWidth-36)/2))
-        local paneHeight=192
+        local listWidth=type(listFrame.GetWidth)=="function" and listFrame:GetWidth() or 540
+        if not listWidth or listWidth<100 then listWidth=560 end
+        local listHeight=type(listFrame.GetHeight)=="function" and listFrame:GetHeight() or 560
+        local paneWidth=math.max(220,math.floor((listWidth-12)/2))
+        local paneHeight=math.max(190,math.floor((listHeight-54-10)/2))
+        local secondPaneY=-(46+paneHeight+8)
         local panes={
-          {scope="global",kind="inclusions",title="Inclusions (Global)",x=8,y=-84},
-          {scope="global",kind="exclusions",title="Exclusions (Global)",x=paneWidth+20,y=-84},
-          {scope="profile",kind="inclusions",title="Inclusions (Profile)",x=8,y=-(84+paneHeight+12)},
-          {scope="profile",kind="exclusions",title="Exclusions (Profile)",x=paneWidth+20,y=-(84+paneHeight+12)}
+          {scope="global",kind="inclusions",title="Inclusions (Global)",x=0,y=-46,color={227/255,79/255,79/255}},
+          {scope="global",kind="exclusions",title="Exclusions (Global)",x=paneWidth+12,y=-46,color={79/255,227/255,79/255}},
+          {scope="profile",kind="inclusions",title="Inclusions (Profile)",x=0,y=secondPaneY,color={227/255,79/255,79/255}},
+          {scope="profile",kind="exclusions",title="Exclusions (Profile)",x=paneWidth+12,y=secondPaneY,color={79/255,227/255,79/255}}
         }
         for _,pane in ipairs(panes) do
           local paneScope,paneKind=pane.scope,pane.kind
           local box=api.CreateFrame("Frame",nil,listFrame)
+          box.listScope=paneScope; box.listKind=paneKind
           box:SetWidth(paneWidth); box:SetHeight(paneHeight); box:SetPoint("TOPLEFT",listFrame,"TOPLEFT",pane.x,pane.y)
           box:EnableMouse(true); box:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
-          box:SetBackdropColor(1,1,1,0.03); box:SetBackdropBorderColor(1,1,1,0.22)
+          box:SetBackdropColor(theme.backdrop[1],theme.backdrop[2],theme.backdrop[3],1); box:SetBackdropBorderColor(1,1,1,0.14)
+          local titleBar=api.CreateFrame("Frame",nil,box)
+          titleBar:SetPoint("TOPLEFT",box,"TOPLEFT",1,-1); titleBar:SetPoint("TOPRIGHT",box,"TOPRIGHT",-1,-1); titleBar:SetHeight(27)
+          titleBar:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); titleBar:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],1)
           local function addCursorItem()
             local itemId=getCursorItemId()
             if not itemId then return false end
@@ -910,25 +939,52 @@ function Runtime.New(environment)
             return true
           end
           box:SetScript("OnMouseDown",function() addCursorItem() end)
-          local heading=box:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-          heading:SetPoint("TOPLEFT",8,-7); heading:SetText(pane.title); setTextColor(heading,"white")
+          local heading=titleBar:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+          heading:SetPoint("LEFT",8,0); heading:SetPoint("RIGHT",-36,0); heading:SetJustifyH("LEFT")
+          heading:SetText(pane.title); setTextColor(heading,pane.kind=="inclusions" and "red" or "green")
+          local transport=api.CreateFrame("Button",nil,titleBar)
+          transport:SetWidth(24); transport:SetHeight(24); transport:SetPoint("RIGHT",-4,0); transport:EnableMouse(true)
+          if type(transport.RegisterForClicks)=="function" then transport:RegisterForClicks("LeftButtonUp") end
+          local transportIcon=transport:CreateTexture(nil,"ARTWORK")
+          transportIcon:SetTexture("Interface\\AddOns\\Dejunk-WotLK\\assets\\transport-icon.tga")
+          transportIcon:SetWidth(18); transportIcon:SetHeight(18); transportIcon:SetPoint("CENTER")
+          transport:SetScript("OnEnter",function() transportIcon:SetVertexColor(1,1,1,1) end)
+          transport:SetScript("OnLeave",function() transportIcon:SetVertexColor(157/255,157/255,157/255,1) end)
+          transport:SetScript("OnClick",function()
+            importScope,importKind=paneScope,paneKind
+            self:ShowListImport(callbacks,"import")
+          end)
+          box.titleBar=titleBar; box.heading=heading; box.transportButton=transport
           local empty=box:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-          empty:SetPoint("TOPLEFT",8,-30); empty:SetWidth(paneWidth-16); empty:SetJustifyH("LEFT"); setTextColor(empty,"grey")
+          empty:SetPoint("TOPLEFT",8,-36); empty:SetWidth(paneWidth-16); empty:SetJustifyH("LEFT"); setTextColor(empty,"grey")
+          local scroll=api.CreateFrame("ScrollFrame",nil,box,"UIPanelScrollFrameTemplate")
+          scroll:SetPoint("TOPLEFT",box,"TOPLEFT",2,-29); scroll:SetPoint("BOTTOMRIGHT",box,"BOTTOMRIGHT",-24,2)
+          scroll:EnableMouse(true); if type(scroll.EnableMouseWheel)=="function" then scroll:EnableMouseWheel(true) end
+          local rowContent=api.CreateFrame("Frame",nil,scroll)
+          rowContent:SetWidth(paneWidth-34); rowContent:SetHeight(196); scroll:SetScrollChild(rowContent)
+          scroll:SetScript("OnMouseWheel",function(_,delta)
+            if type(scroll.GetVerticalScroll)~="function" then return end
+            local contentHeight=type(rowContent.GetHeight)=="function" and rowContent:GetHeight() or rowContent.height or 0
+            local scrollHeight=type(scroll.GetHeight)=="function" and scroll:GetHeight() or scroll.height or 0
+            local max=math.max(0,contentHeight-scrollHeight)
+            scroll:SetVerticalScroll(math.max(0,math.min(max,scroll:GetVerticalScroll()-delta*28)))
+          end)
           local rows={}
-          for rowIndex=1,7 do
-            local row=api.CreateFrame("Button",nil,box)
-            row:SetWidth(paneWidth-16); row:SetHeight(24); row:SetPoint("TOPLEFT",8,-27-(rowIndex-1)*25)
+          local function createListRow(rowIndex)
+            local row=api.CreateFrame("Button",nil,rowContent)
+            row:SetWidth(paneWidth-34); row:SetHeight(26); row:SetPoint("TOPLEFT",0,-(rowIndex-1)*28)
             row:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); row:SetBackdropBorderColor(0,0,0,0)
+            row:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],0.55)
             local icon=row:CreateTexture(nil,"ARTWORK")
-            icon:SetWidth(18); icon:SetHeight(18); icon:SetPoint("LEFT",3,0)
+            icon:SetWidth(18); icon:SetHeight(18); icon:SetPoint("LEFT",4,0)
             local label=row:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
             if type(label.SetFontObject)=="function" then label:SetFontObject("GameFontNormalSmall") end
-            label:SetPoint("LEFT",icon,"RIGHT",5,0); label:SetWidth(paneWidth-52); label:SetJustifyH("LEFT"); setTextColor(label,"white")
+            label:SetPoint("LEFT",icon,"RIGHT",5,0); label:SetWidth(paneWidth-50); label:SetJustifyH("LEFT"); setTextColor(label,"white")
             local accent=row:CreateTexture(nil,"ARTWORK")
             accent:SetWidth(3); accent:SetPoint("TOPLEFT"); accent:SetPoint("BOTTOMLEFT")
             row.icon=icon; row.label=label; row.accent=accent; row.listScope=paneScope; row.listKind=paneKind
             row:SetScript("OnEnter",function(self) self:SetBackdropColor(1,1,1,0.06) end)
-            row:SetScript("OnLeave",function(self) self:SetBackdropColor(1,1,1,0) end)
+            row:SetScript("OnLeave",function(self) self:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],0.55) end)
             if type(row.RegisterForClicks)=="function" then row:RegisterForClicks("LeftButtonUp","RightButtonUp") end
             row:SetScript("OnMouseDown",function()
               if getCursorItemId() then row.cursorHandled=addCursorItem() end
@@ -954,34 +1010,42 @@ function Runtime.New(environment)
                 self:ShowLists(callbacks)
                 return
               end
-              listScopeButton.scope=paneScope; listKindButton.kind=paneKind; listInput:SetText(row.itemId or "")
-              listScopeButton:SetText("Scope: "..paneScope)
-              listKindButton:SetText(paneKind=="inclusions" and "Inclusions" or "Exclusions")
+              listSelectedScope=paneScope; listSelectedKind=paneKind
             end)
-            rows[#rows+1]=row
+            rows[rowIndex]=row
+            return row
           end
-          listPanels[#listPanels+1]={scope=pane.scope,kind=pane.kind,empty=empty,rows=rows}
+          for rowIndex=1,7 do createListRow(rowIndex) end
+          listPanels[#listPanels+1]={scope=pane.scope,kind=pane.kind,empty=empty,rows=rows,scroll=scroll,content=rowContent,createRow=createListRow,frame=box}
         end
-        local export=styleThemedButton(api.CreateFrame("Button",nil,listFrame))
-        export:SetWidth(90); export:SetHeight(24); export:SetPoint("BOTTOMLEFT",listFrame,"BOTTOMLEFT",22,18); export:SetText("Export")
-        export:SetScript("OnClick",function()
-          local scope=listScopeButton.scope or "global"; local kind=listKindButton.kind or "inclusions"
-          importScope,importKind=scope,kind
-          self:ShowListImport(callbacks,"export")
-        end)
-        local import=styleThemedButton(api.CreateFrame("Button",nil,listFrame))
-        import:SetWidth(90); import:SetHeight(24); import:SetPoint("LEFT",export,"RIGHT",8,0); import:SetText("Import")
-        import:SetScript("OnClick",function()
-          importScope=listScopeButton.scope or "global"; importKind=listKindButton.kind or "inclusions"
-          self:ShowListImport(callbacks)
-        end)
-        listScopeButton.scope="global"; listKindButton.kind="inclusions"
+        local function layoutListPage(width,height)
+          width=type(width)=="number" and width>100 and width or listWidth
+          height=type(height)=="number" and height>100 and height or listHeight
+          local currentPaneWidth=math.max(220,math.floor((width-12)/2))
+          local currentPaneHeight=math.max(190,math.floor((height-64-10)/2))
+          local rowTwoY=-(46+currentPaneHeight+8)
+          listSearch:SetWidth(math.max(350,width-12))
+          for index,pane in ipairs(listPanels) do
+            local x=(index%2==0) and (currentPaneWidth+12) or 0
+            local y=(index>2) and rowTwoY or -46
+            pane.frame:SetWidth(currentPaneWidth); pane.frame:SetHeight(currentPaneHeight)
+            pane.frame:ClearAllPoints(); pane.frame:SetPoint("TOPLEFT",listFrame,"TOPLEFT",x,y)
+            pane.empty:SetWidth(currentPaneWidth-16)
+            pane.content:SetWidth(currentPaneWidth-34)
+            for _,row in ipairs(pane.rows) do
+              row:SetWidth(currentPaneWidth-34)
+              row.label:SetWidth(currentPaneWidth-50)
+            end
+          end
+        end
+        listLayoutUpdater=layoutListPage
+        listFrame:SetScript("OnSizeChanged",function(_,width,height) layoutListPage(width,height) end)
+        layoutListPage(listWidth,listHeight)
       end
-      local scope=listScopeButton.scope or "global"
-      local kind=listKindButton.kind or "inclusions"
-      listScopeButton:SetText("Scope: "..scope)
-      listKindButton:SetText(kind=="inclusions" and "Inclusions" or "Exclusions")
+      local scope=listSelectedScope or "global"
+      local kind=listSelectedKind or "inclusions"
       local query=(listSearch:GetText() or ""):lower()
+      refreshConfigFooter(callbacks)
       if listSearchPlaceholder then if query=="" then listSearchPlaceholder:Show() else listSearchPlaceholder:Hide() end end
       if listSearchClear then if query=="" then listSearchClear:Hide() else listSearchClear:Show() end end
       local raws,allIds,seenIds={}, {}, {}
@@ -1030,24 +1094,25 @@ function Runtime.New(environment)
           return itemPresentationCache[id]
         end)
         local total=#filtered
+        pane.content:SetHeight(math.max(196,total*28))
+        for rowIndex=1,total do if not pane.rows[rowIndex] then pane.createRow(rowIndex) end end
         for index,row in ipairs(pane.rows) do
           local item=filtered[index]
           if item then
             local presentation=itemPresentationCache[item.id] or {}
-            row.itemId=item.id; row.label:SetText((presentation.name or item.name or "Item").." (#"..item.id..")")
+            row.itemId=item.id; row.label:SetText("["..(presentation.name or item.name or "Item").."]")
             if presentation.texture then row.icon:SetTexture(presentation.texture); row.icon:Show() else row.icon:Hide() end
             if type(api.GetItemQualityColor)=="function" and presentation.quality then
               local colorOk,r,g,b=pcall(api.GetItemQualityColor,presentation.quality)
               if colorOk and type(r)=="number" and type(g)=="number" and type(b)=="number" then
-                row.accent:SetVertexColor(r,g,b,1); row.accent:Show()
+                row.accent:SetVertexColor(r,g,b,1); row.accent:Show(); row.label:SetTextColor(r,g,b,1)
               else row.accent:Hide() end
             else row.accent:Hide(); setTextColor(row.label,"white") end
             row:Show()
           else row:Hide() end
         end
-        pane.empty:SetText(total==0 and (query=="" and "This list is empty." or "No matches.") or
-          (total>6 and ("... "..(total-6).." more; search to narrow or use /djw lists show "..pane.scope.." "..pane.kind) or ""))
-        if total==0 or total>6 then pane.empty:Show() else pane.empty:Hide() end
+        pane.empty:SetText(total==0 and (query=="" and "This list is empty." or "No matches.") or "")
+        if total==0 then pane.empty:Show() else pane.empty:Hide() end
       end
       if metadataPending and listMetadataAge<30 then
         listFrame:SetScript("OnUpdate",function(_,elapsed)
@@ -1065,14 +1130,19 @@ function Runtime.New(environment)
       if listPageComponent and configWaffleRoot then
         if selectedConfigScreen~="lists" then selectConfigScreen("lists") end
       else setConfigPageVisible(listFrame,true) end
+      if listLayoutUpdater then
+        local width=type(listFrame.GetWidth)=="function" and listFrame:GetWidth() or nil
+        local height=type(listFrame.GetHeight)=="function" and listFrame:GetHeight() or nil
+        listLayoutUpdater(width,height)
+      end
     end)
     if not ok then self:Print("Lists window unavailable; use /djw lists show|add|remove <global|profile> <inclusions|exclusions> <itemID>.") end
   end
 
   function runtime:EditList(callbacks,present)
-    local scope=listScopeButton and listScopeButton.scope or "global"
-    local kind=listKindButton and listKindButton.kind or "inclusions"
-    local id=listInput and listInput:GetText() or ""
+    local scope=listSelectedScope or "global"
+    local kind=listSelectedKind or "inclusions"
+    local id=""
     local ok,reason=callbacks.editItem and callbacks.editItem(scope,kind,id,present)
     self:Print(ok and "List updated." or ("List update failed: "..tostring(reason)))
     self:ShowLists(callbacks)
@@ -1088,9 +1158,14 @@ function Runtime.New(environment)
         importFrame:SetFrameStrata("DIALOG"); importFrame:EnableMouse(true)
         importFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}})
         importTitle=importFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
-        importTitle:SetPoint("TOPLEFT",20,-18)
+        importTitle:SetPoint("TOPLEFT",20,-18); setTextColor(importTitle,"blue")
         local close=styleCloseButton(api.CreateFrame("Button",nil,importFrame))
         close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() importFrame:Hide() end)
+        transportSwitchButton=styleThemedButton(api.CreateFrame("Button",nil,importFrame))
+        transportSwitchButton:SetWidth(76); transportSwitchButton:SetHeight(22); transportSwitchButton:SetPoint("RIGHT",close,"LEFT",-8,0)
+        transportSwitchButton:SetScript("OnClick",function()
+          self:ShowListImport(callbacks,transportSwitchButton.mode=="import" and "export" or nil)
+        end)
         importHelp=importFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         importHelp:SetPoint("TOPLEFT",24,-48); importHelp:SetWidth(500); importHelp:SetJustifyH("LEFT")
         importHelp:SetText("Paste item IDs separated by spaces, commas, semicolons or new lines.")
@@ -1154,6 +1229,8 @@ function Runtime.New(environment)
       local titleText=(isExport and "Export " or "Import into ")..scope.." "..kind
       -- The title region is the first FontString child created by this panel.
       importTitle:SetText(titleText)
+      transportSwitchButton.mode=isExport and "export" or "import"
+      transportSwitchButton:SetText(isExport and "Import" or "Export")
       if isExport then
         local exported=callbacks.listItems and callbacks.listItems(scope,kind) or ""
         importEdit:SetText((exported:gsub("[\r\n]+",",")))

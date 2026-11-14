@@ -17,6 +17,10 @@ def build(destination):
             if not path.is_relative_to(ROOT) or not path.is_file() or path.suffix != '.lua':
                 raise ValueError(f'Invalid TOC file: {line}')
             paths.append(path)
+    asset_paths = sorted((ROOT / 'assets').glob('*'))
+    for path in asset_paths:
+        if path.is_file():
+            paths.append(path)
     entries = {path.relative_to(ROOT).as_posix(): path.read_bytes() for path in paths}
     entries['libs/Waffle-LICENSE.txt'] = (ROOT / 'libs/Waffle-LICENSE.txt').read_bytes()
     entries['README.txt'] = (
@@ -30,7 +34,8 @@ def build(destination):
         'Disable in the AddOns menu or remove only this addon folder to uninstall.\n'
         'Code is independently written; upstream design reference: moody/Dejunk\n'
         'commit 04bafd5e411441ef5b51bb8ed10d208f2d7758f5 (MIT).\n'
-        'No upstream code, libraries, artwork or Blizzard FrameXML are bundled.\n'
+        'The Dejunk logo and transport icon are upstream Dejunk artwork, copyright moody, MIT License.\n'
+        'No upstream code or Blizzard FrameXML is bundled.\n'
     ).encode('utf-8')
     destination = destination.resolve()
     if destination.exists():
