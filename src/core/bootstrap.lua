@@ -322,6 +322,13 @@ function Addon.NewApplication(runtime)
         function() return Addon.Config.GetGlobalOptions(app.store) end)
       app.cache:Start()
       runtime:RegisterBagTooltips(function(bag,slot) return app:GetSlotDecisions(bag,slot) end)
+      runtime:RegisterBagIcons(function(bag,slot)
+        local item=app:ProbeSlot(bag,slot)
+        if not item or not app.store then return nil end
+        local settings={profile=app.store:GetActiveProfile(),global=app.store:GetState().global or {}}
+        return Addon.Rules.Evaluate(item,"SELL",settings),Addon.Rules.Evaluate(item,"DESTROY",settings)
+      end)
+      runtime:UpdateBagIcons(app.store:GetState().global)
       if not app.optionsCategoryRegistered then
         local registered=runtime:RegisterOptionsCategory(function(screen) app:OpenConfig(screen) end)
         app.optionsCategoryRegistered=registered==true

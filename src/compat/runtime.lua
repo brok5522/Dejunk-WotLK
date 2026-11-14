@@ -73,6 +73,10 @@ function Runtime.New(environment)
   local frame, update, scanTooltip, reportFrame, reportEdit, reportTitle, configFrame, configSummary, poorButton
   local optionsCategoryFrame,optionsCategoryButtons
   local bagTooltipHooked=false
+  local bagIconsHooked=false
+  local bagIconSettings={enabled=false,style="SMALL"}
+  local bagIconDecisionProvider
+  local bagIconButtons={}
   local minimapButton,minimapAngle,minimapSetGlobalOption,minimapOpenConfig,minimapGetGlobalOptions
   local junkFrame,junkTitle,junkSummary,junkScroll,junkRows,junkRowsContent,junkEmptyRow,junkVisible
   local lootableFrame,lootableTitle,lootableSummary,lootableScroll,lootableRows,lootableRowsContent,lootableEmptyRow,lootableVisible
@@ -299,7 +303,12 @@ function Runtime.New(environment)
     local ok, result = pcall(api.CreateFrame, "Frame")
     if not ok or not result then return false end
     frame, update = result, onUpdate
-    frame:SetScript("OnEvent", function(_, event, ...) onEvent(event, ...) end)
+    frame:SetScript("OnEvent", function(_, event, ...)
+      onEvent(event, ...)
+      if event=="BAG_UPDATE" or event=="ITEM_LOCK_CHANGED" or event=="ITEM_LOCKED" or event=="ITEM_UNLOCKED" then
+        runtime:RefreshBagIcons()
+      end
+    end)
     for _, event in ipairs({
       "ADDON_LOADED", "PLAYER_LOGIN", "PLAYER_LOGOUT", "BAG_UPDATE",
       "ITEM_LOCK_CHANGED", "ITEM_LOCKED", "ITEM_UNLOCKED", "EQUIPMENT_SETS_CHANGED",
@@ -1905,6 +1914,8 @@ function Runtime.New(environment)
         if mainContentFrame then back:Hide() end
       end
       local opts=callbacks.options and callbacks.options() or {}
+      local globalOptions=callbacks.globalOptions and callbacks.globalOptions() or {}
+      self:UpdateBagIcons(globalOptions)
       local qualityRule=opts.includeByQuality or {enabled=true}
       optionsFrame.scope=scope
       local activeProfile=callbacks.activeProfileName and callbacks.activeProfileName() or nil
@@ -2284,6 +2295,86 @@ function Runtime.New(environment)
   end
 
   function runtime:IsLootableFrameVisible() return lootableVisible==true end
+
+  local function validInteger(value,minimum,maximum)
+    return type(value)=="number" and value==math.floor(value) and value>=minimum and value<=maximum
+  end
+  local function clearBagIcon(button)
+    local overlay=button and button.dejunkWotLKIconOverlay
+    if overlay then pcall(overlay.Hide,overlay) end
+  end
+  local function createBagIcon(button)
+    if not button or type(button.CreateTexture)~="function" then return nil end
+    if button.dejunkWotLKIconOverlay then return button.dejunkWotLKIconOverlay end
+    local ok,overlay=pcall(button.CreateTexture,button,nil,"OVERLAY")
+    if not ok or not overlay then return nil end
+    button.dejunkWotLKIconOverlay=overlay
+    pcall(overlay.SetTexture,overlay,"Interface\\Icons\\INV_Misc_Trash_01")
+    pcall(overlay.SetPoint,overlay,"TOPLEFT",button,"TOPLEFT",0,0)
+    pcall(overlay.SetWidth,overlay,24); pcall(overlay.SetHeight,overlay,24)
+    return overlay
+  end
+  function runtime:RegisterBagIcons(getDecisions)
+    if type(getDecisions)~="function" then return false,"ICON_PROVIDER_UNAVAILABLE" end
+    bagIconDecisionProvider=getDecisions
+    if not bagIconsHooked and type(api.hooksecurefunc)=="function" and type(api.ContainerFrame_Update)=="function" then
+      local ok=pcall(api.hooksecurefunc,"ContainerFrame_Update",function() runtime:RefreshBagIcons() end)
+      bagIconsHooked=ok
+    end
+    self:RefreshBagIcons()
+    return true
+  end
+  function runtime:UpdateBagIcons(globalOptions)
+    globalOptions=type(globalOptions)=="table" and globalOptions or {}
+    bagIconSettings.enabled=globalOptions.itemIcons==true
+    bagIconSettings.style=globalOptions.itemIconStyle=="LARGE" and "LARGE" or "SMALL"
+    return self:RefreshBagIcons()
+  end
+  function runtime:RefreshBagIcons()
+    for _,button in ipairs(bagIconButtons) do clearBagIcon(button) end
+    bagIconButtons={}
+    if not bagIconSettings.enabled or type(bagIconDecisionProvider)~="function" then return true end
+    local maxFrames=tonumber(api.NUM_CONTAINER_FRAMES) or 13
+    maxFrames=math.max(0,math.min(math.floor(maxFrames),20))
+    local maxSlots=tonumber(api.MAX_CONTAINER_ITEMS) or 36
+    maxSlots=math.max(0,math.min(math.floor(maxSlots),64))
+    local getCount=api.GetContainerNumSlots
+    if type(getCount)~="function" then return false,"BAG_API_UNAVAILABLE" end
+    for frameIndex=1,maxFrames do
+      local bagFrame=api["ContainerFrame"..frameIndex]
+      if bagFrame and type(bagFrame.IsShown)=="function" and bagFrame:IsShown() and type(bagFrame.GetID)=="function" then
+        local bag=bagFrame:GetID()
+        if validInteger(bag,0,4) then
+          local ok,count=pcall(getCount,bag)
+          if ok and validInteger(count,0,maxSlots) then
+            for buttonIndex=1,count do
+              local button=api["ContainerFrame"..frameIndex.."Item"..buttonIndex]
+              if button and type(button.GetID)=="function" then
+                local slot=button:GetID()
+                if validInteger(slot,1,count) then
+                  bagIconButtons[#bagIconButtons+1]=button
+                  local read,sell,destroy=pcall(bagIconDecisionProvider,bag,slot)
+                  if read and (sell and sell.result=="JUNK" or destroy and destroy.result=="JUNK") then
+                    local overlay=createBagIcon(button)
+                    if overlay then
+                      if bagIconSettings.style=="LARGE" then
+                        pcall(overlay.ClearAllPoints,overlay); pcall(overlay.SetAllPoints,overlay,button)
+                      else
+                        pcall(overlay.ClearAllPoints,overlay); pcall(overlay.SetPoint,overlay,"TOPLEFT",button,"TOPLEFT",0,0)
+                        pcall(overlay.SetWidth,overlay,24); pcall(overlay.SetHeight,overlay,24)
+                      end
+                      pcall(overlay.Show,overlay)
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+    return true
+  end
 
   function runtime:RegisterBagTooltips(getDecisions)
     if bagTooltipHooked then return true end

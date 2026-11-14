@@ -68,6 +68,8 @@ local function object(kind,name,parent,template)
   function frame:SetEnabled(value) if self.kind=="EditBox" then error("legacy EditBox has no SetEnabled method") end; self.enabled=value end
   function frame:Show() self.shown=true end
   function frame:Hide() self.shown=false end
+  function frame:IsShown() return self.shown==true end
+  function frame:GetID() return self.id end
   function frame:ClearFocus() self.focused=false end
   function frame:SetFocus() self.focused=true; self.focusedWhileVisible=self.shown==true and self.parent and self.parent.shown==true end
   function frame:HighlightText() self.highlighted=true end
@@ -96,6 +98,11 @@ local function object(kind,name,parent,template)
   return frame
 end
 ui.CreateFrame=function(kind,name,parent,template) return object(kind,name,parent,template) end
+ui.NUM_CONTAINER_FRAMES=1
+ui.MAX_CONTAINER_ITEMS=36
+ui.GetContainerNumSlots=function(bag) return bag==0 and 1 or 0 end
+ui.ContainerFrame1=object("Frame","ContainerFrame1",ui); ui.ContainerFrame1.id=0; ui.ContainerFrame1:Show()
+ui.ContainerFrame1Item1=object("Button","ContainerFrame1Item1",ui.ContainerFrame1); ui.ContainerFrame1Item1.id=1
 ui.Minimap=object("Frame","Minimap",ui)
 function ui.Minimap:GetCenter() return 100,100 end
 function ui.Minimap:GetEffectiveScale() return 1 end
@@ -114,9 +121,15 @@ ui.GameTooltip={lines={},AddLine=function(self,text) self.lines[#self.lines+1]={
   AddDoubleLine=function(self,left,right) self.lines[#self.lines+1]={left=left,right=right} end,
   Show=function(self) self.shown=true end}
 ui.hooksecurefunc=function(target,name,hook)
-  assert(target==ui.GameTooltip and name=="SetBagItem")
-  bagTooltipHook=hook; hookCount=(hookCount or 0)+1
+  if target==ui.GameTooltip and name=="SetBagItem" then
+    bagTooltipHook=hook; hookCount=(hookCount or 0)+1
+  elseif target=="ContainerFrame_Update" then
+    ui.containerUpdateHook=hook
+  elseif target==ui and name=="ContainerFrame_Update" then
+    ui.containerUpdateHook=hook
+  else error("unexpected secure hook") end
 end
+ui.ContainerFrame_Update=function() end
 assert(runtime:RegisterBagTooltips(function()
   return {result="JUNK",reasonCode="QUALITY"},{result="KEEP",reasonCode="EXCLUDED"}
 end),"legacy bag tooltip hook did not register")
@@ -124,6 +137,20 @@ bagTooltipHook(ui.GameTooltip,0,1)
 assert(ui.GameTooltip.shown and ui.GameTooltip.lines[2].left=="Selling" and
   ui.GameTooltip.lines[3].right=="EXCLUDED","bag tooltip omitted filter decisions")
 assert(runtime:RegisterBagTooltips(function() end) and hookCount==1,"bag tooltip hook registered more than once")
+assert(runtime:RegisterBagIcons(function()
+  return {result="JUNK"},{result="KEEP"}
+end),"bag icon provider did not register")
+assert(runtime:UpdateBagIcons({itemIcons=true,itemIconStyle="SMALL"}) and
+  ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown,"small junk overlay did not appear")
+assert(ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.texture=="Interface\\Icons\\INV_Misc_Trash_01",
+  "junk overlay texture did not load")
+runtime:UpdateBagIcons({itemIcons=true,itemIconStyle="LARGE"})
+assert(ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.allPoints==ui.ContainerFrame1Item1,
+  "large overlay did not fill the item button")
+runtime:RegisterBagIcons(function() return {result="KEEP"},{result="KEEP"} end)
+assert(not ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown,"stale junk overlay was not cleared")
+runtime:UpdateBagIcons({itemIcons=false})
+assert(not ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown,"disabled item icons remained visible")
 local savedWindowPoint
 runtime:SetWindowPointHandlers(function(key)
   if key=="junkFrame" then return {point="TOPLEFT",relativePoint="TOPLEFT",offsetX=25,offsetY=-30} end

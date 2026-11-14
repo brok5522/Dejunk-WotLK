@@ -122,6 +122,15 @@ current UI has not been exercised in the original client at this revision.
    long description's horizontal offset explicitly; fixtures verify both are
    preserved during responsive layout. A fresh client screenshot is needed to
    confirm the corrected Profile Options rows appear inside their cards.
+14. **Read-only bag item icons:** the global Bag Item Icons option now draws
+    overlays on junk candidates in visible stock ContainerFrames. SMALL uses a
+    24px icon and LARGE fills the item button; BAG_UPDATE and lock changes
+    rescan decisions and clear stale overlays. Unknown bag coordinates or
+    failed API reads do not display an icon. Store-backed rules are queried
+    through read-only slot probes; no item actions are connected. UI fixtures
+    verify small/large appearance, disabled cleanup and classification-change
+    cleanup. Third-party bag adapters and original-client rendering remain
+    unverified.
 
 ## Checks run for this report
 
@@ -133,7 +142,7 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for revision `0.16.37-dev`:
+Results for revision `0.16.38-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 39 source digests and 153 legacy API references).
@@ -142,6 +151,8 @@ Results for revision `0.16.37-dev`:
   UI interaction fixtures passed; deterministic 24-entry ZIP verified).
 - `git diff --check`: PASS.
 - Original 3.3.5a client rendering/input check: NOT RUN in this environment.
+
+The bag overlay fixture was also run directly with Lua 5.1 and passed.
 
 The profile name field now requests focus after its modal ancestors are shown,
 has explicit legacy EditBox styling, and accepts Enter/Escape. Option
@@ -175,8 +186,8 @@ filter is disabled. Numeric inputs explicitly take mouse and keyboard focus.
 ## Still required to complete the upstream port
 
 1. Remaining non-transaction parity: exact upstream main/list/profile/options
-   presentation, keybinding screen and registration, merchant button, bag icon
-   overlays, upstream parser progress/messaging, and several
+   presentation, keybinding screen and registration, merchant button,
+   third-party bag adapters, upstream parser progress/messaging, and several
    command and state-migration details.
 2. Port and review seller, repair and one-stack destroy behavior. Current
    services are simulation-only. `AGENTS.md` requires review plus separate
