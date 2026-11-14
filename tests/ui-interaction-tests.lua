@@ -364,7 +364,18 @@ local listCallbacks={
   junkItems=function() return {sellable=6,destroyable=7,items={}} end,
   lootableItems=function() return {count=0,items={}} end
 }
+local listScrollArrows={}
+for _,scope in ipairs({"global","profile"}) do
+  for _,kind in ipairs({"inclusions","exclusions"}) do
+    for _,direction in ipairs({"Up","Down"}) do
+      local name="DejunkWotLKListScroll_"..scope.."_"..kind.."ScrollBarScroll"..direction.."Button"
+      local arrow={hidden=false,Hide=function(self) self.hidden=true end}
+      ui[name]=arrow; listScrollArrows[#listScrollArrows+1]=arrow
+    end
+  end
+end
 runtime:ShowConfig(listCallbacks)
+for _,arrow in ipairs(listScrollArrows) do assert(arrow.hidden,"stock scroll arrow still overlaps the list title bar") end
 local footerProfile,footerJunk,footerLootable,brandVersion
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="FontString" then

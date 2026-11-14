@@ -1250,7 +1250,15 @@ function Runtime.New(environment)
           box.titleBar=titleBar; box.heading=heading; box.transportButton=transport
           local empty=box:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
           empty:SetPoint("TOPLEFT",8,-36); empty:SetWidth(paneWidth-16); empty:SetJustifyH("LEFT"); setTextColor(empty,"grey")
-          local scroll=api.CreateFrame("ScrollFrame","DejunkWotLKListScroll_"..paneScope.."_"..paneKind,box,"UIPanelScrollFrameTemplate")
+          local scrollName="DejunkWotLKListScroll_"..paneScope.."_"..paneKind
+          local scroll=api.CreateFrame("ScrollFrame",scrollName,box,"UIPanelScrollFrameTemplate")
+          -- The legacy template's arrow buttons extend past the scroll-frame
+          -- bounds and overlap this panel's title bar (hiding its transport
+          -- control). Upstream uses a slider without arrow buttons.
+          for _,suffix in ipairs({"ScrollBarScrollUpButton","ScrollBarScrollDownButton"}) do
+            local arrow=api[scrollName..suffix]
+            if arrow and type(arrow.Hide)=="function" then arrow:Hide() end
+          end
           scroll:SetPoint("TOPLEFT",box,"TOPLEFT",2,-29); scroll:SetPoint("BOTTOMRIGHT",box,"BOTTOMRIGHT",-24,2)
           scroll:EnableMouse(true); if type(scroll.EnableMouseWheel)=="function" then scroll:EnableMouseWheel(true) end
           local rowContent=api.CreateFrame("Frame",nil,scroll)

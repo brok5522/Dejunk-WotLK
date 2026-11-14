@@ -207,7 +207,10 @@ logo/version header and active-profile, junk-count, and lootable-count footer.
 Upstream logo/transport artwork is included under its MIT attribution. Offline
 UI fixtures check panel order/colors, transport flow, scrolling rows, and footer
 rendering. The transport icon uses the upstream 14px size and overlay layer,
-and is raised above its title bar so the import/export action stays visible.
+and is raised above its title bar. The legacy scroll template's up/down buttons
+are hidden on these four panels because the upper one overlaps that icon; the
+scroll thumb and wheel scrolling remain available. UI fixtures assert the
+stock arrow controls are hidden and the transport control remains present.
 Original-client rendering still requires the user's next check.
 
 The original 3.3.5a client visual check was not run. The main window still uses
