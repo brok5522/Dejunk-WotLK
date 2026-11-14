@@ -2023,7 +2023,7 @@ function Runtime.New(environment)
         local name=({"poor","common","uncommon","rare","epic"})[quality]
         local enabled=type(unbound)~="table" or type(unbound.qualities)~="table" or unbound.qualities[name]~=false
         setOptionCheckChecked(button,enabled)
-        setOptionCheckText(button,({"Poor","Com","Unc","Rare","Epic"})[quality])
+          setOptionCheckText(button,({"Poor","Common","Uncommon","Rare","Epic"})[quality])
         if scope=="profile" then button:Show() else button:Hide() end
         setOptionCheckEnabled(button,true)
       end

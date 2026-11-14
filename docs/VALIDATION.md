@@ -142,7 +142,7 @@ python3 tools/check_phase0.py
 git diff --check
 ```
 
-Results for revision `0.16.39-dev`:
+Results for revision `0.16.40-dev`:
 
 - `check_phase0.py`: PASS (31 required deliverables, 46 Markdown files, 57
   local links, 39 source digests and 153 legacy API references).
