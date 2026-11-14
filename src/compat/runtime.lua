@@ -6,7 +6,7 @@ Addon.Runtime = Runtime
 function Runtime.New(environment)
   local api = environment or _G
   local runtime = { registration = {} }
-  local theme={backdrop={18/255,18/255,18/255},blue={79/255,175/255,227/255},grey={157/255,157/255,157/255},white={1,1,1},dark={30/255,30/255,30/255},gold={1,209/255,0},black={0,0,0}}
+  local theme={backdrop={18/255,18/255,18/255},blue={79/255,175/255,227/255},grey={157/255,157/255,157/255},white={1,1,1},dark={30/255,30/255,30/255},gold={1,209/255,0},black={0,0,0},quality={{157/255,157/255,157/255},{1,1,1},{30/255,1,0},{0,112/255,221/255},{163/255,53/255,238/255}}}
   local function setTextColor(region,color)
     if region and region.SetTextColor and theme[color] then region:SetTextColor(theme[color][1],theme[color][2],theme[color][3],1) end
   end
@@ -1341,12 +1341,17 @@ function Runtime.New(environment)
     local enabled=check.optionEnabled~=false
     local checkState=check:GetChecked()
     local checked=checkState==true or checkState==1
-    visual.box:SetBackdropColor(checked and theme.blue[1] or theme.dark[1],checked and theme.blue[2] or theme.dark[2],checked and theme.blue[3] or theme.dark[3],enabled and (checked and 0.5 or 0.25) or 0.5)
-    visual.box:SetBackdropBorderColor(theme.blue[1],theme.blue[2],theme.blue[3],enabled and (checked and 1 or 0.75) or 0.35)
-    visual.fill:SetVertexColor(theme.blue[1],theme.blue[2],theme.blue[3],enabled and 1 or 0.75)
+    local color=check.optionColor or theme.blue
+    visual.box:SetBackdropColor(checked and color[1] or theme.dark[1],checked and color[2] or theme.dark[2],checked and color[3] or theme.dark[3],enabled and (checked and 0.5 or 0.25) or 0.5)
+    visual.box:SetBackdropBorderColor(color[1],color[2],color[3],enabled and (checked and 1 or 0.75) or 0.35)
+    visual.fill:SetVertexColor(color[1],color[2],color[3],enabled and 1 or 0.75)
     if checked then visual.fill:Show() else visual.fill:Hide() end
     visual.box:SetAlpha(enabled and 1 or 0.5)
-    if check.labelRegion then setTextColor(check.labelRegion,checked and "white" or "grey") end
+    if check.labelRegion then setTextColor(check.labelRegion,check.optionMajor and "white" or (checked and "white" or "grey")) end
+  end
+  local function setOptionQualityColor(check,index)
+    check.optionColor=theme.quality[index+1] or theme.blue
+    refreshOptionCheckVisual(check)
   end
   local function setOptionCheckText(check,labelText)
     check.optionLabel=labelText
@@ -1448,7 +1453,7 @@ function Runtime.New(environment)
           if type(check.RegisterForClicks)=="function" then check:RegisterForClicks("LeftButtonUp") end
           check.optionEnabled=true
           local box=api.CreateFrame("Frame",nil,check)
-          box:SetWidth(12); box:SetHeight(12); box:SetPoint("CENTER",check,"CENTER",0,0)
+          box:SetWidth(size); box:SetHeight(size); box:SetPoint("CENTER",check,"CENTER",0,0)
           box:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
           box:EnableMouse(false)
           local fill=box:CreateTexture(nil,"ARTWORK")
@@ -1466,6 +1471,7 @@ function Runtime.New(environment)
           label:SetPoint("LEFT",labelHit,"LEFT",0,0)
           check.labelRegion=label
           check.labelHit=labelHit
+          check.optionMajor=not hitWidth
           setOptionCheckText(check,labelText)
           return check
         end
@@ -1493,7 +1499,7 @@ function Runtime.New(environment)
         end
         local function addSection(titleText,y,isGlobal)
           local heading=optionsContentFrame:CreateFontString(nil,"OVERLAY","GameFontNormalLarge")
-          heading:SetPoint("TOPLEFT",18,y); heading:SetText(titleText); setTextColor(heading,"blue")
+          heading:SetPoint("TOPLEFT",18,y); heading:SetText(titleText); setTextColor(heading,"white")
           local group=isGlobal and optionsGlobalDecorations or optionsProfileDecorations
           group[#group+1]=heading
           return heading
@@ -1579,12 +1585,13 @@ function Runtime.New(environment)
         setOptionCheckHandler(qualityTitle,toggleQualityFilter)
         bindCardClick("includeByQuality",toggleQualityFilter)
         local labels={"Poor","Common","Uncommon","Rare","Epic"}
-        local qualityCaptions={"Poor","Com","Unc","Rare","Epic"}
+        local qualityCaptions={"Poor","Common","Uncommon","Rare","Epic"}
         local qualityStep=92
         optionsQualityButtons={}
         for quality=0,4 do
           local b=createOptionCheck(qualityCaptions[quality+1],110+quality*qualityStep,-296,88)
           b.optionGroup="includeByQuality"; b.optionQuality=labels[quality+1]:lower(); b.qualityRow=true
+          setOptionQualityColor(b,quality)
           b.qualityRowY=-296
           optionsQualityRows[#optionsQualityRows+1]=b
           setOptionCheckHandler(b,function()
@@ -1653,9 +1660,10 @@ function Runtime.New(environment)
         optionsUnboundQualityFields.title=unboundQualityTitle
         for quality=1,5 do
           local q=quality
-          local name=({"Poor","Com","Unc","Rare","Epic"})[quality]
+          local name=({"Poor","Common","Uncommon","Rare","Epic"})[quality]
           local button=createOptionCheck(name,110+(quality-1)*92,-1960,88)
           button.optionGroup="excludeUnboundEquipment"; button.optionQuality=({"poor","common","uncommon","rare","epic"})[quality]
+          setOptionQualityColor(button,quality-1)
           button.qualityRow=true; button.qualityRowY=-1960
           optionsQualityRows[#optionsQualityRows+1]=button
           setOptionCheckHandler(button,function()
@@ -1674,7 +1682,7 @@ function Runtime.New(environment)
         end
         local thresholds={{key="includeBelowItemLevel",label="Include below item level"},{key="includeBelowPrice",label="Include below price"},{key="excludeAboveItemLevel",label="Exclude above item level"},{key="excludeAbovePrice",label="Exclude above price"}}
         local qualityKeys={"poor","common","uncommon","rare","epic"}
-        local qualityLabels={"Poor","Com","Unc","Rare","Epic"}
+        local qualityLabels={"Poor","Common","Uncommon","Rare","Epic"}
         for index,row in ipairs(thresholds) do
           local cardTop=({-330,-490,-1018,-1178})[index]
           local valueY,scopeY,qualityY=cardTop-54,cardTop-80,cardTop-106
@@ -1748,8 +1756,9 @@ function Runtime.New(environment)
           for quality=1,5 do
             local q=quality
             local qualityName=({"Poor","Common","Uncommon","Rare","Epic"})[quality]
-            local button=createOptionCheck(({"Poor","Com","Unc","Rare","Epic"})[quality],110+(quality-1)*92,qualityY,88)
+            local button=createOptionCheck(qualityLabels[quality],110+(quality-1)*92,qualityY,88)
             button.optionGroup=row.key; button.optionQuality=qualityKeys[q]
+            setOptionQualityColor(button,quality-1)
             button.qualityRow=true; button.qualityRowY=qualityY
             optionsQualityRows[#optionsQualityRows+1]=button
             setOptionCheckHandler(button,function()
@@ -1845,8 +1854,9 @@ function Runtime.New(environment)
           field.qualityButtons={}
           local qualityKeys={"poor","common","uncommon","rare","epic"}
           for index,name in ipairs(qualityKeys) do
-            local button=createOptionCheck(({"Poor","Com","Unc","Rare","Epic"})[index],110+(index-1)*92,top-290,88)
+            local button=createOptionCheck(({"Poor","Common","Uncommon","Rare","Epic"})[index],110+(index-1)*92,top-290,88)
             button.optionGroup=key; button.optionQuality=name
+            setOptionQualityColor(button,index-1)
             button.qualityRow=true; button.qualityRowY=top-290
             optionsQualityRows[#optionsQualityRows+1]=button
             setOptionCheckHandler(button,function()
@@ -1992,7 +2002,7 @@ function Runtime.New(environment)
           local name=({"poor","common","uncommon","rare","epic"})[quality]
           local enabled=type(option)~="table" or type(option.qualities)~="table" or option.qualities[name]~=false
           setOptionCheckChecked(button,enabled)
-          setOptionCheckText(button,({"Poor","Com","Unc","Rare","Epic"})[quality])
+          setOptionCheckText(button,({"Poor","Common","Uncommon","Rare","Epic"})[quality])
           if scope=="profile" then button:Show() else button:Hide() end
           setOptionCheckEnabled(button,true)
         end
@@ -2040,7 +2050,7 @@ function Runtime.New(environment)
         for _,control in ipairs(entry.qualityButtons) do
           local enabled=type(option.qualities)~="table" or option.qualities[control.name]~=false
           setOptionCheckChecked(control.button,enabled)
-          setOptionCheckText(control.button,({poor="Poor",common="Com",uncommon="Unc",rare="Rare",epic="Epic"})[control.name] or control.name)
+          setOptionCheckText(control.button,({poor="Poor",common="Common",uncommon="Uncommon",rare="Rare",epic="Epic"})[control.name] or control.name)
           if scope=="profile" then control.button:Show() else control.button:Hide() end
           setOptionCheckEnabled(control.button,true)
         end
@@ -2051,7 +2061,7 @@ function Runtime.New(environment)
         local enabled=qualities[labels[quality+1]:lower()]
         if enabled==nil then enabled=opts.quality and opts.quality[quality] end
         setOptionCheckChecked(optionsQualityButtons[quality+1],enabled==true)
-        setOptionCheckText(optionsQualityButtons[quality+1],({"Poor","Com","Unc","Rare","Epic"})[quality+1])
+        setOptionCheckText(optionsQualityButtons[quality+1],labels[quality+1])
       end
       local global=callbacks.globalOptions and callbacks.globalOptions() or {}
       self:UpdateMinimapIcon(global,callbacks.setGlobalOption,function() self:ToggleConfig(callbacks) end,callbacks.globalOptions)

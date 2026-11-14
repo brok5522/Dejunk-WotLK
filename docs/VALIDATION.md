@@ -165,6 +165,14 @@ navigation hover, option labels, list row spacing, and the read-only junk and
 lootable item cards. Item-card accents use the legacy quality color when the
 client API supplies one; item names remain white like upstream.
 
+The latest Profile Options comparison fixed the visual quality chips: their
+checkbox border and checked mark now use the standard Poor/Common/Uncommon/Rare/
+Epic quality colors instead of a single blue, and all five quality names are
+written in full. Main option-card checkboxes now use their 18px layout size
+(chips remain 12px), major option labels stay white when unchecked, and section
+headings are white like the pinned upstream Option Builder. Lua 5.1 and UI
+fixtures pass; a client screenshot is still needed to confirm WoW 3.3.5 rendering.
+
 The original 3.3.5a client visual check was not run. The main window still uses
 port-built native screens and some list/profile/action widgets are development
 scaffolding, so these changes improve shared component parity but do not claim
