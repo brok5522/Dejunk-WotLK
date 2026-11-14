@@ -69,3 +69,84 @@ local empty,emptyReason=selectionWorld.app.runtime.itemActionHandlers.destroyNex
 assert(empty==false and emptyReason=="NO_JUNK_ITEMS" and shownPopup==nil)
 assert(selectionWorld.mutations==0,"selection test mutated the fake inventory")
 print("PASS: Destroy Next selects an eligible unlocked row without inventory mutations")
+
+local saleWorld=H.New():Load():Ready()
+local app=saleWorld.app
+assert(app.store:SetGlobalOption("safeSell",true))
+local candidates,bySlot={},{}
+for id=1,35 do
+  local sellable=id<=15
+  local candidate={state="OCCUPIED",bag=0,slot=id,itemId=id,link="item:"..id,count=1,locked=false,
+    sell={result=sellable and "JUNK" or "KEEP"},destroy={result="JUNK"}}
+  candidates[#candidates+1]=candidate; bySlot[id]=candidate
+end
+app.GetJunkItems=function() return {items=candidates,sellable=15,destroyable=35} end
+saleWorld.addon.Rules.Evaluate=function(item,action) return {result=item.sell.result,action=action} end
+app.transactions.ReadItem=function(_,bag,slot) return saleWorld.addon.Copy(bySlot[slot]) end
+app.transactions.Latency=function() return 0.01 end
+local attempts={}
+app.transactions.AttemptSale=function(_,token) attempts[#attempts+1]=token.intent.itemId; return true end
+saleWorld:Fire("MERCHANT_SHOW")
+assert(app.runtime.itemActionHandlers.startSelling())
+local duplicate,duplicateReason=app.runtime.itemActionHandlers.startSelling()
+assert(duplicate==false and duplicateReason=="BUSY","a second start restarted the running sale")
+assert(app.runtime.itemActionsBusy,"runtime was not marked busy during a sale run")
+for _=1,30 do saleWorld:Tick(0.1) end
+assert(#attempts==12,"Safe Sell counted non-sale candidates or exceeded twelve sale attempts")
+for _,id in ipairs(attempts) do assert(id<=15,"a destroy-only candidate reached the sale adapter") end
+assert(not app.saleRun and not app.runtime.itemActionsBusy,"sale completion did not clear busy state")
+assert(app.runtime.itemActionHandlers.startSelling())
+saleWorld:Fire("MERCHANT_CLOSED")
+saleWorld:Tick(0.2)
+assert(#attempts==12 and not app.saleRun and not app.runtime.itemActionsBusy,"closing the merchant did not cancel the pending sale")
+saleWorld:Fire("MERCHANT_SHOW")
+assert(app.runtime.itemActionHandlers.startSelling())
+assert(app.store:SetGlobalOption("safeSell",false))
+saleWorld:Tick(0.2)
+assert(#attempts==12 and not app.saleRun,"settings changes did not cancel a pending sale")
+assert(app.store:SetGlobalOption("safeSell",true))
+local failedDispatches=0
+app.transactions.AttemptSale=function() failedDispatches=failedDispatches+1; return false,"API_FAILED",true end
+assert(app.runtime.itemActionHandlers.startSelling())
+for _=1,30 do saleWorld:Tick(0.1) end
+assert(failedDispatches==12 and not app.saleRun,"failed API dispatches escaped the Safe Sell cap")
+assert(saleWorld.mutations==0,"sale-run fixtures touched the inventory mutation sentinels")
+print("PASS: sale runs filter action eligibility, cap attempts, reject duplicate starts and cancel safely")
+
+local confirmationWorld=H.New()
+local popup
+confirmationWorld.api.StaticPopupDialogs={}
+confirmationWorld.api.StaticPopup_Show=function(id) popup=confirmationWorld.api.StaticPopupDialogs[id] end
+confirmationWorld:Load():Ready()
+local confirmationApp=confirmationWorld.app
+local readAttempts=0
+confirmationApp.transactions.ReadItem=function() readAttempts=readAttempts+1; return nil end
+local target={itemId=777,name="Confirmation fixture",count=1,destroy={result="JUNK"}}
+assert(confirmationApp.runtime.itemActionHandlers.destroyItem(target))
+popup.OnCancel(); popup.OnAccept()
+assert(readAttempts==0,"cancelled destroy confirmation remained executable")
+assert(confirmationApp.runtime.itemActionHandlers.destroyItem(target))
+assert(confirmationApp.store:SetGlobalOption("safeSell",true))
+popup.OnAccept()
+assert(readAttempts==0,"destroy confirmation did not expire after settings changed")
+assert(confirmationApp.runtime.itemActionHandlers.destroyItem(target))
+popup.OnAccept(); popup.OnAccept()
+assert(readAttempts==1,"destroy confirmation was not single-use")
+assert(confirmationWorld.mutations==0)
+print("PASS: destroy confirmations expire on cancellation/settings changes and are single-use")
+
+local repairWorld=H.New():Load():Ready()
+assert(repairWorld.app.store:SetOption("autoRepair",true))
+local repairs=0
+repairWorld.app.transactions.ReadRepairContext=function() return {canRepair=true,cost=1,money=10} end
+repairWorld.app.transactions.AttemptRepair=function() repairs=repairs+1; return true end
+repairWorld:Fire("MERCHANT_SHOW"); repairWorld:Fire("MERCHANT_CLOSED"); repairWorld:Tick(0.2)
+assert(repairs==0,"delayed repair survived the merchant closing")
+repairWorld:Fire("MERCHANT_SHOW")
+assert(repairWorld.app.store:SetOption("autoRepair",false))
+repairWorld:Tick(0.2)
+assert(repairs==0,"delayed repair survived disabling Auto Repair")
+assert(repairWorld.app.store:SetOption("autoRepair",true))
+repairWorld:Fire("MERCHANT_SHOW"); repairWorld:Tick(0.2)
+assert(repairs==1 and repairWorld.mutations==0)
+print("PASS: delayed auto repair follows the current merchant session and preference")

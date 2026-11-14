@@ -115,7 +115,7 @@ local function globalDefaults()
     autoLootableFrame=false, chatMessages={enabled=true,detail="REDUCED"},
     itemIcons=false, itemIconStyle="SMALL", itemTooltips=true,
     keybindings={toggleMainWindow="",toggleJunkFrame="",toggleLootableFrame="",startSelling="",destroyNextItem="",addOrRemoveProfileInclusions="",addOrRemoveProfileExclusions="",addOrRemoveGlobalInclusions="",addOrRemoveGlobalExclusions=""},
-    points={mainWindow={point="CENTER",relativePoint="CENTER",offsetX=0,offsetY=50},junkFrame={point="CENTER",relativePoint="CENTER",offsetX=0,offsetY=50},lootableFrame={point="CENTER",relativePoint="CENTER",offsetX=0,offsetY=50},transportFrame={point="CENTER",relativePoint="CENTER",offsetX=0,offsetY=50},merchantButton={point="TOPLEFT",relativeTo="MerchantFrame",relativePoint="TOPLEFT",offsetX=60,offsetY=-28}} }
+    points={mainWindow={point="CENTER",relativePoint="CENTER",offsetX=0,offsetY=50},junkFrame={point="CENTER",relativePoint="CENTER",offsetX=0,offsetY=50},lootableFrame={point="CENTER",relativePoint="CENTER",offsetX=0,offsetY=50},transportFrame={point="CENTER",relativePoint="CENTER",offsetX=0,offsetY=50},merchantButton={point="TOPLEFT",relativeTo="MerchantFrame",relativePoint="TOPLEFT",offsetX=210,offsetY=-44}} }
 end
 local function cleanGlobal(value)
   local out=globalDefaults()

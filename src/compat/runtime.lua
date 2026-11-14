@@ -100,7 +100,7 @@ function Transactions.New(api,readAdapter,getSettingsRevision)
       return false,"UNSAFE_CONTEXT"
     end
     local ok,err=call(api,"UseContainerItem",intent.bag,intent.slot)
-    return ok,err
+    return ok,err,true -- A dispatched call counts even when the API throws.
   end
 
   function adapter:AttemptRepair(context)
@@ -182,6 +182,8 @@ function Runtime.New(environment)
   local api = environment or _G
   local runtime = { registration = {}, itemActionHandlers = {}, api = api }
   local junkDataSource
+  -- Shared by item-card closures created before the merchant control itself.
+  local merchantButton,merchantButtonIcon,merchantButtonLabel,merchantButtonOpen,merchantJunkData=nil,nil,nil,false,nil
   local function registerEscapeWindow(target,name)
     api.UISpecialFrames=api.UISpecialFrames or {}
     api[name]=target
@@ -197,12 +199,89 @@ function Runtime.New(environment)
   local function setTextColor(region,color)
     if region and region.SetTextColor and theme[color] then region:SetTextColor(theme[color][1],theme[color][2],theme[color][3],1) end
   end
+  local itemReasons={
+    QUALITY="Included by quality",PROFILE_INCLUSION="Inclusions (Profile)",GLOBAL_INCLUSION="Inclusions (Global)",
+    PROFILE_EXCLUSION="Exclusions (Profile)",GLOBAL_EXCLUSION="Exclusions (Global)",
+    NO_RULE_MATCH="No filters matched",LOCKED="Item is locked",NO_VENDOR_VALUE="No sell price",
+    REFUNDABLE="This item can still be refunded",QUEST_ITEM="Quest item",EQUIPMENT_SET_ITEM="Equipment set item",
+    UNBOUND_EQUIPMENT="Unbound equipment",LEGENDARY_OR_HEIRLOOM="Legendary or heirloom item",
+    ABOVE_MAX_ITEM_LEVEL="Above the excluded item level",ABOVE_MAX_STACK_PRICE="Above the excluded stack price",
+    BELOW_MIN_ITEM_LEVEL="Below the included item level",BELOW_MIN_STACK_PRICE="Below the included stack price",
+    INCLUDED_EQUIPMENT_TYPE="Included equipment type",EXCLUDED_EQUIPMENT_TYPE="Excluded equipment type",
+    EMPTY_SLOT="Empty slot"
+  }
+  local function itemReason(decision)
+    local code=decision and decision.reasonCode
+    if itemReasons[code] then return itemReasons[code] end
+    if not code or tostring(code):find("UNKNOWN",1,true) then return "Item information is not available yet" end
+    return tostring(code):gsub("_"," "):lower():gsub("^%l",string.upper)
+  end
+  local function addDecisionTooltip(tooltip,decision,action,indent)
+    indent=indent or ""
+    local junk=decision and decision.result=="JUNK"
+    local color=junk and "|cffe34f4f" or "|cff4fe34f"
+    local heading=action=="SELL" and (junk and "Selling" or "Not Selling") or (junk and "Destroying" or "Not Destroying")
+    tooltip:AddLine(indent..color..heading.."|r|cff9d9d9d:|r")
+    tooltip:AddLine(indent.."|cff9d9d9d- |r|cffffffff"..itemReason(decision).."|r")
+  end
   local function raiseForMouseInput(frame,offset)
     if not frame or type(frame.GetParent)~="function" or type(frame.SetFrameLevel)~="function" then return end
     local parent=frame:GetParent()
     if not parent or type(parent.GetFrameLevel)~="function" then return end
     local level=parent:GetFrameLevel()
     if type(level)=="number" then frame:SetFrameLevel(level+(offset or 10)) end
+  end
+  -- Shared legacy scroll control: upstream-style track instead of Blizzard's
+  -- decorative arrow buttons. All scrolling still uses the native ScrollFrame.
+  local function createScrollFrame(name,parent)
+    local scroll=api.CreateFrame("ScrollFrame",name,parent)
+    scroll:EnableMouseWheel(true)
+    local track=api.CreateFrame("Button",nil,parent)
+    track:SetWidth(6); track:SetPoint("TOPLEFT",scroll,"TOPRIGHT",7,0)
+    track:SetPoint("BOTTOMLEFT",scroll,"BOTTOMRIGHT",7,0)
+    track:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); track:SetBackdropColor(0,0,0,0.25)
+    track:EnableMouse(true)
+    local thumb=track:CreateTexture(nil,"OVERLAY")
+    thumb:SetTexture("Interface\\Buttons\\WHITE8x8"); thumb:SetWidth(6)
+    thumb:SetVertexColor(157/255,157/255,157/255,1)
+    local function range()
+      if type(scroll.GetVerticalScrollRange)=="function" then return math.max(0,scroll:GetVerticalScrollRange() or 0) end
+      local child=type(scroll.GetScrollChild)=="function" and scroll:GetScrollChild() or scroll.scrollChild
+      return math.max(0,(child and child:GetHeight() or 0)-(scroll:GetHeight() or 0))
+    end
+    local function refresh()
+      local maximum=range()
+      if maximum<=0 then track:Hide(); return end
+      local height=math.max(1,scroll:GetHeight() or 1)
+      local trackHeight=math.max(1,track:GetHeight() or height)
+      local thumbHeight=math.min(trackHeight,math.max(20,trackHeight*height/(height+maximum)))
+      local value=math.max(0,math.min(maximum,scroll:GetVerticalScroll() or 0))
+      thumb:SetHeight(thumbHeight); thumb:ClearAllPoints()
+      thumb:SetPoint("TOP",track,"TOP",0,-value/maximum*(trackHeight-thumbHeight))
+      track:Show(); thumb:Show()
+    end
+    scroll:SetScript("OnMouseWheel",function(_,delta)
+      scroll:SetVerticalScroll(math.max(0,math.min(range(),(scroll:GetVerticalScroll() or 0)-delta*28)))
+      refresh()
+    end)
+    local function seek()
+      if type(api.GetCursorPosition)~="function" or type(track.GetTop)~="function" then return end
+      local _,y=api.GetCursorPosition(); local top=track:GetTop()
+      if not top then return end
+      local scale=type(track.GetEffectiveScale)=="function" and track:GetEffectiveScale() or 1
+      local fraction=(top-y/scale)/math.max(1,track:GetHeight() or 1)
+      scroll:SetVerticalScroll(math.max(0,math.min(1,fraction))*range()); refresh()
+    end
+    track:SetScript("OnMouseDown",function(_,button)
+      if button=="LeftButton" then seek(); track:SetScript("OnUpdate",seek) end
+    end)
+    track:SetScript("OnMouseUp",function() track:SetScript("OnUpdate",nil) end)
+    track:SetScript("OnHide",function() track:SetScript("OnUpdate",nil) end)
+    scroll:SetScript("OnScrollRangeChanged",refresh)
+    scroll:SetScript("OnVerticalScroll",refresh)
+    scroll:SetScript("OnSizeChanged",refresh)
+    scroll.scrollTrack,scroll.scrollThumb=track,thumb
+    return scroll
   end
   local function styleThemedButton(button,label,labelColor)
     button:EnableMouse(true)
@@ -255,7 +334,7 @@ function Runtime.New(environment)
     if type(onClick)=="function" then
       if type(card.EnableMouse)=="function" then card:EnableMouse(true) end
       card:SetScript("OnMouseUp",function(_,button)
-        if button=="LeftButton" and card.item and card.item.locked~=true and card.item.enabled~=false then onClick(card.item) end
+        if button=="LeftButton" and not runtime.itemActionsBusy and card.item and card.item.locked~=true and card.item.enabled~=false then onClick(card.item) end
       end)
       if not clickHint then card:SetScript("OnReceiveDrag",function() if card.item then onClick(card.item) end end) end
       card:SetScript("OnEnter",function(self)
@@ -267,6 +346,7 @@ function Runtime.New(environment)
           else tooltip:SetText(card.item and card.item.name or "Lootable item") end
           if card.item and card.item.locked==true then tooltip:AddLine("Item is locked.",0.65,0.65,0.65)
           elseif clickHint then tooltip:AddLine(clickHint,1,0.82,0) end
+          tooltip:Show()
         end
       end)
       card:SetScript("OnLeave",function(self)
@@ -296,7 +376,7 @@ function Runtime.New(environment)
       end
       button.icon=actionIcon; button.action=action
       button:SetScript("OnClick",function()
-        if action.enabled~=false and card.item and action.onClick then action.onClick(card.item) end
+        if not runtime.itemActionsBusy and action.enabled~=false and card.item and action.onClick then action.onClick(card.item) end
       end)
       button:SetScript("OnEnter",function(self)
         local highlight=action.icon=="coins" and theme.gold or action.icon=="ban" and theme.green or
@@ -320,17 +400,13 @@ function Runtime.New(environment)
           elseif not (card.item and card.item.sell and card.item.sell.result=="JUNK") then
             tooltip:AddLine("Not eligible for selling: "..tostring(card.item and card.item.sell and card.item.sell.reasonCode or "UNKNOWN"),0.65,0.65,0.65)
           else tooltip:AddLine("Click to sell this stack.",1,0.82,0) end
-          if card.item and card.item.sell and card.item.sell.reasonCode then
-            tooltip:AddLine("Rule: "..tostring(card.item.sell.reasonCode),0.65,0.65,0.65)
-          end
+          tooltip:AddLine(" "); addDecisionTooltip(tooltip,card.item and card.item.sell,"SELL")
         elseif action.key=="destroyItem" then
           if type(runtime.itemActionHandlers.destroyItem)~="function" then tooltip:AddLine("Destroyer is not connected yet.",0.65,0.65,0.65)
           elseif not (card.item and card.item.destroy and card.item.destroy.result=="JUNK") then
             tooltip:AddLine("Not eligible for destruction: "..tostring(card.item and card.item.destroy and card.item.destroy.reasonCode or "UNKNOWN"),0.65,0.65,0.65)
           else tooltip:AddLine("Click to request a confirmed destroy.",1,0.82,0) end
-          if card.item and card.item.destroy and card.item.destroy.reasonCode then
-            tooltip:AddLine("Rule: "..tostring(card.item.destroy.reasonCode),0.65,0.65,0.65)
-          end
+          tooltip:AddLine(" "); addDecisionTooltip(tooltip,card.item and card.item.destroy,"DESTROY")
         elseif action.icon=="ban" then
           tooltip:AddLine("Click: add to profile exclusions.",0.65,0.65,0.65)
           tooltip:AddLine("Shift-click: add to global exclusions.",0.65,0.65,0.65)
@@ -520,6 +596,7 @@ function Runtime.New(environment)
     return true
   end
   function runtime:RequestItemAction(name,item)
+    if self.itemActionsBusy then return false,"BUSY" end
     local handler=self.itemActionHandlers and self.itemActionHandlers[name]
     if type(handler)~="function" then
       self:Print((name=="sellItem" or name=="startSelling") and
@@ -530,14 +607,26 @@ function Runtime.New(environment)
     if not ok then self:Print("Item action failed: "..tostring(result)); return false,"ACTION_ERROR" end
     return result,reason
   end
+  function runtime:SetItemActionsBusy(busy)
+    self.itemActionsBusy=busy==true
+    if merchantButton then
+      if self.itemActionsBusy then merchantButton:Disable() else merchantButton:Enable() end
+    end
+    if junkFrame and junkDataSource then self:UpdateJunkFrame(junkDataSource) end
+  end
   local function setSavedPoint(target,key)
     local point=type(getWindowPoint)=="function" and getWindowPoint(key) or nil
     target:ClearAllPoints()
     if type(point)=="table" then
       local relative=point.relativeTo and api[point.relativeTo] or api.UIParent
-      target:SetPoint(point.point or "CENTER",relative,point.relativePoint or "CENTER",point.offsetX or 0,point.offsetY or 0)
+      local x,y=point.offsetX or 0,point.offsetY or 0
+      -- Old port defaults cover the portrait. Migrate only those defaults;
+      -- preserve positions deliberately dragged elsewhere by the player.
+      if key=="merchantButton" and point.point=="TOPLEFT" and point.relativePoint=="TOPLEFT" and
+          x==60 and (y==-28 or y==-44) then x,y=210,-44 end
+      target:SetPoint(point.point or "CENTER",relative,point.relativePoint or "CENTER",x,y)
     elseif key=="merchantButton" and api.MerchantFrame then
-      target:SetPoint("TOPLEFT",api.MerchantFrame,"TOPLEFT",60,-28)
+      target:SetPoint("TOPLEFT",api.MerchantFrame,"TOPLEFT",210,-44)
     else target:SetPoint("CENTER",api.UIParent,"CENTER",0,0) end
   end
   local function saveCurrentPoint(target,key)
@@ -630,7 +719,6 @@ function Runtime.New(environment)
     if state.hide==true then minimapButton:Hide() else minimapButton:Show() end
     return true
   end
-  local merchantButton,merchantButtonIcon,merchantButtonLabel,merchantButtonOpen,merchantJunkData=nil,nil,nil,false,nil
   function runtime:UpdateMerchantButton(globalOptions,junkData,merchantOpen)
     globalOptions=type(globalOptions)=="table" and globalOptions or {}
     merchantButtonOpen=merchantOpen==true
@@ -639,12 +727,12 @@ function Runtime.New(environment)
     if not merchantButton then
       local ok,button=pcall(api.CreateFrame,"Button","DejunkWotLKMerchantButton",api.MerchantFrame)
       if not ok or not button then return false,"MERCHANT_BUTTON_FAILED" end
-      merchantButton=button; button:SetWidth(108); button:SetHeight(28); button:SetFrameStrata("HIGH")
+      merchantButton=button; button:SetWidth(108); button:SetHeight(28); button:SetFrameStrata("MEDIUM")
       button:EnableMouse(true); button:SetMovable(true)
       if type(button.RegisterForClicks)=="function" then button:RegisterForClicks("LeftButtonUp","RightButtonUp") end
       if type(button.RegisterForDrag)=="function" then button:RegisterForDrag("LeftButton") end
       button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
-      button:SetBackdropColor(18/255,18/255,18/255,0.92); button:SetBackdropBorderColor(0,0,0,1)
+      button:SetBackdropColor(18/255,18/255,18/255,1); button:SetBackdropBorderColor(0,0,0,1)
       merchantButtonIcon=button:CreateTexture(nil,"ARTWORK")
       merchantButtonIcon:SetTexture(addonAssetPath("dejunk-icon")); merchantButtonIcon:SetWidth(24); merchantButtonIcon:SetHeight(24)
       merchantButtonIcon:SetPoint("LEFT",5,0)
@@ -654,7 +742,7 @@ function Runtime.New(environment)
       button:SetScript("OnClick",function(_,mouseButton)
         if mouseButton=="RightButton" and type(api.IsShiftKeyDown)=="function" and api.IsShiftKeyDown() then
           local saved,reason=type(saveWindowPoint)=="function" and saveWindowPoint("merchantButton",{
-            point="TOPLEFT",relativeTo="MerchantFrame",relativePoint="TOPLEFT",offsetX=60,offsetY=-28})
+            point="TOPLEFT",relativeTo="MerchantFrame",relativePoint="TOPLEFT",offsetX=210,offsetY=-44})
           if saved then setSavedPoint(button,"merchantButton") else runtime:Print("Merchant button position was not reset: "..tostring(reason or "UNAVAILABLE")) end
         elseif mouseButton=="RightButton" and type(api.IsAltKeyDown)=="function" and api.IsAltKeyDown() then
           runtime:RequestItemAction("destroyNext")
@@ -690,7 +778,7 @@ function Runtime.New(environment)
             tooltip:Show(); return
           end
           local current=merchantJunkData or {}
-          tooltip:AddDoubleLine("Dejunk ("..tostring(current.sellable or 0).."/"..tostring(current.destroyable or 0)..")","3.5.1",
+          tooltip:AddDoubleLine("Dejunk ("..tostring(current.sellable or 0).."/"..tostring(current.destroyable or 0)..")","3.3.5",
             79/255,175/255,227/255,157/255,157/255,157/255)
           tooltip:AddLine("Left-click: Start Selling",1,1,1)
           tooltip:AddLine("Right-click: Toggle Junk Items",1,1,1)
@@ -799,13 +887,18 @@ function Runtime.New(environment)
     configFooterProfile:SetText("|cffffd100Active Profile:|r |cffffffff"..tostring(profileName).."|r")
     local junk=callbacks.junkItems and callbacks.junkItems()
     if type(junk)=="table" then
-      configFooterJunk:SetText("|cffffd100Junk Items|r (|cffe34f4f"..tostring(junk.sellable or 0).."/"..tostring(junk.destroyable or 0).."|r)")
+      configFooterJunk:SetText("|cffffd100Junk Items|r |cff9d9d9d(|cffffffff"..tostring(junk.sellable or 0).."|cff9d9d9d/|cffe34f4f"..tostring(junk.destroyable or 0).."|cff9d9d9d)|r")
     else
       configFooterJunk:SetText("|cffffd100Junk Items|r (|cffe34f4f–/–|r)")
     end
     local lootable=callbacks.lootableItems and callbacks.lootableItems()
-    configFooterLootable:SetText("|cffffd100Lootable Items|r (|cffffffff"..tostring(type(lootable)=="table" and (lootable.count or #(lootable.items or {})) or 0).."|r)")
+    local count=0
+    for _,item in ipairs(type(lootable)=="table" and lootable.items or {}) do
+      if not lootableIgnoredIds[item.itemId] then count=count+1 end
+    end
+    configFooterLootable:SetText("|cffffd100Lootable Items|r (|cffffffff"..tostring(count).."|r)")
   end
+  function runtime:RefreshConfigFooter() refreshConfigFooter(self.configCallbacks) end
 
   local function keybindingDisplay(key)
     if type(key)~="string" or key=="" then return "Not bound" end
@@ -1137,14 +1230,14 @@ function Runtime.New(environment)
               panel:SetScript("OnDragStart",function(self) self:StartMoving() end)
               panel:SetScript("OnDragStop",function(self) self:StopMovingOrSizing(); saveCurrentPoint(self,"mainWindow") end)
               setSavedPoint(panel,"mainWindow"); panel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1,insets={left=1,right=1,top=1,bottom=1}})
-              panel:SetBackdropColor(18/255,18/255,18/255,0.95); panel:SetBackdropBorderColor(0,0,0,1)
+              panel:SetBackdropColor(18/255,18/255,18/255,1); panel:SetBackdropBorderColor(0,0,0,1)
               panel:Hide(); return panel
             end
           })
           local title=configWaffleRoot:AddRow({height=32,padding=8,justify="SPACE_BETWEEN",frameFactory=function(parent)
             local bar=api.CreateFrame("Frame",nil,parent); bar:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); bar:SetBackdropColor(30/255,30/255,30/255,1)
             local version=bar:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
-            version:SetPoint("CENTER",bar,"CENTER",0,0); version:SetText("3.5.1"); setTextColor(version,"grey")
+            version:SetPoint("CENTER",bar,"CENTER",0,0); version:SetText("3.3.5"); setTextColor(version,"grey")
             return bar
           end})
           local brand=title:AddRow({width=150,height=28,gap=4,align="CENTER"})
@@ -1169,18 +1262,30 @@ function Runtime.New(environment)
             return api.CreateFrame("Frame",nil,parent)
           end})
           local footer=configWaffleRoot:AddRow({height=24,padding=4,justify="SPACE_BETWEEN"})
-          footer:AddChild({width="33%",height=20,frameFactory=function(parent)
-            configFooterProfile=parent:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
-            configFooterProfile:SetJustifyH("LEFT"); return configFooterProfile
-          end})
-          footer:AddChild({width="34%",height=20,frameFactory=function(parent)
-            configFooterJunk=parent:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
-            configFooterJunk:SetJustifyH("CENTER"); return configFooterJunk
-          end})
-          footer:AddChild({width="33%",height=20,frameFactory=function(parent)
-            configFooterLootable=parent:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
-            configFooterLootable:SetJustifyH("RIGHT"); return configFooterLootable
-          end})
+          local function footerSegment(key,width,justify,onClick)
+            return {width=width,height=20,frameFactory=function(parent)
+              local segment=api.CreateFrame("Button","DejunkWotLKFooter_"..key,parent)
+              segment:EnableMouse(true); segment:RegisterForClicks("LeftButtonUp")
+              segment:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); segment:SetBackdropColor(0,0,0,0)
+              segment:SetScript("OnEnter",function(self) self:SetBackdropColor(1,1,1,0.08) end)
+              segment:SetScript("OnLeave",function(self) self:SetBackdropColor(0,0,0,0) end)
+              segment:SetScript("OnClick",onClick)
+              local label=segment:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+              label:SetAllPoints(segment); label:SetJustifyH(justify); label:SetWordWrap(false)
+              if key=="profile" then configFooterProfile=label
+              elseif key=="junk" then configFooterJunk=label else configFooterLootable=label end
+              return segment
+            end}
+          end
+          footer:AddChild(footerSegment("profile","33%","LEFT",function() self:ShowProfiles(runtime.configCallbacks) end))
+          footer:AddChild(footerSegment("junk","34%","CENTER",function()
+            local current=runtime.configCallbacks or {}; local items=current.junkItems and current.junkItems()
+            if items then self:ToggleJunkFrame(items) end
+          end))
+          footer:AddChild(footerSegment("lootable","33%","RIGHT",function()
+            local current=runtime.configCallbacks or {}; local items=current.lootableItems and current.lootableItems()
+            if not items or not self:ToggleLootableFrame(items) then self:Print("No lootable items.") end
+          end))
           configContentComponent=main
           local overview=main:AddColumn({grow=1,gap=8})
           configOverviewComponent=overview
@@ -1223,12 +1328,13 @@ function Runtime.New(environment)
         end
         configWaffleRoot:SetVisibility("VISIBLE"); configWaffleRoot:Layout(); mainWindowVisible=true
         configFrame=configWaffleRoot:GetFrame()
+        if configFrame then configFrame:Show() end
         mainContentFrame=configContentComponent and configContentComponent:GetFrame() or nil
         refreshConfigFooter(callbacks)
         if configOverviewComponent then configOverviewComponent:SetVisibility("GONE") end
-        if listFrame then listFrame:Hide() end
-        if profileFrame then profileFrame:Hide() end
-        if optionsFrame then optionsFrame:Hide() end
+        if listFrame and not listPageComponent then listFrame:Hide() end
+        if profileFrame and not profilePageComponent then profileFrame:Hide() end
+        if optionsFrame and not optionsPageComponent then optionsFrame:Hide() end
         configSummary:SetText(callbacks.summary and callbacks.summary() or "Settings unavailable.")
         if configFrame and poorButton and poorButton.SetText and callbacks.poorEnabled then
           poorButton:SetText(callbacks.poorEnabled() and "Disable Poor rule" or "Enable Poor rule")
@@ -1324,13 +1430,27 @@ function Runtime.New(environment)
     if mainWindowVisible then
       if configWaffleRoot then configWaffleRoot:SetVisibility("GONE"); configWaffleRoot:Layout()
       elseif configFrame then configFrame:Hide() end
-      if profileFrame and not profileWaffleRoot then profileFrame:Hide() end
-      if listFrame and not listsWaffleRoot then listFrame:Hide() end
-      if optionsFrame and not optionsWaffleRoot then optionsFrame:Hide() end
+      if profileFrame and not profilePageComponent then profileFrame:Hide() end
+      if listFrame and not listPageComponent then listFrame:Hide() end
+      if optionsFrame and not optionsPageComponent then optionsFrame:Hide() end
       mainWindowVisible=false
       return false
     end
-    self:ShowConfig(callbacks or self.configCallbacks or {})
+    local screen=selectedConfigScreen
+    local optionScope=optionsFrame and optionsFrame.scope
+    callbacks=callbacks or self.configCallbacks or {}
+    self:ShowConfig(callbacks)
+    if screen=="profiles" then self:ShowProfiles(callbacks)
+    elseif screen=="options" then self:ShowOptions(callbacks,optionScope)
+    elseif screen=="keybindings" then self:ShowKeybindings(callbacks) end
+    return true
+  end
+
+  function runtime:ToggleProfiles(callbacks)
+    if mainWindowVisible and selectedConfigScreen=="profiles" then return self:ToggleConfig(callbacks) end
+    callbacks=callbacks or self.configCallbacks or {}
+    self.configCallbacks=callbacks
+    self:ShowProfiles(callbacks)
     return true
   end
   local function getMainConfigContent()
@@ -1393,7 +1513,7 @@ function Runtime.New(environment)
         profileFrame:EnableMouse(true)
         if not mainContentFrame then profileFrame:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border",tile=true,tileSize=32,edgeSize=32,insets={left=8,right=8,top=8,bottom=8}}) end
         local title=profileFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
-        title:SetPoint("TOPLEFT",18,-18); title:SetText("Dejunk | Profiles"); setTextColor(title,"blue")
+        title:SetPoint("TOPLEFT",18,-18); title:SetText("Profiles"); setTextColor(title,"blue")
         profileFrame.pageTitle=title
         if not mainContentFrame then
           local close=styleCloseButton(api.CreateFrame("Button",nil,profileFrame))
@@ -1401,7 +1521,7 @@ function Runtime.New(environment)
         end
         profileSummary=profileFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         profileSummary:SetPoint("TOPLEFT",22,-50); profileSummary:SetWidth(560); profileSummary:SetJustifyH("LEFT"); setTextColor(profileSummary,"grey")
-        profileScroll=api.CreateFrame("ScrollFrame","DejunkWotLKProfileScrollFrame",profileFrame,"UIPanelScrollFrameTemplate")
+        profileScroll=createScrollFrame("DejunkWotLKProfileScrollFrame",profileFrame)
         profileScroll:SetPoint("TOPLEFT",22,-100); profileScroll:SetPoint("BOTTOMRIGHT",-18,75)
         profileList=api.CreateFrame("Frame",nil,profileScroll); profileList:SetWidth(500); profileList:SetHeight(175); profileScroll:SetScrollChild(profileList); profileButtons={}
         local popupBlocker=api.CreateFrame("Frame","DejunkWotLKProfilePopupBlocker",api.UIParent)
@@ -1488,7 +1608,7 @@ function Runtime.New(environment)
       local profiles=callbacks.profiles and callbacks.profiles() or {}
       local activeName=callbacks.activeProfileName and callbacks.activeProfileName() or nil
       if profileFrame.pageTitle then
-        profileFrame.pageTitle:SetText("Dejunk | Profiles"..(activeName and (" ("..activeName..")") or ""))
+        profileFrame.pageTitle:SetText("Profiles"..(activeName and (" (|cffffffff"..activeName.."|r)") or ""))
         setTextColor(profileFrame.pageTitle,"blue")
       end
       table.sort(profiles,function(a,b)
@@ -1977,6 +2097,7 @@ function Runtime.New(environment)
       setConfigPageVisible(optionsFrame,false)
       if listPageComponent and configWaffleRoot then
         if selectedConfigScreen~="lists" then selectConfigScreen("lists") end
+        listFrame:Show()
       else setConfigPageVisible(listFrame,true) end
       if listLayoutUpdater then
         local width=type(listFrame.GetWidth)=="function" and listFrame:GetWidth() or nil
@@ -2003,7 +2124,7 @@ function Runtime.New(environment)
         importWaffleRoot,importFrame=createWaffleWindow("DejunkWotLKListImport",325,375)
         importFrame=importFrame or api.CreateFrame("Frame",nil,api.UIParent)
         importFrame:SetWidth(325); importFrame:SetHeight(375); importFrame:SetPoint("CENTER")
-        importFrame:SetFrameStrata("HIGH"); importFrame:EnableMouse(true)
+        importFrame:SetFrameStrata("DIALOG"); importFrame:EnableMouse(true)
         registerEscapeWindow(importFrame,"DejunkWotLKListImport")
         importFrame:SetMovable(true); importFrame:RegisterForDrag("LeftButton")
         importFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
@@ -2029,7 +2150,7 @@ function Runtime.New(environment)
         importHelp=importFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         importHelp:SetPoint("TOPLEFT",18,-62); importHelp:SetWidth(275); importHelp:SetJustifyH("LEFT"); importHelp:SetWordWrap(true)
         importHelp:SetText("Use this window to import or export item IDs into or out of the target list.\n\nWhen importing, item IDs must be separated by a non-numeric character (e.g. 4983,58907,67410).")
-        local scroll=api.CreateFrame("ScrollFrame","DejunkWotLKListImportScroll",importFrame,"UIPanelScrollFrameTemplate")
+        local scroll=createScrollFrame("DejunkWotLKListImportScroll",importFrame)
         scroll:SetPoint("TOPLEFT",importFrame,"TOPLEFT",18,-120); scroll:SetPoint("BOTTOMRIGHT",importFrame,"BOTTOMRIGHT",-40,54)
         scroll:EnableMouse(true)
         scroll:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
@@ -2288,8 +2409,8 @@ function Runtime.New(environment)
     end)
     check.optionClickHandler=handler
     if check.labelHit then
-      check.labelHit:SetScript("OnClick",function()
-        handler(check,"LeftButton")
+      check.labelHit:SetScript("OnClick",function(_,button)
+        handler(check,button or "LeftButton")
         refreshOptionCheckVisual(check)
       end)
     end
@@ -2349,7 +2470,7 @@ function Runtime.New(environment)
           local close=styleCloseButton(api.CreateFrame("Button",nil,optionsFrame))
           close:SetPoint("TOPRIGHT",-4,-4); close:SetScript("OnClick",function() optionsFrame:Hide() end)
         end
-        optionsScrollFrame=api.CreateFrame("ScrollFrame","DejunkWotLKOptionsScroll",optionsFrame,"UIPanelScrollFrameTemplate")
+        optionsScrollFrame=createScrollFrame("DejunkWotLKOptionsScroll",optionsFrame)
         optionsScrollFrame:SetPoint("TOPLEFT",optionsFrame,"TOPLEFT",14,-64)
         optionsScrollFrame:SetPoint("BOTTOMRIGHT",optionsFrame,"BOTTOMRIGHT",-30,42)
         optionsContentFrame=api.CreateFrame("Frame",nil,optionsScrollFrame)
@@ -2830,6 +2951,28 @@ function Runtime.New(environment)
         addGlobalToggle("safeSell","Safe Sell","Only sell up to 12 items at a time.",-104,64,globalEnabled("safeSell"))
         addSection("Interface",-178,true)
         addGlobalToggle("merchantButton","Merchant Button","Enable a button on the merchant frame.",-200,64,globalEnabled("merchantButton"))
+        local function resetMerchantPoint()
+          local saved,reason=type(saveWindowPoint)=="function" and saveWindowPoint("merchantButton",{
+            point="TOPLEFT",relativeTo="MerchantFrame",relativePoint="TOPLEFT",offsetX=210,offsetY=-44})
+          if saved and merchantButton then setSavedPoint(merchantButton,"merchantButton")
+          elseif not saved then runtime:Print("Merchant button position was not reset: "..tostring(reason or "UNAVAILABLE")) end
+        end
+        local merchantCard=optionCardFrames.merchantButton
+        local toggleMerchant=merchantCard:GetScript("OnMouseDown")
+        merchantCard:SetScript("OnMouseDown",function(self,button)
+          if button=="RightButton" then resetMerchantPoint() else toggleMerchant(self,button) end
+        end)
+        for _,entry in ipairs(optionsGlobalControls) do
+          if entry.key=="merchantButton" then
+            local check=entry.button
+            local toggle=check.optionClickHandler
+            check:RegisterForClicks("LeftButtonUp","RightButtonUp")
+            check.labelHit:RegisterForClicks("LeftButtonUp","RightButtonUp")
+            setOptionCheckHandler(check,function(self,button)
+              if button=="RightButton" then resetMerchantPoint() else toggle(self,button) end
+            end)
+          end
+        end
         addGlobalToggle("minimapIcon","Minimap Icon","Enable an icon on the minimap.",-274,64,
           function(global) return type(global.minimapIcon)=="table" and global.minimapIcon.hide~=true end,
           function(global,enabled) return {hide=not enabled} end)
@@ -2845,7 +2988,7 @@ function Runtime.New(environment)
           for index,choice in ipairs(choices) do
             local control=createOptionCheck(choice.label,x+(index-1)*100,y,96)
             optionsGlobalDecorations[#optionsGlobalDecorations+1]=control
-            control:SetScript("OnClick",function()
+            setOptionCheckHandler(control,function()
               local currentCallbacks=optionsCallbacks or callbacks
               local value=field and {[field]=choice.value} or choice.value
               local changed,reason=currentCallbacks.setGlobalOption and currentCallbacks.setGlobalOption(key,value)
@@ -2874,8 +3017,8 @@ function Runtime.New(environment)
       local qualityRule=opts.includeByQuality or {enabled=true}
       optionsFrame.scope=scope
       local activeProfile=callbacks.activeProfileName and callbacks.activeProfileName() or nil
-      optionsFrame.pageTitle:SetText(scope=="global" and "Dejunk | Global Options" or
-        ("Dejunk | Profile Options"..(activeProfile and (" ("..activeProfile..")") or "")))
+      optionsFrame.pageTitle:SetText(scope=="global" and "Global Options" or
+        ("Profile Options"..(activeProfile and (" (|cffffffff"..activeProfile.."|r)") or "")))
       setTextColor(optionsFrame.pageTitle,"blue")
       optionsFrame.pageDescription:SetText(scope=="profile" and
         "These options only apply to characters using the active profile." or
@@ -3006,8 +3149,8 @@ function Runtime.New(environment)
         for _,choice in ipairs(entry.controls) do setOptionCheckChecked(choice.button,choice.value==selected) end
       end
       local activeProfile=callbacks.activeProfileName and callbacks.activeProfileName() or nil
-      optionsFrame.pageTitle:SetText(scope=="global" and "Dejunk | Global Options" or
-        ("Dejunk | Profile Options"..(activeProfile and (" ("..activeProfile..")") or "")))
+      optionsFrame.pageTitle:SetText(scope=="global" and "Global Options" or
+        ("Profile Options"..(activeProfile and (" (|cffffffff"..activeProfile.."|r)") or "")))
       setTextColor(optionsFrame.pageTitle,"blue")
       setConfigPageVisible(listFrame,false)
       setConfigPageVisible(profileFrame,false)
@@ -3186,7 +3329,7 @@ function Runtime.New(environment)
         local action=button.action
         if action.key then
           action.enabled=type(runtime.itemActionHandlers[action.key])=="function" and
-            item.locked~=true and
+            item.locked~=true and not runtime.itemActionsBusy and
             (action.key~="sellItem" or (merchantButtonOpen and item.sell and item.sell.result=="JUNK")) and
             (action.key~="destroyItem" or (item.destroy and item.destroy.result=="JUNK"))
           if action.enabled then
@@ -3210,12 +3353,12 @@ function Runtime.New(environment)
     end
     junkRowsContent:SetHeight(math.max(32,#data.items*38))
     if junkFrame.startSellingButton then
-      if type(runtime.itemActionHandlers.startSelling)=="function" and merchantButtonOpen and (data.sellable or 0)>0 then
+      if not runtime.itemActionsBusy and type(runtime.itemActionHandlers.startSelling)=="function" and merchantButtonOpen and (data.sellable or 0)>0 then
         junkFrame.startSellingButton:Enable()
       else junkFrame.startSellingButton:Disable() end
     end
     if junkFrame.destroyNextButton then
-      if type(runtime.itemActionHandlers.destroyNext)=="function" and (data.destroyable or 0)>0 then
+      if not runtime.itemActionsBusy and type(runtime.itemActionHandlers.destroyNext)=="function" and (data.destroyable or 0)>0 then
         junkFrame.destroyNextButton:Enable()
       else junkFrame.destroyNextButton:Disable() end
     end
@@ -3225,14 +3368,14 @@ function Runtime.New(environment)
   function runtime:ToggleJunkFrame(data)
     if not junkFrame then
       junkFrame=api.CreateFrame("Frame","DejunkWotLKJunkFrame",api.UIParent)
-      junkFrame:SetFrameStrata("HIGH"); junkFrame:SetWidth(350); junkFrame:SetHeight(400)
+      junkFrame:SetFrameStrata("DIALOG"); junkFrame:SetWidth(350); junkFrame:SetHeight(400)
       registerEscapeWindow(junkFrame,"DejunkWotLKJunkFrame")
       setSavedPoint(junkFrame,"junkFrame"); junkFrame:EnableMouse(true); junkFrame:SetMovable(true)
       junkFrame:RegisterForDrag("LeftButton")
       junkFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
       junkFrame:SetScript("OnDragStop",function(self) if self.StopMovingOrSizing then self:StopMovingOrSizing() end; saveCurrentPoint(self,"junkFrame") end)
       junkFrame:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
-      junkFrame:SetBackdropColor(0,0,0,0.94); junkFrame:SetBackdropBorderColor(0.35,0.35,0.35,1)
+      junkFrame:SetBackdropColor(18/255,18/255,18/255,1); junkFrame:SetBackdropBorderColor(0.35,0.35,0.35,1)
       junkFrame:SetScript("OnShow",function() junkVisible=true end)
       junkFrame:SetScript("OnHide",function() junkVisible=false end)
       local header=api.CreateFrame("Frame",nil,junkFrame); header:SetHeight(34); header:SetPoint("TOPLEFT",0,0); header:SetPoint("TOPRIGHT",0,0)
@@ -3257,6 +3400,7 @@ function Runtime.New(environment)
       end)
       settings:SetScript("OnClick",function()
         local callbacks=runtime.configCallbacks or {}
+        runtime:HideJunkFrame()
         runtime:ShowConfig(callbacks); runtime:ShowOptions(callbacks,"profile")
       end)
       junkSummaryPanel=api.CreateFrame("Button",nil,junkFrame)
@@ -3297,7 +3441,7 @@ function Runtime.New(environment)
       junkListPanel:SetPoint("TOPLEFT",12,-90); junkListPanel:SetPoint("BOTTOMRIGHT",-12,46)
       junkListPanel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8",edgeFile="Interface\\Buttons\\WHITE8x8",edgeSize=1})
       junkListPanel:SetBackdropColor(0,0,0,1); junkListPanel:SetBackdropBorderColor(0.22,0.22,0.22,1)
-      junkScroll=api.CreateFrame("ScrollFrame","DejunkWotLKJunkScroll",junkFrame,"UIPanelScrollFrameTemplate")
+      junkScroll=createScrollFrame("DejunkWotLKJunkScroll",junkFrame)
       junkScroll:SetPoint("TOPLEFT",junkListPanel,"TOPLEFT",7,-7); junkScroll:SetPoint("BOTTOMRIGHT",junkListPanel,"BOTTOMRIGHT",-22,7)
       junkRowsContent=api.CreateFrame("Frame",nil,junkScroll); junkRowsContent:SetWidth(300); junkRowsContent:SetHeight(1)
       junkScroll:SetScrollChild(junkRowsContent); junkRows={}
@@ -3358,6 +3502,7 @@ function Runtime.New(environment)
           lootableIgnoredIds[target.itemId]=true
           runtime:Print("Ignored this item type for the current session.")
           runtime:UpdateLootableFrame(lootableSourceData)
+          runtime:RefreshConfigFooter()
         end}}
         card=createReadOnlyItemCard(lootableRowsContent,210,34,(index-1)*40+4,actions,function(target)
           runtime:RequestItemAction("lootItem",target)
@@ -3415,7 +3560,7 @@ function Runtime.New(environment)
       styleCloseButton(close); close:SetScript("OnClick",function() lootableFrame:Hide(); lootableVisible=false end)
       lootableSummary=lootableFrame:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
       lootableSummary:SetPoint("TOPLEFT",14,-43); lootableSummary:SetText("")
-      lootableScroll=api.CreateFrame("ScrollFrame","DejunkWotLKLootableScroll",lootableFrame,"UIPanelScrollFrameTemplate")
+      lootableScroll=createScrollFrame("DejunkWotLKLootableScroll",lootableFrame)
       lootableScroll:SetPoint("TOPLEFT",12,-50); lootableScroll:SetPoint("BOTTOMRIGHT",-30,12)
       lootableRowsContent=api.CreateFrame("Frame",nil,lootableScroll); lootableRowsContent:SetWidth(210); lootableRowsContent:SetHeight(1)
       lootableScroll:SetScrollChild(lootableRowsContent); lootableRows={}
@@ -3540,12 +3685,9 @@ function Runtime.New(environment)
       local success,sell,destroy=pcall(getDecisions,bag,slot)
       if not success or not sell or not destroy then return end
       frame:AddLine(" ")
-      local sellJunk=sell.result=="JUNK"
-      local destroyJunk=destroy.result=="JUNK"
-      frame:AddDoubleLine(sellJunk and "Selling" or "Not selling",tostring(sell.reasonCode or "UNKNOWN"),
-        sellJunk and 1 or 0.45,sellJunk and 0.25 or 0.9,sellJunk and 0.25 or 0.45,1,1,1)
-      frame:AddDoubleLine(destroyJunk and "Destroying" or "Not destroying",tostring(destroy.reasonCode or "UNKNOWN"),
-        destroyJunk and 1 or 0.45,destroyJunk and 0.25 or 0.9,destroyJunk and 0.25 or 0.45,1,1,1)
+      frame:AddLine("|cff4fafe3Dejunk|r")
+      addDecisionTooltip(frame,sell,"SELL","  ")
+      addDecisionTooltip(frame,destroy,"DESTROY","  ")
       frame:Show()
     end)
     if not ok then return false,tostring(reason) end
