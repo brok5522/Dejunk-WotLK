@@ -3,10 +3,18 @@ local Legacy = {}
 Addon.Legacy = Legacy
 local UNKNOWN = Addon.UNKNOWN
 
--- WotLK's Small Barnacled Clam is a use-effect item, not a container
--- flagged by GetContainerItemInfo's sixth return. Keep this exception keyed
--- by item identity, never by a localized name or a generic "Use:" tooltip.
-local useEffectLootItems = { [5523]=true }
+-- WotLK clams can use an open-and-loot spell instead of the container flag.
+-- Ordinary containers are still recognized generically through tuple[6].
+-- Item IDs keep this independent of client locale and exclude food/recipes.
+local useEffectLootItems = {
+  [5523]=true, -- Small Barnacled Clam
+  [5524]=true, -- Thick-shelled Clam
+  [7973]=true, -- Big-mouth Clam
+  [15874]=true, -- Soft-shelled Clam (quest item)
+  [24476]=true, -- Jaggal Clam
+  [36781]=true, -- Darkwater Clam
+  [45909]=true, -- Giant Darkwater Clam
+}
 
 local function integer(value, minimum, maximum)
   return type(value) == "number" and value == math.floor(value) and

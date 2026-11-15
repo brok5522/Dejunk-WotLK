@@ -541,6 +541,17 @@ test("legacy use-effect clam is lootable without treating ordinary consumables a
   equal(w.app:ProbeSlot(0,2).lootable,false)
   equal(w.mutations,0)
 end)
+test("all WotLK clam identities and arbitrary flagged containers are lootable", function()
+  for _,id in ipairs({5523,5524,7973,15874,24476,36781,45909}) do
+    local w=H.New()
+    w:AddItem(0,1,{id=id,link="|Hitem:"..id..":0|h[Localized item]|h",lootable=false})
+    w:AddItem(0,2,{id=99999,link="|Hitem:99999:0|h[Unknown container]|h",lootable=true})
+    w:Load():Ready()
+    equal(w.app:ProbeSlot(0,1).lootable,true)
+    equal(w.app:ProbeSlot(0,2).lootable,true)
+    equal(w.mutations,0)
+  end
+end)
 test("auto lootable preference only controls its read-only frame", function()
   local w=H.New(); local item=w:AddItem(0,1,{lootable=true}); w:Load()
   local shown,hidden,latest
