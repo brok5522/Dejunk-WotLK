@@ -1,5 +1,15 @@
 # Validation and completion report
 
+## First release — 1.0.0
+
+Runtime retained from 0.16.65 after owner confirmation of Lootable layering,
+bag visibility, startup keybindings, Auto Repair and clam detection. Release
+metadata and bilingual installation links updated; license notices retained.
+Actual Lua 5.1 regression and UI/action fixtures, historical-source checks,
+diff whitespace and reproducible packaging pass. Remaining comparison limits
+are explicitly preserved in RELEASE-1.0.0.md and PARITY.md. This release does
+not constitute a new exhaustive source audit or prove untested native scenarios.
+
 ## Lootable layering — 0.16.65-beta.1
 
 Owner confirmed bag visibility, keybindings after reload, Auto Repair and clam

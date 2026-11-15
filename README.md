@@ -5,7 +5,7 @@
 **A cleaner inventory for original World of Warcraft 3.3.5a.**
 
 [![Client](https://img.shields.io/badge/WoW-3.3.5a%20%2812340%29-4fafe3)](#compatibility)
-[![Status](https://img.shields.io/badge/status-community%20beta-dd75dd)](#release-status)
+[![Status](https://img.shields.io/badge/release-1.0.0-green)](#release-status)
 [![Code license](https://img.shields.io/badge/code-MIT-green)](LICENSE)
 
 [Download](https://github.com/brok5522/Dejunk-WotLK/releases) · [فارسی](README.fa.md) · [Report an issue](https://github.com/brok5522/Dejunk-WotLK/issues)
@@ -48,7 +48,7 @@ is listed in the AddOns menu and the release.
 
 ## Install
 
-1. Download **`Dejunk-WotLK-0.16.60-beta.1.zip`** from
+1. Download **`Dejunk-WotLK-1.0.0.zip`** from
    [Releases](https://github.com/brok5522/Dejunk-WotLK/releases).
 2. Close WoW. If upgrading, back up your `WTF` SavedVariables and replace the
    old `Dejunk-WotLK` folder rather than mixing files from multiple versions.
@@ -110,7 +110,7 @@ to add them to the selected list.
 
 ## Release status
 
-**0.16.60-beta.1 is a complete installation package and a community beta.**
+**1.0.0 is the first numbered release, incorporating owner-tested client fixes.**
 The owner has reported successful testing of the main UI and merchant-button
 placement. Automated checks use actual Lua 5.1 and cover runtime, store, services,
 UI interaction, action lifecycle and reproducible packaging.

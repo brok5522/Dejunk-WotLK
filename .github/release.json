@@ -1,6 +1,6 @@
 {
-  "tag": "v0.16.65-beta.1",
-  "version": "0.16.65-beta.1",
-  "title": "Dejunk-WotLK 0.16.65-beta.1 — Lootable window layering fix",
-  "prerelease": true
+  "tag": "v1.0.0",
+  "version": "1.0.0",
+  "title": "Dejunk-WotLK 1.0.0 — First release for original WoW 3.3.5a",
+  "prerelease": false
 }
