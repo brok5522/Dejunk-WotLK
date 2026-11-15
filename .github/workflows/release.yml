@@ -54,7 +54,7 @@ jobs:
           gh release create "$RELEASE_TAG" \
             "dist/Dejunk-WotLK-${RELEASE_VERSION}.zip" dist/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "$RELEASE_TITLE" --notes-file docs/RELEASE-0.16.63.md --prerelease
+            --title "$RELEASE_TITLE" --notes-file docs/RELEASE-0.16.64.md --prerelease
   cleanup:
     needs: release
     runs-on: ubuntu-latest

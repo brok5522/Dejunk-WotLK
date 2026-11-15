@@ -16,6 +16,11 @@ local useEffectLootItems = {
   [45909]=true, -- Giant Darkwater Clam
 }
 
+local function plainTooltipLine(text)
+  if type(text)~="string" then return nil end
+  return text:gsub("|c%x%x%x%x%x%x%x%x",""):gsub("|r",""):match("^%s*(.-)%s*$")
+end
+
 local function integer(value, minimum, maximum)
   return type(value) == "number" and value == math.floor(value) and
     value >= minimum and value <= maximum
@@ -153,6 +158,27 @@ function Legacy.New(api)
     item.itemId, item.link, item.count, item.texture = id, link, info[2], info[1]
     item.locked, item.readable, item.lootable = lockedState(info[3]), boolean(info[5]), boolean(info[6])
     if useEffectLootItems[id] then item.lootable=true end
+    -- Some legacy/custom clients omit the loot flag but retain the stock,
+    -- localized open-container instruction. Match that exact instruction,
+    -- never generic Use text (which includes food, recipes and quest actions).
+    if item.lootable~=true and type(api.ITEM_OPENABLE)=="string" and
+        api.ITEM_OPENABLE~="" and type(api.ReadBindingLines)=="function" then
+      local ok,lines=pcall(api.ReadBindingLines,bag,slot)
+      if ok and type(lines)=="table" then
+        local marker=plainTooltipLine(api.ITEM_OPENABLE)
+        for _,line in ipairs(lines) do
+          if plainTooltipLine(line)==marker then item.lootable=true; break end
+        end
+      end
+      -- Tooltip population can execute hooks. Do not attach the previous
+      -- item's loot eligibility to a slot replaced while those hooks ran.
+      local latest=read(api,"GetContainerItemLink",bag,slot)
+      local latestInfo=read(api,"GetContainerItemInfo",bag,slot)
+      if not latest or latest[1]~=link or not latestInfo or latestInfo[2]~=item.count then
+        return unknownSlot(bag,slot,"STALE_TOOLTIP_SLOT")
+      end
+      item.locked=lockedState(latestInfo[3])
+    end
     if integer(info[4], 0, 7) then item.quality = info[4] end
     local metadata = read(api, "GetItemInfo", link)
     item.itemInfoShape = shape(metadata)
