@@ -1,5 +1,19 @@
 # Validation and completion report
 
+## Owner feedback fixes — 0.16.62-beta.1
+
+Owner accepted client-test items 1, 3, 5 and 8; reported bag occlusion, startup
+keybindings inactive until UI creation, Auto Repair failure and a Small Barnacled
+Clam missing from Lootable, also reproducible without other addons.
+Moved keybinding action creation to a reusable startup initializer; startup calls
+it after action attachment. Repair flags accept legacy 1/true. Main window uses
+LOW strata beneath stock MEDIUM bags. The known use-effect clam 5523 receives a
+narrow legacy loot identity exception used by both snapshots and transaction rereads.
+Ordinary consumables remain excluded. Numeric-repair and clam/food regression
+fixtures pass along with the full actual-Lua-5.1 suite and deterministic packaging.
+These are offline fixes; owner retest is pending. The clam exception does not
+claim general detection of all spell-based openable items.
+
 ## Import commit review — 2026-11-15
 
 Additional item-window review against upstream `lootable-frame.lua` and
