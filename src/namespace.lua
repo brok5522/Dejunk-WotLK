@@ -2,7 +2,7 @@ local addonName, Addon = ...
 
 -- The loader's private table avoids addon-global collisions. No game API here.
 Addon.name = addonName
-Addon.version = "0.16.64-beta.1"
+Addon.version = "0.16.65-beta.1"
 Addon.phase = 6
 Addon.UNKNOWN = "unknown"
 

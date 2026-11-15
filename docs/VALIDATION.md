@@ -1,5 +1,13 @@
 # Validation and completion report
 
+## Lootable layering — 0.16.65-beta.1
+
+Owner confirmed bag visibility, keybindings after reload, Auto Repair and clam
+detection; screenshot showed Lootable's rows hidden by the main LOW hierarchy.
+Move Lootable to DIALOG, matching the existing separate Junk window layer policy.
+UI fixture checks dimensions and layer; actual Lua 5.1 suites and packaging pass.
+Native-client confirmation of this layer correction remains pending.
+
 ## Localized openable fallback — 0.16.64-beta.1
 
 Added exact `ITEM_OPENABLE` matching through the existing recursion-guarded hidden
