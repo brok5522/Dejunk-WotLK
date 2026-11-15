@@ -413,9 +413,14 @@ function Store:ImportPreview(scope,kind,text)
   if kind~="inclusions" and kind~="exclusions" then return nil,"INVALID_LIST" end
   local current=scope=="global" and self.state.global[kind] or scope=="profile" and self.state.profiles[self:GetActiveProfileId()][kind]
   if not current then return nil,"INVALID_SCOPE" end
-  if text:gsub("%d+",""):find("[^%s,;]+") then return nil,"INVALID_IMPORT_TEXT" end
+  -- Upstream Transport extracts digit runs separated by any non-number text.
+  -- Treat the input strictly as data; never execute it or interpret item links.
   local seen,ids={},{}
-  for token in text:gmatch("%d+") do local id=validId(token); if not id then return nil,"INVALID_ITEM_ID" end; if not seen[id] then seen[id]=true; ids[#ids+1]=id end; if #ids>MAX_IDS then return nil,"LIST_LIMIT" end end
+  for token in text:gmatch("%d+") do
+    local id=validId(token)
+    if id and not seen[id] then seen[id]=true; ids[#ids+1]=id end
+    if #ids>MAX_IDS then return nil,"LIST_LIMIT" end
+  end
   local result={scope=scope,kind=kind,revision=self.revision,add={},existing={}}
   for _,id in ipairs(ids) do local target=current[id] and result.existing or result.add; target[#target+1]=id end
   return result
@@ -426,10 +431,24 @@ function Store:CommitImport(preview)
   if (kind~="inclusions" and kind~="exclusions") or (scope~="global" and scope~="profile") then return false,"INVALID_LIST" end
   local current=scope=="global" and self.state.global[kind] or self.state.profiles[self:GetActiveProfileId()][kind]
   if not current then return false,"INVALID_SCOPE" end
+  if type(preview.add)~="table" then return false,"INVALID_IMPORT" end
   local nextList=copy(current)
+  local count=0
+  for _ in pairs(nextList) do count=count+1 end
+  local entries=0
+  for index in pairs(preview.add) do
+    if type(index)~="number" or index<1 or index~=math.floor(index) then return false,"INVALID_IMPORT" end
+    entries=entries+1
+    if entries>MAX_IDS then return false,"LIST_LIMIT" end
+  end
+  if entries~=#preview.add then return false,"INVALID_IMPORT" end
   for _,raw in ipairs(preview.add) do
     local id=validId(raw); if not id then return false,"INVALID_ITEM_ID" end
-    if not nextList[id] then local n=0; for _ in pairs(nextList) do n=n+1 end; if n>=MAX_IDS then return false,"LIST_LIMIT" end; nextList[id]=true end
+    if not nextList[id] then
+      if count>=MAX_IDS then return false,"LIST_LIMIT" end
+      nextList[id]=true
+      count=count+1
+    end
   end
   if scope=="global" then self.state.global[kind]=nextList else self.state.profiles[self:GetActiveProfileId()][kind]=nextList end
   self:Changed(); return true
