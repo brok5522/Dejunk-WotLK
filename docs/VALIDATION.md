@@ -1,5 +1,15 @@
 # Validation and completion report
 
+## Lootable reference review — 0.16.63-beta.1
+
+Pinned source uses `hasLoot` generically, without a clam list. The port preserves
+the native tuple flag path for all IDs and extends spell-based WotLK clams to
+seven identities. See LOOTABLE-PARITY.md for exact source and item references.
+All seven and an arbitrary flagged container have read-only fixtures; ordinary
+consumables remain excluded. Full actual Lua 5.1 and packaging checks pass.
+No live item was opened during verification; custom-server unflagged spell items
+remain outside the proven classification scope.
+
 ## Owner feedback fixes — 0.16.62-beta.1
 
 Owner accepted client-test items 1, 3, 5 and 8; reported bag occlusion, startup
