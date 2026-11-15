@@ -197,7 +197,7 @@ function Config.SortListItems(items,resolveItem)
   table.sort(result,function(a,b)
     local aq,bq=a.quality or math.huge,b.quality or math.huge
     if aq~=bq then return aq<bq end
-    local an,bn=(a.name or ""):lower(),(b.name or ""):lower()
+    local an,bn=a.name or "",b.name or ""
     if an~=bn then return an<bn end
     return tonumber(a.id)<tonumber(b.id)
   end)

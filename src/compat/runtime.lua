@@ -3242,6 +3242,7 @@ function Runtime.New(environment)
     if not junkFrame then return false end
     junkDataSource=type(data)=="table" and data or nil
     for _,row in ipairs(junkRows or {}) do row:Hide() end
+    if junkEmptyRow then junkEmptyRow:Hide() end
     if type(data)~="table" then
       junkSummary:SetText("Bag data unavailable. Refreshing…")
       junkRowsContent:SetHeight(1)
@@ -3473,12 +3474,15 @@ function Runtime.New(environment)
   function runtime:UpdateLootableFrame(data)
     if not lootableFrame then return false end
     for _,row in ipairs(lootableRows or {}) do row:Hide() end
+    if lootableEmptyRow then lootableEmptyRow:Hide() end
+    lootableSourceData=type(data)=="table" and data or nil
     if type(data)~="table" then
       lootableSummary:SetText("Bag data unavailable. Refreshing…")
       lootableRowsContent:SetHeight(1)
       return false
     end
     lootableSourceData=data
+    lootableSummary:SetText("")
     local visibleItems={}
     for _,item in ipairs(data.items or {}) do
       if not lootableIgnoredIds[item.itemId] then visibleItems[#visibleItems+1]=item end

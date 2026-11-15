@@ -10,7 +10,8 @@ local function less(a, b)
   local bPrice = type(b.unitVendorPrice) == "number" and b.unitVendorPrice * (b.count or 1) or 0
   if aPrice ~= bPrice then return aPrice < bPrice end
   if a.quality ~= b.quality then return (a.quality or -1) < (b.quality or -1) end
-  local aName, bName = string.lower(a.name or ""), string.lower(b.name or "")
+  -- The reference compares the original localized names, case sensitively.
+  local aName, bName = a.name or "", b.name or ""
   if aName ~= bName then return aName < bName end
   if a.count ~= b.count then return (a.count or 0) < (b.count or 0) end
   if a.bag ~= b.bag then return (a.bag or -1) < (b.bag or -1) end

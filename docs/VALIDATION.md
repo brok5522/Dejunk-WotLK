@@ -1,5 +1,38 @@
 # Validation and completion report
 
+## Import commit review — 2026-11-15
+
+Additional item-window review against upstream `lootable-frame.lua` and
+`junk-items-cache.lua`: clear stale empty-state text when bag data invalidates,
+clear Lootable's unavailable-data summary when valid data returns, and discard
+its invalidated source snapshot. Junk name sorting now uses the reference's
+case-sensitive name comparison. UI fixtures cover a locked Lootable row, busy
+state, right-click refusal, exactly one left-click dispatch and recovery after
+invalidation. All action checks use injected handlers, never live inventory.
+
+Reviewed the list storage/import boundary against the pinned upstream list and
+parser modules. The port still uses a preview/commit implementation rather than
+upstream's asynchronous metadata parser; parser progress/message parity remains
+open. Fixed a concrete robustness issue in `Store:CommitImport`: malformed or
+sparse addition arrays are rejected without changing the destination, and list
+capacity is counted once instead of rescanning the full destination for each ID.
+Duplicate IDs consume capacity only once. A regression fixture checks malformed
+input, atomic rejection and duplicate handling.
+
+Compared `src/ui/screens/transport-frame.lua:94` in the pinned reference:
+Transport accepts digit runs separated by arbitrary non-numeric characters and
+skips zero/out-of-range IDs. `Store:ImportPreview` now follows that extraction
+behavior instead of rejecting punctuation other than commas/semicolons. The
+fixture includes punctuation, duplicate IDs, zero and overflow. Input remains
+plain data. Asynchronous item metadata validation/progress is still different.
+
+`python3 tools/check_phase0.py`, the full `tools/check.py` suite using actual
+Lua 5.1, and `git diff --check` passed. Store scenarios increased from 21 to 22;
+runtime 64, services 8, destroyer 11 and UI model 62 remain passing, as do
+transaction/UI interaction fixtures and reproducible 41-entry packaging.
+No live-client operation or new release was performed. This review does not
+close the remaining source and client acceptance gaps listed in PARITY.md.
+
 ## Publication candidate 0.16.60-beta.1
 
 Runtime behavior is unchanged from the owner-tested 0.16.59 candidate; only

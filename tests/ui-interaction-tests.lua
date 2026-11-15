@@ -335,6 +335,11 @@ assert(staleJunkRow.parent.shown==false,"stale Junk frame cards were not cleared
 local junkEmpty=false
 for _,frame in ipairs(uiFrames) do if frame.kind=="FontString" and frame.text=="No junk items." and frame.shown then junkEmpty=true end end
 assert(junkEmpty,"empty Junk frame state was not shown")
+runtime:UpdateJunkFrame(nil)
+for _,frame in ipairs(uiFrames) do
+  assert(not (frame.kind=="FontString" and frame.text=="No junk items." and frame.shown),
+    "invalidated bags still report an empty inventory")
+end
 assert(runtime:ToggleJunkFrame({sellable=0,destroyable=0,items={}}) and junkWindow.shown==false,
   "Junk frame toggle did not hide the existing window")
 local merchantItems={sellable=1,destroyable=1,items={{itemId=777,name="Merchant test",quality=0,count=1,bag=0,slot=1,
@@ -429,6 +434,29 @@ assert(ignoreIcon.width==14 and ignoreIcon.height==14 and ignoreIcon.parent.widt
   ignoreIcon.parent.height==32 and ignoreIcon.parent.parent.icon.width==24 and ignoreIcon.parent.parent.height==34 and
   ignoreIcon.parent.parent.accent.texture=="Interface\\Buttons\\WHITE8x8",
   "Lootable item or ignore icons do not match the reference sizing")
+local lootCard=ignoreIcon.parent.parent
+local lootRequests=0
+local savedLootHandler=runtime.itemActionHandlers.lootItem
+runtime.itemActionHandlers.lootItem=function() lootRequests=lootRequests+1; return true end
+lootCard.item.locked=true
+lootCard.scripts.OnMouseUp(lootCard,"LeftButton")
+assert(lootRequests==0,"locked Lootable row dispatched an open")
+lootCard.item.locked=false
+runtime:SetItemActionsBusy(true)
+lootCard.scripts.OnMouseUp(lootCard,"LeftButton")
+assert(lootRequests==0,"busy Lootable row dispatched an open")
+runtime:SetItemActionsBusy(false)
+lootCard.scripts.OnMouseUp(lootCard,"RightButton")
+assert(lootRequests==0,"right-click opened a Lootable item")
+lootCard.scripts.OnMouseUp(lootCard,"LeftButton")
+assert(lootRequests==1,"unlocked Lootable row did not dispatch one open")
+runtime:UpdateLootableFrame(nil)
+runtime:UpdateLootableFrame({count=1,items={lootCard.item}})
+for _,frame in ipairs(uiFrames) do
+  assert(not (frame.kind=="FontString" and frame.text=="Bag data unavailable. Refreshing…" and
+    frame.parent==lootableWindow and frame.shown),"Lootable recovery retained its stale error")
+end
+runtime.itemActionHandlers.lootItem=savedLootHandler
 ignoreIcon.parent.scripts.OnClick(ignoreIcon.parent)
 assert(not ignoreIcon.parent.parent.shown,"ignoring a lootable item did not remove its row")
 assert(not runtime:ShowLootableFrame({count=1,items={{itemId=6948,name="Hearthstone",count=1,bag=0,slot=1}}}),
