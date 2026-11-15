@@ -1,9 +1,9 @@
 ## Interface: 30300
 ## Title: Dejunk-WotLK
 ## SavedVariables: DejunkWotLKDB
-## Notes: Inventory cleanup for original WoW 3.3.5a (build 12340). Community beta.
+## Notes: Inventory cleanup for original WoW 3.3.5a (build 12340).
 ## Author: Dejunk-WotLK contributors
-## Version: 0.16.65-beta.1
+## Version: 1.0.0
 
 src\namespace.lua
 libs\Waffle.lua

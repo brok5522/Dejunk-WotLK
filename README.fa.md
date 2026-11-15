@@ -5,7 +5,7 @@
 **مدیریت آسان‌تر کیف برای World of Warcraft اصلی، نسخهٔ 3.3.5a**
 
 [![Client](https://img.shields.io/badge/WoW-3.3.5a%20%2812340%29-4fafe3)](#سازگاری)
-[![Status](https://img.shields.io/badge/status-community%20beta-dd75dd)](#وضعیت-انتشار)
+[![Status](https://img.shields.io/badge/release-1.0.0-green)](#وضعیت-انتشار)
 [![Code license](https://img.shields.io/badge/code-MIT-green)](LICENSE)
 
 [دانلود](https://github.com/brok5522/Dejunk-WotLK/releases) · [English](README.md) · [گزارش ایراد](https://github.com/brok5522/Dejunk-WotLK/issues)
@@ -44,7 +44,7 @@ Retail و Wrath Classic کلاینت‌های دیگری هستند و هدف ا
 
 ## نصب
 
-1. فایل **`Dejunk-WotLK-0.16.60-beta.1.zip`** را از
+1. فایل **`Dejunk-WotLK-1.0.0.zip`** را از
    [بخش Releases](https://github.com/brok5522/Dejunk-WotLK/releases) دانلود کنید.
 2. بازی را کامل ببندید. برای به‌روزرسانی از SavedVariables در پوشهٔ `WTF` بکاپ
    بگیرید و پوشهٔ قدیمی افزونه را جایگزین کنید؛ فایل دو نسخه را روی هم نریزید.
@@ -103,7 +103,7 @@ Start Selling اجرای فروش را شروع می‌کند. رفتار خود
 
 ## وضعیت انتشار
 
-**0.16.60-beta.1 یک بستهٔ کاملِ قابل‌نصب برای تست عمومی است.** مالک پروژه عملکرد
+**1.0.0 اولین انتشار شماره‌دار با اصلاحات تأییدشده در کلاینت است.** مالک پروژه عملکرد
 بخش‌های اصلی رابط و محل دکمهٔ تاجر را داخل بازی موفق گزارش کرده است. تست‌های
 آفلاین با Lua 5.1، ذخیره‌سازی، UI، چرخهٔ عملیات و ساخت بسته اجرا می‌شوند.
 

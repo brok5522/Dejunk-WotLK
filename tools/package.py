@@ -25,7 +25,7 @@ def build(destination):
     entries = {path.relative_to(ROOT).as_posix(): path.read_bytes() for path in paths}
     entries['libs/Waffle-LICENSE.txt'] = (ROOT / 'libs/Waffle-LICENSE.txt').read_bytes()
     entries['README.txt'] = (
-        f'Dejunk-WotLK {version} - ORIGINAL WOTLK COMMUNITY BETA\n'
+        f'Dejunk-WotLK {version} - ORIGINAL WOTLK RELEASE\n'
         'Original WoW 3.3.5a / build 12340 / Interface 30300 only.\n'
         'Main UI/merchant checks have owner reports; full client parity is not yet accepted.\n'
         'Extract so Interface/AddOns/Dejunk-WotLK/Dejunk-WotLK.toc exists.\n'
