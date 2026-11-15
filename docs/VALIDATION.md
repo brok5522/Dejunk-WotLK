@@ -1,5 +1,14 @@
 # Validation and completion report
 
+## Localized openable fallback — 0.16.64-beta.1
+
+Added exact `ITEM_OPENABLE` matching through the existing recursion-guarded hidden
+tooltip scanner. Rechecks slot link/count and refreshes lock after tooltip hooks.
+French/color-format positive and generic/partial-text negative fixtures pass,
+alongside the full actual Lua 5.1 suite and reproducible packaging. This extends
+classification beyond IDs without labeling arbitrary Use effects as loot.
+Native-client acceptance and nonstandard custom spell-only effects remain unverified.
+
 ## Lootable reference review — 0.16.63-beta.1
 
 Pinned source uses `hasLoot` generically, without a clam list. The port preserves

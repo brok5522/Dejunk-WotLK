@@ -29,6 +29,12 @@ This extension is deliberately identity-based: a Use tooltip alone also describe
 food, potions, recipes and quest actions. Those must not become loot containers.
 Custom-server spell-based containers without the native loot flag are not
 automatically proven supported. No universal classification claim is made for them.
+Starting with 0.16.64, an exact localized `ITEM_OPENABLE` tooltip instruction also
+identifies unflagged containers. The stock English constant is defined in
+build-12340 GlobalStrings.lua:4486. Tooltip color codes/whitespace are normalized;
+partial matches and generic Use effects are excluded. The slot link/count and
+lock are read again after scanning. Spell-only custom items with neither the flag
+nor the standard instruction still require evidence.
 Both cache construction and transaction rereads share this adapter, so the
 recognized clam is not rejected at click time. Action dispatch still checks current
 identity/count, lock, cursor, settings and context.

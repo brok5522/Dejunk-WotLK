@@ -552,6 +552,21 @@ test("all WotLK clam identities and arbitrary flagged containers are lootable", 
     equal(w.mutations,0)
   end
 end)
+test("localized open instruction recognizes unflagged containers but not generic Use text", function()
+  for _,scenario in ipairs({
+    {line="|cff00ff00<Ouvrir avec clic droit>|r",expected=true},
+    {line="Utiliser : restaure la sante",expected=false},
+    {line="Prefix <Ouvrir avec clic droit> suffix",expected=false},
+  }) do
+    local w=H.New()
+    w.api.ITEM_OPENABLE="<Ouvrir avec clic droit>"
+    w.tooltipLines={scenario.line}
+    w:AddItem(0,1,{lootable=false})
+    w:Load():Ready()
+    equal(w.app:ProbeSlot(0,1).lootable,scenario.expected)
+    equal(w.mutations,0)
+  end
+end)
 test("auto lootable preference only controls its read-only frame", function()
   local w=H.New(); local item=w:AddItem(0,1,{lootable=true}); w:Load()
   local shown,hidden,latest

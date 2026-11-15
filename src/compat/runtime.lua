@@ -502,7 +502,7 @@ function Runtime.New(environment)
     local reads = {}
     for _, name in ipairs(Addon.Client.Required) do reads[name] = api[name] end
     for _, name in ipairs(Addon.Client.Optional) do reads[name] = api[name] end
-    for _, name in ipairs({ "ITEM_SOULBOUND", "ITEM_BIND_TO_ACCOUNT", "ITEM_BIND_ON_EQUIP", "ITEM_BIND_ON_USE",
+    for _, name in ipairs({ "ITEM_SOULBOUND", "ITEM_BIND_TO_ACCOUNT", "ITEM_BIND_ON_EQUIP", "ITEM_BIND_ON_USE", "ITEM_OPENABLE",
       "GetAuctionItemClasses", "GetAuctionItemSubClasses" }) do
       reads[name] = api[name]
     end
