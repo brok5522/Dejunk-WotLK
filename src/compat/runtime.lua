@@ -3557,7 +3557,9 @@ function Runtime.New(environment)
     if available==0 then return false end
     if not lootableFrame then
       lootableFrame=api.CreateFrame("Frame","DejunkWotLKLootableFrame",api.UIParent)
-      lootableFrame:SetFrameStrata("LOW"); lootableFrame:SetWidth(250); lootableFrame:SetHeight(250)
+      -- Main settings and its children also use LOW. A separate utility
+      -- window must be above that hierarchy, not only above its root level.
+      lootableFrame:SetFrameStrata("DIALOG"); lootableFrame:SetWidth(250); lootableFrame:SetHeight(250)
       setSavedPoint(lootableFrame,"lootableFrame"); lootableFrame:EnableMouse(true); lootableFrame:SetMovable(true)
       lootableFrame:RegisterForDrag("LeftButton")
       lootableFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)

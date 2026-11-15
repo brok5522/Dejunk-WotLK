@@ -423,8 +423,8 @@ assert(runtime:ToggleLootableFrame({count=1,items={{itemId=6948,name="Hearthston
   "read-only Lootable frame failed to open")
 local lootableWindow=namedFrame("DejunkWotLKLootableFrame")
 assert(lootableWindow and lootableWindow.shown and runtime:IsLootableFrameVisible(),"Lootable frame did not become visible")
-assert(lootableWindow.width==250 and lootableWindow.height==250 and lootableWindow.strata=="LOW",
-  "Lootable frame does not use the upstream dimensions or frame strata")
+assert(lootableWindow.width==250 and lootableWindow.height==250 and lootableWindow.strata=="DIALOG",
+  "Lootable frame must retain reference dimensions and stay above the main window")
 local ignoreIcon
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="Texture" and frame.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\eye-slash-icon" then ignoreIcon=frame end
