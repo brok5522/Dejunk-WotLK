@@ -3,6 +3,11 @@ local Legacy = {}
 Addon.Legacy = Legacy
 local UNKNOWN = Addon.UNKNOWN
 
+-- WotLK's Small Barnacled Clam is a use-effect item, not a container
+-- flagged by GetContainerItemInfo's sixth return. Keep this exception keyed
+-- by item identity, never by a localized name or a generic "Use:" tooltip.
+local useEffectLootItems = { [5523]=true }
+
 local function integer(value, minimum, maximum)
   return type(value) == "number" and value == math.floor(value) and
     value >= minimum and value <= maximum
@@ -139,6 +144,7 @@ function Legacy.New(api)
     item.state, item.reason = "OCCUPIED", nil
     item.itemId, item.link, item.count, item.texture = id, link, info[2], info[1]
     item.locked, item.readable, item.lootable = lockedState(info[3]), boolean(info[5]), boolean(info[6])
+    if useEffectLootItems[id] then item.lootable=true end
     if integer(info[4], 0, 7) then item.quality = info[4] end
     local metadata = read(api, "GetItemInfo", link)
     item.itemInfoShape = shape(metadata)

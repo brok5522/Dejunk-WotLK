@@ -38,6 +38,11 @@ ok=tx:AttemptSale({sessionId="test",intent=intent()}); eq(ok,false); eq(api.sale
 api.combat=false
 local repair=tx:ReadRepairContext("test",revision)
 ok=tx:AttemptRepair(repair); eq(ok,true); eq(api.repair,1)
+local originalCanRepair,originalRepairCost=api.CanMerchantRepair,api.GetRepairAllCost
+api.CanMerchantRepair=function() return 1 end
+api.GetRepairAllCost=function() return 20,1 end
+eq(tx:ReadRepairContext("test",revision).canRepair,true)
+api.CanMerchantRepair,api.GetRepairAllCost=originalCanRepair,originalRepairCost
 local loot=intent(); ok=tx:UseLootableItem(loot); eq(ok,true); eq(api.sale,2)
 local destroy=intent(); ok=tx:PickupContainerItem(destroy); eq(ok,true); eq(api.pickup,1)
 ok=tx:MatchesPickedUpItem(destroy); eq(ok,true)

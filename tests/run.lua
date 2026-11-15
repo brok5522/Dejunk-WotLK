@@ -532,6 +532,15 @@ test("lootable projection includes only positively flagged occupied bag slots", 
   snapshot.currentGeneration=9
   local invalid,reason=addon.LootableItems.Build(snapshot); equal(invalid,nil); equal(reason,"SNAPSHOT_INVALID")
 end)
+test("legacy use-effect clam is lootable without treating ordinary consumables as loot", function()
+  local w=H.New()
+  w:AddItem(0,1,{id=5523,link="|Hitem:5523:0|h[Small Barnacled Clam]|h",lootable=false})
+  w:AddItem(0,2,{id=117,link="|Hitem:117:0|h[Food]|h",lootable=false})
+  w:Load():Ready()
+  equal(w.app:ProbeSlot(0,1).lootable,true)
+  equal(w.app:ProbeSlot(0,2).lootable,false)
+  equal(w.mutations,0)
+end)
 test("auto lootable preference only controls its read-only frame", function()
   local w=H.New(); local item=w:AddItem(0,1,{lootable=true}); w:Load()
   local shown,hidden,latest

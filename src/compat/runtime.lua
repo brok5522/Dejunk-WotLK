@@ -80,7 +80,8 @@ function Transactions.New(api,readAdapter,getSettingsRevision)
     local canOk,canRepair=call(api,"CanMerchantRepair")
     local costOk,cost,repairAvailable=call(api,"GetRepairAllCost")
     local moneyOk,money=call(api,"GetMoney")
-    context.canRepair=canOk and canRepair==true and costOk and repairAvailable==true
+    context.canRepair=canOk and (canRepair==true or canRepair==1) and costOk and
+      (repairAvailable==true or repairAvailable==1)
     context.cost=costOk and type(cost)=="number" and cost or nil
     context.money=moneyOk and type(money)=="number" and money or nil
     return context
@@ -1143,13 +1144,20 @@ function Runtime.New(environment)
       keybindingFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
       keybindingFrame:SetScript("OnEvent",function() stopKeybindingListen() end)
     end
+    runtime:InitializeKeybindings(callbacks)
+    return keybindingFrame
+  end
+
+  function runtime:InitializeKeybindings(callbacks)
+    self.configCallbacks=callbacks or self.configCallbacks or {}
     for _,entry in ipairs(keybindingActions) do
+      if not keybindingActionButtons[entry.id] then
       local button=api.CreateFrame("Button","DejunkWotLKKeybindingAction_"..entry.id,api.UIParent)
       button:SetScript("OnClick",function() invokeKeybinding(entry.id) end)
       keybindingActionButtons[entry.id]=button
+      end
     end
     refreshKeybindingOverrides(callbacks)
-    return keybindingFrame
   end
 
   function runtime:ShowConfig(callbacks)
@@ -1223,7 +1231,9 @@ function Runtime.New(environment)
             defaultFrameFactory=function(parent) return api.CreateFrame("Frame",nil,parent) end,
             frameFactory=function()
               local panel=api.CreateFrame("Frame", "DejunkWotLK_MainWindow", api.UIParent)
-              panel:SetFrameStrata("HIGH"); panel:EnableMouse(true); panel:SetMovable(true)
+              -- Stock bag frames use MEDIUM. Keep the list window underneath
+              -- them so bag items remain accessible while editing lists.
+              panel:SetFrameStrata("LOW"); panel:EnableMouse(true); panel:SetMovable(true)
               registerEscapeWindow(panel,"DejunkWotLK_MainWindow")
               panel:SetScript("OnHide",function() mainWindowVisible=false end)
               panel:RegisterForDrag("LeftButton")
@@ -1351,7 +1361,7 @@ function Runtime.New(environment)
       if not configFrame then
         configFrame=api.CreateFrame("Frame",nil,api.UIParent)
         configFrame:SetWidth(500); configFrame:SetHeight(300); setSavedPoint(configFrame,"mainWindow")
-        configFrame:SetFrameStrata("HIGH"); configFrame:EnableMouse(true); configFrame:SetMovable(true)
+        configFrame:SetFrameStrata("LOW"); configFrame:EnableMouse(true); configFrame:SetMovable(true)
         configFrame:RegisterForDrag("LeftButton")
         configFrame:SetScript("OnDragStart",function(self) if self.StartMoving then self:StartMoving() end end)
         configFrame:SetScript("OnDragStop",function(self) if self.StopMovingOrSizing then self:StopMovingOrSizing() end; saveCurrentPoint(self,"mainWindow") end)

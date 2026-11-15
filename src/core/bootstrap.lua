@@ -322,6 +322,7 @@ function Addon.NewApplication(runtime)
         function() return Addon.Config.GetGlobalOptions(app.store) end)
       app.cache:Start()
       if app.attachActions then app:attachActions() end
+      if runtime.InitializeKeybindings then runtime:InitializeKeybindings(app:BuildConfigCallbacks()) end
       runtime:RegisterBagTooltips(function(bag,slot) return app:GetSlotDecisions(bag,slot) end)
       runtime:RegisterBagIcons(function(bag,slot)
         local item=app:ProbeSlot(bag,slot)
