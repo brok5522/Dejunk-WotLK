@@ -49,7 +49,7 @@ local tx=a.Transactions.New(api,reads,function() return revision end)
 api.combat=1;assert(not tx:AttemptSale({intent=item}));api.combat=false
 api.dead=1;assert(not tx:AttemptSale({intent=item}));api.dead=false;assert(api.calls==0)
 for _,field in ipairs({"quest","inEquipmentSet"}) do
-  slot[field]=true;local intent=a.Copy(slot)
+  slot[field]=true;local intent=tx:ReadItem(0,1)
   assert(tx:AttemptSale({intent=intent}));slot[field]=false
 end
 assert(api.calls==2)

@@ -1388,6 +1388,18 @@ assert(queries==50,"next metadata tick did not advance the bounded queue")
 listsWindow.scripts.OnUpdate(listsWindow,29.9)
 assert(listsWindow.scripts.OnUpdate==nil,"uncached item metadata polling did not time out")
 assert(not listPanes["global:inclusions"].spinner.shown,"list loading indicator stayed active after metadata timeout")
+-- A page refresh after timeout must not restart a spinner without a timer.
+runtime:ShowLists({listItems=function(scope,kind)
+  return scope=="global" and kind=="inclusions" and table.concat(ids,"\n") or ""
+end})
+assert(not listPanes["global:inclusions"].spinner.shown and listsWindow.scripts.OnUpdate==nil,
+  "refresh restarted a loading spinner after timeout")
+local fallbackFound=false
+for _,f in ipairs(uiFrames) do
+  if f.text and f.text:find("Item #1001",1,true) then fallbackFound=true end
+end
+assert(fallbackFound,"unresolved item omitted its identifying ID")
+
 
 print("UI INTERACTION RESULT: options, keybindings, item windows, list transport, metadata polling and report navigation passed")
 

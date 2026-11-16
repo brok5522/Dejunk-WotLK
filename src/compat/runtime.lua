@@ -25,6 +25,17 @@ local function sameItem(current,expected)
     current.link==expected.link and current.count==expected.count and current.locked==false
 end
 
+-- The decision is evaluated before the adapter re-reads the slot. Reject a
+-- changed rule input rather than dispatching a decision for older metadata.
+local function sameRuleInputs(current,expected)
+  for _,field in ipairs({"metadata","quality","itemLevel","itemType","itemSubType",
+    "equipLoc","classId","subclassId","unitVendorPrice","bound","quest",
+    "refundable","inEquipmentSet"}) do
+    if current[field]~=expected[field] then return false end
+  end
+  return true
+end
+
 local function safeNonCursorContext(api)
   local ok,combat=call(api,"InCombatLockdown")
   if not ok or (combat~=nil and combat~=false and combat~=0) then return false,"IN_COMBAT" end
@@ -102,7 +113,7 @@ function Transactions.New(api,readAdapter,getSettingsRevision)
     local intent=type(token)=="table" and token.intent
     if type(intent)~="table" then return false,"INVALID_INTENT" end
     local current,reason=self:ReadItem(intent.bag,intent.slot)
-    if not sameItem(current,intent) or current.refundable~=false or type(current.quest)~="boolean" or
+    if not sameItem(current,intent) or not sameRuleInputs(current,intent) or current.refundable~=false or type(current.quest)~="boolean" or
         type(current.inEquipmentSet)~="boolean" or current.quest~=intent.quest or
         current.inEquipmentSet~=intent.inEquipmentSet or type(current.unitVendorPrice)~="number" or current.unitVendorPrice<=0 then
       return false,reason or "STALE_OR_PROTECTED_ITEM"
@@ -129,7 +140,7 @@ function Transactions.New(api,readAdapter,getSettingsRevision)
   function adapter:PickupContainerItem(item)
     local current,reason=self:ReadItem(item.bag,item.slot)
     local context=self:ReadContext(item.sessionId,item.settingsRevision)
-    if not sameItem(current,item) or context.safeContext~=true or context.cursorEmpty~=true or
+    if not sameItem(current,item) or not sameRuleInputs(current,item) or context.safeContext~=true or context.cursorEmpty~=true or
         context.inCombat~=false or context.currentSettingsRevision~=item.settingsRevision then
       return false,reason or "UNSAFE_DESTROY_CONTEXT"
     end
@@ -2094,7 +2105,7 @@ function Runtime.New(environment)
           local presentation=itemPresentationCache[item.id]
           if not (presentation and presentation.name) then paneMetadataPending=true; break end
         end
-        if paneMetadataPending then pane.frame.spinner:Show() else pane.frame.spinner:Hide() end
+        if paneMetadataPending and metadataPending and listMetadataAge<30 then pane.frame.spinner:Show() else pane.frame.spinner:Hide() end
         pane.content:SetHeight(math.max(196,total*28))
         pane.updateThumb()
         for rowIndex=1,total do if not pane.rows[rowIndex] then pane.createRow(rowIndex) end end
@@ -2102,7 +2113,7 @@ function Runtime.New(environment)
           local item=filtered[index]
           if item then
             local presentation=itemPresentationCache[item.id] or {}
-            row.itemId=item.id; row.label:SetText("["..(presentation.name or item.name or "Item").."]")
+            row.itemId=item.id; row.label:SetText("["..(presentation.name or item.name or ("Item #"..tostring(item.id))).."]")
             if presentation.texture then row.icon:SetTexture(presentation.texture); row.icon:Show() else row.icon:Hide() end
             local listQualityColors={[0]={157/255,157/255,157/255},[1]={1,1,1},[2]={30/255,1,0},
               [3]={0,112/255,221/255},[4]={163/255,53/255,238/255}}

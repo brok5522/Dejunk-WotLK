@@ -31,6 +31,16 @@ end
 
 local token={sessionId="test",intent=intent()}
 local ok=tx:AttemptSale(token); eq(ok,true); eq(api.sale,1)
+-- A second read may change a rule input without changing link, count or slot.
+for _,change in ipairs({{field="unitVendorPrice",value=500},{field="quality",value=4},
+    {field="itemLevel",value=100},{field="quest",value=true},{field="refundable",value=true},
+    {field="inEquipmentSet",value=true}}) do
+  local before=intent(); slot[change.field]=change.value
+  assert(not tx:AttemptSale({sessionId="test",intent=before}),"sale accepted changed "..change.field)
+  assert(not tx:PickupContainerItem(before),"destroy pickup accepted changed "..change.field)
+  slot[change.field]=item[change.field]
+end
+assert(api.sale==1 and api.pickup==0)
 api.cursor=999
 ok=tx:AttemptSale({sessionId="test",intent=intent()}); eq(ok,false); eq(api.sale,1)
 api.cursor=nil; api.combat=true
