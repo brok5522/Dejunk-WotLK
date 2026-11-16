@@ -111,6 +111,7 @@ saleWorld:Tick(0.2)
 assert(#attempts==12 and not app.saleRun,"settings changes did not cancel a pending sale")
 assert(app.store:SetGlobalOption("safeSell",true))
 local failedDispatches=0
+saleWorld:Tick(6) -- Previous successful dispatch mocks left slots unchanged: expire their confirmations.
 app.transactions.AttemptSale=function() failedDispatches=failedDispatches+1; return false,"API_FAILED",true end
 assert(app.runtime.itemActionHandlers.startSelling())
 for _=1,30 do saleWorld:Tick(0.1) end
@@ -155,3 +156,37 @@ assert(repairWorld.app.store:SetOption("autoRepair",true))
 repairWorld:Fire("MERCHANT_SHOW"); repairWorld:Tick(0.2)
 assert(repairs==1 and repairWorld.mutations==0)
 print("PASS: delayed auto repair follows the current merchant session and preference")
+
+local observedWorld=H.New():Load();observedWorld:AddItem(0,1);observedWorld:Ready()
+local observedApp=observedWorld.app
+observedApp.transactions.AttemptSale=function() return true end -- dispatch is not proof of sale
+observedWorld:Fire("MERCHANT_SHOW")
+local function messageContains(fragment)
+  for _,message in ipairs(observedWorld.messages) do if message:find(fragment,1,true) then return true end end
+  return false
+end
+local function sellObserved()
+  return observedApp.runtime.itemActionHandlers.sellItem(observedApp:ProbeSlot(0,1))
+end
+assert(sellObserved())
+assert(not messageContains("Sold:"),"dispatch was reported as confirmed")
+assert(not sellObserved(),"pending slot was dispatched twice")
+observedWorld:Tick(5.1)
+assert(messageContains("Sale could not be confirmed:"))
+observedWorld.messages={}
+assert(sellObserved());observedWorld:Fire("ITEM_UNLOCKED",0,1)
+assert(messageContains("Failed to sell:"));observedWorld:Tick(6)
+assert(not messageContains("Sale could not be confirmed:"),"failed sale retained its timeout")
+observedWorld.messages={}
+assert(sellObserved());observedWorld.slots["0:1"]=nil;observedWorld:Tick(0.2)
+assert(messageContains("Sold:"));assert(not next(observedApp.pendingSales))
+observedWorld:Tick(6);assert(not messageContains("Sale could not be confirmed:"))
+observedWorld.messages={}
+observedWorld:AddItem(0,1);observedWorld:Fire("BAG_UPDATE",0);observedWorld:Tick(0.2)
+assert(observedApp.runtime.itemActionHandlers.startSelling());observedWorld:Tick(0.2)
+observedWorld.slots["0:1"]=nil;observedWorld:Fire("BAG_UPDATE",0)
+for _=1,5 do observedWorld:Tick(0.2) end
+assert(messageContains("Items sold: 1 | Vendor value: 15 copper"),"confirmed run was not summarized")
+assert(not observedApp.saleRun and not next(observedApp.pendingSales))
+assert(observedWorld.mutations==0)
+print("PASS: production sale observation distinguishes dispatch, timeout, unlock failure and disappearance")

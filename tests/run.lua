@@ -85,16 +85,16 @@ test("tuple normalization and zero price stay numeric", function()
   w.slots["0:1"].price = 0
   equal(w.app.adapter:ReadSlot(0, 1).unitVendorPrice, 0)
 end)
-test("legacy item categories map through Auction class and subclass names", function()
+test("legacy item categories use canonical IDs, not auction positions", function()
   local w=populated():Ready()
   w.slots["0:1"].itemType="Armor"; w.slots["0:1"].itemSubType="Cloth"
   local item=w.addon.Legacy.New(w.api):ReadSlot(0,1,{known=false,ids={}})
   equal(item.classId,4); equal(item.subclassId,1)
   w.slots["0:1"].itemType="Weapon"; w.slots["0:1"].itemSubType="Fishing Poles"
   item=w.addon.Legacy.New(w.api):ReadSlot(0,1,{known=false,ids={}})
-  equal(item.classId,2); equal(item.subclassId,10)
+  equal(item.classId,2); equal(item.subclassId,20)
 end)
-test("legacy category mapping stays unknown when Auction APIs are missing or labels do not match", function()
+test("legacy category mapping recognizes known labels without auction APIs", function()
   local w=populated():Ready()
   w.slots["0:1"].itemType="Armor"; w.slots["0:1"].itemSubType="Unrecognized locale label"
   local api={}; for key,value in pairs(w.api) do api[key]=value end
@@ -102,6 +102,7 @@ test("legacy category mapping stays unknown when Auction APIs are missing or lab
   local item=w.addon.Legacy.New(api):ReadSlot(0,1,{known=false,ids={}})
   equal(item.classId,4); equal(item.subclassId,nil)
   api.GetAuctionItemClasses=nil
+  w.slots["0:1"].itemType="Unrecognized class"
   item=w.addon.Legacy.New(api):ReadSlot(0,1,{known=false,ids={}})
   equal(item.classId,nil); equal(item.subclassId,nil)
 end)
@@ -184,8 +185,8 @@ test("empty equipment set collection is known negative", function()
   local w = populated():Ready()
   equal(w.app.cache:GetSnapshot().items["0:1"].inEquipmentSet, false)
 end)
-test("localized binding probe is opt-in and tri-state", function()
-  local w = populated():Ready(); equal(w.tooltipReads, 0)
+test("localized binding is cached and explicit probes remain tri-state", function()
+  local w = populated():Ready(); assert(w.tooltipReads>0)
   w.tooltipLines = { "item", w.api.ITEM_BIND_ON_EQUIP }
   equal(w.app:ProbeSlot(0, 1).bound, false)
   w.tooltipLines = { "item", w.api.ITEM_SOULBOUND }
@@ -197,11 +198,7 @@ test("localized binding probe is opt-in and tri-state", function()
 end)
 test("changed slot during tooltip probe is marked stale", function()
   local w = populated():Ready()
-  w.api.CreateFrame = function(kind)
-    if kind ~= "GameTooltip" then error("unexpected UI") end
-    return { SetOwner = function() end, ClearLines = function() end, Hide = function() end,
-      SetBagItem = function() w.slots["0:1"].count = 9 end, NumLines = function() return 0 end }
-  end
+  w.app.adapter.ReadBinding=function() w.slots["0:1"].count=9; return true end
   equal(w.app:ProbeSlot(0, 1).reason, "PROBE_CHANGED")
 end)
 test("bag event immediately invalidates old snapshots", function()
@@ -412,7 +409,7 @@ test("rule filters follow upstream optional protection and action scope", functi
   equal(rules.Evaluate(ruleItem({equipLoc="INVTYPE_HEAD",bound=false}),"DESTROY",{profile={options={excludeUnboundEquipment=unbound}}}).reasonCode,"UNBOUND_EQUIPMENT")
   equal(rules.Evaluate(ruleItem({equipLoc="INVTYPE_HEAD",bound=false}),"SELL",{profile={options={excludeUnboundEquipment=unbound}}}).reasonCode,"NO_RULE_MATCH")
   equal(rules.Evaluate(ruleItem({classId=12,quest=true,equipLoc="INVTYPE_HEAD",bound=false}),"SELL",
-    {profile={options={excludeUnboundEquipment=true,excludeQuestItems=true}}}).reasonCode,"UNBOUND_EQUIPMENT")
+    {profile={options={excludeUnboundEquipment=true,excludeQuestItems=true}}}).reasonCode,"QUEST_ITEM")
 end)
 test("rule precedence matches upstream profile and global list order", function()
   local rules=populated():Ready().addon.Rules

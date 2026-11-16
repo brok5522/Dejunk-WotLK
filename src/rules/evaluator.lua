@@ -15,9 +15,17 @@ local function selectedQuality(option, quality)
   return name~=nil and type(option.qualities)=="table" and option.qualities[name]==true
 end
 local function isEquipment(item)
-  return type(item.equipLoc)=="string" and item.equipLoc~=""
+  if type(item.equipLoc)~="string" or item.equipLoc=="" then return false end
+  if item.classId==4 then
+    if item.equipLoc=="INVTYPE_FINGER" or item.equipLoc=="INVTYPE_NECK" or
+        item.equipLoc=="INVTYPE_TRINKET" or item.equipLoc=="INVTYPE_HOLDABLE" then return true end
+    return item.subclassId~=0 and item.subclassId~=5
+  end
+  if item.classId==2 then return item.subclassId~=14 and item.subclassId~=20 end
+  return item.classId==nil
 end
 local function equipmentTypeSelected(item, option)
+  if item.equipLoc=="INVTYPE_CLOAK" then return false end
   if not isEquipment(item) then return false end
   if type(item.classId)~="number" then return nil end
   if item.classId==4 then

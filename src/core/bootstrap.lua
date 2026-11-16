@@ -27,9 +27,17 @@ if type(Addon.Rules) ~= "table" or type(Addon.Rules.Evaluate) ~= "function" then
     return names[quality]~=nil and type(option.qualities)=="table" and option.qualities[names[quality]]==true
   end
   local function equipment(item)
-    return type(item.equipLoc)=="string" and item.equipLoc~=""
+    if type(item.equipLoc)~="string" or item.equipLoc=="" then return false end
+    if item.classId==4 then
+      if item.equipLoc=="INVTYPE_FINGER" or item.equipLoc=="INVTYPE_NECK" or
+          item.equipLoc=="INVTYPE_TRINKET" or item.equipLoc=="INVTYPE_HOLDABLE" then return true end
+      return item.subclassId~=0 and item.subclassId~=5
+    end
+    if item.classId==2 then return item.subclassId~=14 and item.subclassId~=20 end
+    return item.classId==nil
   end
   local function selectedEquipmentType(item,option)
+    if item.equipLoc=="INVTYPE_CLOAK" then return false end
     if not equipment(item) then return false end
     if type(item.classId)~="number" then return nil end
     if item.classId==4 then
@@ -335,7 +343,7 @@ function Addon.NewApplication(runtime)
         local registered=runtime:RegisterOptionsCategory(function(screen) app:OpenConfig(screen) end)
         app.optionsCategoryRegistered=registered==true
       end
-      runtime:Print("Development compatibility port ready. Previews are read-only; /djw help lists commands.")
+      runtime:Print("Dejunk ready. /djw help lists commands.")
     end
   end
   function app:HandleEvent(event, ...)
@@ -344,7 +352,7 @@ function Addon.NewApplication(runtime)
     if event == "ADDON_LOADED" then
       if (...) == Addon.name then
         self.loaded = true
-        if type(DejunkWotLKDB) == "table" and DejunkWotLKDB.schemaVersion and
+        if type(DejunkWotLKDB) == "table" and type(DejunkWotLKDB.schemaVersion)=="number" and
             DejunkWotLKDB.schemaVersion > Addon.Store.VERSION then
           self.store = Addon.Store.Initialize(DejunkWotLKDB, nil)
         else
@@ -355,6 +363,9 @@ function Addon.NewApplication(runtime)
               self.bus:Emit("StateUpdated",Addon.Copy(state))
             end)
             DejunkWotLKDB = self.store:Serialize()
+            if self.store.mode=="recovered-lists" then
+              runtime:ForcePrint("Saved lists contained invalid entries. Valid item IDs were retained; original data is preserved in recovery.")
+            end
           end
         end
         self.bus:Emit("StateUpdated",self.store:GetState())
@@ -515,7 +526,7 @@ function Addon.NewApplication(runtime)
     local command, rest = input:match("^%s*(%S*)%s*(.-)%s*$")
     command = command:lower()
     if command == "" or command == "status" then
-      runtime:Print(self.state .. " / " .. self.client.reason .. ". Read only; /djw help.")
+      runtime:Print(self.state .. " / " .. self.client.reason .. ". /djw help.")
     elseif command == "profile" then
       if not self.store then runtime:Print("Profile store unavailable."); return end
       local action, args = rest:match("^(%S*)%s*(.-)%s*$"); action = (action or ""):lower()
@@ -597,12 +608,12 @@ function Addon.NewApplication(runtime)
         for _,profile in ipairs(profiles or {}) do runtime:Print((profile.active and "* " or "  ")..profile.id.." — "..profile.name) end
       else runtime:Print("Use /djw profiles list | create <name> | switch <id>") end
     elseif command == "help" then
-      runtime:Print("Dejunk commands:")
-      runtime:Print("/dejunk or /dejunk options — open settings; /dejunk profiles — open Profiles.")
-      runtime:Print("/dejunk sell — start selling; /dejunk destroy — destroy next item.")
-      runtime:Print("/dejunk junk — toggle Junk Items; /dejunk loot — toggle Lootable Items.")
-      runtime:Print("Sale, repair, loot and destroy actions use guarded legacy APIs; client acceptance is pending.")
-      runtime:Print("Development diagnostics: /djw status | /djw preview sell|destroy | /djw slot <bag> <slot> | /djw report.")
+      runtime:ForcePrint("Dejunk commands:")
+      runtime:ForcePrint("/dejunk or /dejunk options — open settings; /dejunk profiles — open Profiles.")
+      runtime:ForcePrint("/dejunk sell — start selling; /dejunk destroy — destroy next item.")
+      runtime:ForcePrint("/dejunk junk — toggle Junk Items; /dejunk loot — toggle Lootable Items.")
+      runtime:ForcePrint("Sale, repair, loot and destroy actions use guarded legacy APIs.")
+      runtime:ForcePrint("Diagnostics: /djw status | /djw preview sell|destroy | /djw slot <bag> <slot> | /djw report.")
     elseif command == "report" then
       runtime:ShowReport(self.diagnostics:Report(self))
     elseif command == "preview" then
@@ -666,6 +677,50 @@ function Addon.NewApplication(runtime)
     end
     self.actionsAttached=true
     self.transactions=transactionAdapter
+    self.pendingSales={}
+    local function summarize(run)
+      if run and run.closed and run.pending==0 and not run.reported then
+        run.reported=true
+        if run.sold>0 then runtime:Print("Items sold: "..run.sold.." | Vendor value: "..run.value.." copper") end
+      end
+    end
+    local function resolveSale(entry,status)
+      if self.pendingSales[entry.key]~=entry then return end
+      self.pendingSales[entry.key]=nil
+      if entry.timer then entry.timer:Cancel() end
+      local label=entry.item.link or entry.item.name or tostring(entry.item.itemId)
+      local run=entry.run
+      if run then run.pending=run.pending-1 end
+      if status=="sold" then
+        if run then
+          run.sold=run.sold+1;run.value=run.value+(entry.item.unitVendorPrice or 0)*entry.item.count
+          runtime:PrintVerbose("Sold: "..label)
+        else runtime:Print("Sold: "..label) end
+      elseif status=="failed" then runtime:Print("Failed to sell: "..label)
+      else runtime:Print("Sale could not be confirmed: "..label) end
+      summarize(run)
+    end
+    local function trackSale(item,run)
+      local key=item.bag..":"..item.slot
+      local entry={key=key,item=Addon.Copy(item),run=run,started=self.scheduler.now}
+      self.pendingSales[key]=entry
+      if run then run.pending=run.pending+1 end
+      local function observe()
+        if self.pendingSales[key]~=entry then return end
+        local current=self.transactions:ReadSaleIdentity(item.bag,item.slot)
+        if current and (current.state=="EMPTY" or
+            (current.state=="OCCUPIED" and current.itemId~=item.itemId)) then
+          return resolveSale(entry,"sold")
+        end
+        if self.scheduler.now-entry.started>=5 then return resolveSale(entry,"timeout") end
+        entry.timer=self.scheduler:After(0.1,observe)
+      end
+      entry.timer=self.scheduler:After(0.1,observe)
+    end
+    self.bus:On("ITEM_UNLOCKED",function(bag,slot)
+      local entry=self.pendingSales[tostring(bag)..":"..tostring(slot)]
+      if entry then resolveSale(entry,"failed") end
+    end)
     runtime.configCallbacks=runtime.configCallbacks or self:BuildConfigCallbacks()
     local function readCurrent(item)
       local current=self.transactions:ReadItem(item.bag,item.slot)
@@ -674,13 +729,17 @@ function Addon.NewApplication(runtime)
     end
     local function sell(item)
       if not atMerchant then return false,"MERCHANT_UNAVAILABLE" end
+      if self.pendingSales[item.bag..":"..item.slot] then return false,"SALE_PENDING" end
       local current=readCurrent(item)
       if not current or current.itemId~=item.itemId or current.link~=item.link or current.count~=item.count then return false,"STALE_ITEM" end
       current.settingsRevision=self.store:GetRevision()
       local decision=Addon.Rules.Evaluate(current,"SELL",{profile=self.store:GetActiveProfile(),global=self.store:GetState().global})
       if decision.result~="JUNK" then return false,"NOT_ELIGIBLE" end
       local ok,reason,attempted=self.transactions:AttemptSale({intent=current,sessionId="merchant-"..tostring(merchantSession)})
-      if ok then self.cache:Invalidate("SELL_ATTEMPT") end
+      if ok then
+        self.cache:Invalidate("SELL_ATTEMPT")
+        trackSale(current,self.saleRun)
+      end
       return ok,reason,attempted
     end
     local function destroy(item)
@@ -729,14 +788,16 @@ function Addon.NewApplication(runtime)
         if not atMerchant then return false,"MERCHANT_UNAVAILABLE" end
         if self.saleRun then return false,"BUSY" end
         local attempts,seen=0,{}
-        local run={session=merchantSession,revision=self.store:GetRevision(),waitSince=self.scheduler.now}
+        local run={session=merchantSession,revision=self.store:GetRevision(),waitSince=self.scheduler.now,pending=0,sold=0,value=0}
         self.saleRun=run
         local function finish()
           if self.saleRun==run then
             self.saleRun=nil; self.saleTimer=nil
+            run.closed=true;summarize(run)
             if runtime.SetItemActionsBusy then runtime:SetItemActionsBusy(false) end
           end
         end
+        self.finishSaleRun=finish
         if runtime.SetItemActionsBusy then runtime:SetItemActionsBusy(true) end
         local function nextSale()
           self.saleTimer=nil
@@ -784,12 +845,13 @@ function Addon.NewApplication(runtime)
   end
   local function updateAutoJunkFrame(snapshot)
     local global=app.store and app.store:GetState().global or {}
-    if not atMerchant or not global.autoJunkFrame or not snapshot or
+    if not atMerchant or not global.autoJunkFrame then junkFrameAutoShown=false; return end
+    if not snapshot or
         snapshot.valid~=true or snapshot.generation~=snapshot.currentGeneration then return end
     local profile=app.store and app.store:GetActiveProfile() or {}
     local items=Addon.JunkItems.Build(snapshot,{profile=profile,global=global,protectUnboundEquipment=true})
     if #items.items>0 then
-      if not runtime:IsJunkFrameVisible() then
+      if not junkFrameAutoShown and not runtime:IsJunkFrameVisible() then
         runtime:ShowJunkFrame(items)
         junkFrameAutoShown=true
       end
@@ -827,6 +889,7 @@ function Addon.NewApplication(runtime)
   app.bus:On("MERCHANT_CLOSED",function()
     atMerchant=false
     if app.saleTimer then app.saleTimer:Cancel(); app.saleTimer=nil end
+    if app.finishSaleRun then app.finishSaleRun() end
     app.saleRun=nil
     if runtime.SetItemActionsBusy then runtime:SetItemActionsBusy(false) end
     local global=app.store and app.store:GetState().global or {}
@@ -838,6 +901,7 @@ function Addon.NewApplication(runtime)
     local vendorRefusal=runtime.api and runtime.api.ERR_VENDOR_DOESNT_BUY
     if vendorRefusal and message==vendorRefusal and app.saleTimer then
       app.saleTimer:Cancel(); app.saleTimer=nil
+      if app.finishSaleRun then app.finishSaleRun() end
       app.saleRun=nil
       if runtime.SetItemActionsBusy then runtime:SetItemActionsBusy(false) end
       runtime:Print("Selling stopped: the merchant cannot buy this item.")

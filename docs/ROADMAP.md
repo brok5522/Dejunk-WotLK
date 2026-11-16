@@ -6,12 +6,12 @@ build 12340, Interface 30300 and Lua 5.1. The target is upstream behavior and UI
 parity, with legacy API substitutions only. New settings, generalized rule
 languages, alternate screen flows and other redesigns are out of scope.
 
-The current branch is **not release-ready**. It has a compatibility foundation,
-storage/evaluation, port-built settings/list screens and user-observed previews.
-Seller, repair, loot and confirmed destroy now route through an isolated legacy
-transaction adapter, with mocked safety coverage. The original client is not
-available in this environment, so live acceptance and visual parity remain
-unverified; the Waffle engine alone does not constitute the original UI port.
+Status (2026-11-16): **1.0.1 is the audit-fix release** and includes owner-tested fixes for
+bags, startup keybindings, auto repair, Lootable layering and merchant placement.
+This release contains additional audit fixes. See
+[fix status](FIXES-REVIEW-1.0.0.md) for implemented changes and remaining gaps.
+Offline Lua 5.1 tests cover the changed paths; a new original-client acceptance
+run has not been performed. Published status does not imply exact upstream parity.
 
 The detailed source comparison is maintained in [PARITY.md](PARITY.md). That
 matrix is the current acceptance checklist; do not treat a saved option or a

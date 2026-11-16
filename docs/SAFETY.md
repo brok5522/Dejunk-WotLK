@@ -7,6 +7,14 @@ dispatch. Sale, repair, loot and destroy integrations are connected but still
 require acceptance testing in the original client; offline fakes do not prove
 live-client behavior.
 
+Audit fixes (2026-11-16): legacy numeric combat/death flags block dispatch;
+settings revision is checked after pickup as well as before it. Sale dispatch
+requires known quest/set states identical to the rule-approved intent instead
+of overriding configured eligibility with unconditional exclusions. Binding
+reads in the cache revalidate slot identity. Sale confirmations use read-only
+slot identity polls, unlock failure and a five-second timeout; dispatch alone
+never counts as a confirmed sale. See [fix status](FIXES-REVIEW-1.0.0.md).
+
 ## Mandatory gates before any sale or deletion
 - Restrict scope to carried bags 0..4; exclude bank, equipped inventory, keyring,
   mail, trade and auction containers. Reject invalid coordinates.

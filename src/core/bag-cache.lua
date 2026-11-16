@@ -46,6 +46,15 @@ function Addon.NewBagCache(adapter, scheduler, bus)
       else
         for slot = 1, size do
           local item = adapter:ReadSlot(bag, slot, sets)
+          if item.state=="OCCUPIED" and item.equipLoc and item.equipLoc~="" and type(adapter.ReadBinding)=="function" then
+            local bound=adapter:ReadBinding(bag,slot)
+            local after=adapter:ReadSlot(bag,slot,sets)
+            if item.link==after.link and item.count==after.count and item.locked==after.locked and after.state=="OCCUPIED" then
+              item.bound=bound
+            else
+              item.state,item.reason="UNKNOWN","PROBE_CHANGED"
+            end
+          end
           item.bagGeneration = generation
           nextSnapshot.items[bag .. ":" .. slot] = item
           if item.state == "OCCUPIED" then

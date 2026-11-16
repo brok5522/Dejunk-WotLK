@@ -878,14 +878,16 @@ assert(globalInclusionRow.accent.texture=="Interface\\Buttons\\WHITE8x8",
   "Lists item quality stripe has no visible texture")
 ui.shiftDown=true; globalInclusionRow:Click("RightButton"); ui.shiftDown=false
 assert(listStore:ExportList("global","exclusions")=="6948")
+assert(not listStore:GetState().global.inclusions[6948],"Shift did not reconcile opposite membership")
+assert(listStore:EditList("global","inclusions",6948,true));runtime:ShowLists(listCallbacks)
 ui.controlDown=true; listRow("global","inclusions",6948):Click("RightButton"); ui.controlDown=false
 assert(listStore:ExportList("profile","exclusions")=="6948")
 ui.altDown=true; listRow("global","inclusions",6948):Click("RightButton"); ui.altDown=false
 assert(listStore:ExportList("profile","inclusions")=="6948")
 listRow("global","inclusions",6948):Click("RightButton")
 assert(listStore:ExportList("global","inclusions")=="123\n456\n6949")
-assert(listStore:EditList("global","exclusions",6948,false))
-assert(listStore:EditList("profile","exclusions",6948,false))
+assert(not listStore:GetState().global.exclusions[6948])
+assert(not listStore:GetActiveProfile().exclusions[6948])
 assert(listStore:EditList("profile","inclusions",6948,false))
 
 runtime:ShowConfig({
@@ -1143,19 +1145,11 @@ local thresholdEdit
 for _,frame in ipairs(uiFrames) do if frame.kind=="EditBox" and frame.parent==optionsPage.contentFrame and frame.thresholdKey=="includeBelowItemLevel" then thresholdEdit=frame; break end end
 assert(thresholdEdit,"profile threshold editor was not created")
 thresholdEdit:SetText("60")
-local applyThreshold,afterEditor
-for _,frame in ipairs(uiFrames) do
-  if frame==thresholdEdit then afterEditor=true
-  elseif afterEditor and frame.kind=="Button" and frame.text=="Apply" and frame.parent==optionsPage.contentFrame then applyThreshold=frame; break end
-end
-assert(applyThreshold,"profile threshold Apply control was not created")
-assert(applyThreshold.template==nil,"profile Apply still uses the red Blizzard button template")
-applyThreshold:Click()
+thresholdEdit.scripts.OnEnterPressed(thresholdEdit)
 assert(optionState.includeBelowItemLevel.enabled and optionState.includeBelowItemLevel.value==60,"minimum item level did not persist through the UI")
-local minimumScope,afterApply
+local minimumScope
 for _,frame in ipairs(uiFrames) do
-  if frame==applyThreshold then afterApply=true
-  elseif afterApply and frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.scopeKey=="includeBelowItemLevel" and frame.scopeValue=="SELL" then minimumScope=frame; break end
+  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.scopeKey=="includeBelowItemLevel" and frame.scopeValue=="SELL" then minimumScope=frame; break end
 end
 assert(minimumScope,"threshold scope control was not created")
 minimumScope.labelHit:Click()
@@ -1212,14 +1206,8 @@ for _,frame in ipairs(uiFrames) do
   if frame.kind=="EditBox" and frame.parent==optionsPage.contentFrame and frame.thresholdKey=="includeBelowPrice" and frame.thresholdPart==1 then frame:SetText("1") end
   if frame.kind=="EditBox" and frame.parent==optionsPage.contentFrame and frame.thresholdKey=="includeBelowPrice" and frame.thresholdPart==2 then frame:SetText("2") end
 end
-local applyPrice,afterPriceEdit
-for _,frame in ipairs(uiFrames) do
-  if frame==priceEdit then afterPriceEdit=true
-  elseif afterPriceEdit and frame.kind=="Button" and frame.text=="Apply" and frame.parent==optionsPage.contentFrame then applyPrice=frame; break end
-end
-assert(applyPrice,"minimum stack price Apply control was not created")
-applyPrice:Click()
-assert(optionState.includeBelowPrice.enabled and optionState.includeBelowPrice.value==10203,"minimum stack price did not persist through UI")
+priceEdit.scripts.OnEnterPressed(priceEdit)
+assert(optionState.includeBelowPrice.value==10203,"minimum stack price did not persist through UI")
 local includeTypes
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionLabel=="Include by equipment type" then includeTypes=frame; break end
@@ -1234,12 +1222,12 @@ end
 assert(clothType,"localized Armor subclass controls were not built from the 3.3.5 API")
 clothType:Click()
 assert(optionState.includeByEquipmentType.armor[1]==true,"Armor subclass selection did not persist")
-local fishingPoles
+local staffType
 for _,frame in ipairs(uiFrames) do
-  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionLabel=="Fishing Poles" then fishingPoles=frame; break end
+  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionLabel=="Staves" then staffType=frame; break end
 end
-assert(fishingPoles,"localized weapon subclass controls were not built from the 3.3.5 API")
-fishingPoles:Click()
+assert(staffType,"localized weapon subclass controls were not built from the 3.3.5 API")
+staffType:Click()
 assert(optionState.includeByEquipmentType.weapons[10]==true,"weapon subclass selection did not persist")
 control("CheckButton","Include by quality"):Click()
 assert(optionState.includeByQuality.enabled==false and optionState.includeByQuality.qualities.poor==true,"quality rule toggle did not preserve the quality selection")
@@ -1372,26 +1360,26 @@ for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.scopeKey=="includeBelowItemLevel" and frame.scopeValue=="SELL" then persistedLevelScope=frame end
   if frame.kind=="CheckButton" and frame.optionGroup=="includeBelowItemLevel" and frame.optionQuality=="poor" then persistedLevelQuality=frame end
 end
-assert(persistedLevelScope and persistedLevelScope.enabled~=false and persistedLevelQuality and persistedLevelQuality.enabled~=false,
-  "disabled threshold filter blocked configuration of its scope or qualities")
+assert(persistedLevelScope.enabled==false and persistedLevelQuality.enabled==false,
+  "disabled threshold must disable its subcontrols")
+persistedLevelToggle:Click()
 persistedLevelScope:Click(); persistedLevelQuality:Click()
-local offState=persistedUiStore:GetActiveProfile().options.includeBelowItemLevel
-assert(offState.enabled==false and offState.scope=="SELL" and offState.qualities.poor==false,
-  "threshold scope and qualities could not be edited while the filter was disabled")
-local persistedLevelEdit,persistedLevelApply
+local persistedLevelEdit
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="EditBox" and frame.thresholdKey=="includeBelowItemLevel" then persistedLevelEdit=frame end
-  if frame.kind=="Button" and frame.thresholdKey=="includeBelowItemLevel" then persistedLevelApply=frame end
 end
-assert(persistedLevelEdit and persistedLevelApply,"item-level input or Apply button is missing")
-assert(persistedLevelApply.enabled~=false,"Apply is disabled while the threshold filter is off")
-persistedLevelEdit.scripts.OnMouseDown(persistedLevelEdit)
-assert(persistedLevelEdit.focused,"threshold input did not receive focus on click")
+assert(persistedLevelEdit and persistedLevelEdit.mouse==true)
 persistedLevelEdit:SetText("47")
-persistedLevelApply:Click()
+persistedLevelEdit.scripts.OnEnterPressed(persistedLevelEdit)
 local appliedThreshold=persistedUiStore:GetActiveProfile().options.includeBelowItemLevel
-assert(appliedThreshold.value==47 and appliedThreshold.enabled==true and appliedThreshold.scope=="SELL" and appliedThreshold.qualities.poor==false,
-  "Profile Options Apply did not persist and enable the configured threshold")
+assert(appliedThreshold.value==47 and appliedThreshold.enabled and appliedThreshold.scope=="SELL" and appliedThreshold.qualities.poor==false)
+persistedLevelEdit:SetText("99")
+persistedLevelEdit.scripts.OnEscapePressed(persistedLevelEdit)
+assert(persistedLevelEdit:GetText()=="47" and persistedUiStore:GetActiveProfile().options.includeBelowItemLevel.value==47)
+persistedLevelEdit:SetText("48")
+persistedLevelEdit.scripts.OnTextChanged(persistedLevelEdit,true)
+persistedLevelEdit.scripts.OnUpdate(persistedLevelEdit,0.6)
+assert(persistedUiStore:GetActiveProfile().options.includeBelowItemLevel.value==48)
 local moreThresholds={
   {key="includeBelowPrice",value=1234,scope="SELL",parts={"0","12","34"}},
   {key="excludeAboveItemLevel",value=58,scope="DESTROY",parts={"58"}},
@@ -1407,12 +1395,12 @@ for _,spec in ipairs(moreThresholds) do
     if frame.kind=="EditBox" and frame.thresholdKey==spec.key then inputs[frame.thresholdPart]=frame end
     if frame.kind=="Button" and frame.thresholdKey==spec.key then apply=frame end
   end
-  assert(label and scopeChoice and qualityChoice and apply,"missing threshold controls for "..spec.key)
-  assert(apply.enabled~=false and scopeChoice.enabled~=false and qualityChoice.enabled~=false,
-    "disabled filter blocked editing controls for "..spec.key)
+  assert(label and scopeChoice and qualityChoice,"missing threshold controls for "..spec.key)
+  assert(scopeChoice.enabled==false and qualityChoice.enabled==false)
+  label:Click()
   scopeChoice:Click(); qualityChoice:Click()
   for part,value in ipairs(spec.parts) do assert(inputs[part],"missing threshold part "..part); inputs[part]:SetText(value) end
-  apply:Click()
+  inputs[1].scripts.OnEnterPressed(inputs[1])
   local result=persistedUiStore:GetActiveProfile().options[spec.key]
   assert(result.enabled==true and result.scope==spec.scope and result.value==spec.value and result.qualities.poor==false,
     "threshold controls did not persist full state for "..spec.key)
@@ -1427,13 +1415,35 @@ for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.scopeKey=="includeByQuality" and frame.scopeValue=="SELL" then includeQualityScope=frame end
   if frame.kind=="CheckButton" and frame.optionGroup=="includeByQuality" and frame.optionQuality=="poor" then includeQualityPoor=frame end
 end
-assert(includeQualityTitle and includeQualityScope and includeQualityPoor and includeQualityScope.enabled~=false and includeQualityPoor.enabled~=false,
-  "Include by quality subcontrols were disabled with the parent filter")
+assert(includeQualityTitle and includeQualityScope and includeQualityPoor and includeQualityScope.enabled==false and includeQualityPoor.enabled==false,
+  "Include by quality subcontrols must disable with the parent filter")
+includeQualityTitle:Click()
 includeQualityScope:Click(); includeQualityPoor:Click()
 local savedQualityRule=Addon.Config.GetOptions(persistedUiStore).includeByQuality
-assert(savedQualityRule.enabled==false and savedQualityRule.scope=="SELL" and savedQualityRule.qualities.poor==false,
+assert(savedQualityRule.enabled==true and savedQualityRule.scope=="SELL" and savedQualityRule.qualities.poor==false,
   "Include by quality scope and quality were not saved while its filter was off")
-includeQualityTitle:Click()
 assert(Addon.Config.GetOptions(persistedUiStore).includeByQuality.enabled==true and
   lastControl("CheckButton","Include by quality"):GetChecked()==true,
   "Include by quality did not activate or render its persisted state")
+
+runtime:ShowProfiles(profileCallbacks)
+local profileFrameCount=#uiFrames
+runtime:ShowProfiles(profileCallbacks)
+assert(#uiFrames==profileFrameCount,"Profiles refresh allocated replacement rows")
+-- Shrinking content resets the offset even if no wheel event follows.
+runtime:ShowOptions(persistedCallbacks,"profile")
+local scroll=optionsPage.scrollFrame
+scroll:SetVerticalScroll(100000)
+scroll.scripts.OnScrollRangeChanged()
+assert(scroll:GetVerticalScroll()<=math.max(0,optionsPage.contentFrame:GetHeight()-scroll:GetHeight()),
+  "scroll offset remained beyond the reduced content range")
+local beforeMessages=#messages
+assert(persistedUiStore:SetGlobalOption("chatMessages",{enabled=false,detail="VERBOSE"}))
+runtime:Print("hidden");runtime:PrintVerbose("hidden verbose")
+assert(#messages==beforeMessages,"disabled chat messages still printed")
+runtime:ForcePrint("forced help")
+assert(#messages==beforeMessages+1)
+assert(persistedUiStore:SetGlobalOption("chatMessages",{enabled=true,detail="REDUCED"}))
+runtime:PrintVerbose("hidden detail");assert(#messages==beforeMessages+1)
+assert(persistedUiStore:SetGlobalOption("chatMessages",{detail="VERBOSE"}))
+runtime:PrintVerbose("shown detail");assert(#messages==beforeMessages+2)

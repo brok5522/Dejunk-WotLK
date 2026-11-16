@@ -27,9 +27,9 @@ end
 
 local function safeNonCursorContext(api)
   local ok,combat=call(api,"InCombatLockdown")
-  if not ok or combat==true then return false,"IN_COMBAT" end
+  if not ok or (combat~=nil and combat~=false and combat~=0) then return false,"IN_COMBAT" end
   local deadOk,dead=call(api,"UnitIsDeadOrGhost","player")
-  if not deadOk or dead==true then return false,"PLAYER_UNAVAILABLE" end
+  if not deadOk or (dead~=nil and dead~=false and dead~=0) then return false,"PLAYER_UNAVAILABLE" end
   for _,name in ipairs({"TradeFrame","MailFrame","AuctionFrame","BankFrame","GuildBankFrame"}) do
     local frame=api[name]
     if frame and shown(frame) then return false,"CONFLICTING_FRAME:"..name end
@@ -58,6 +58,17 @@ function Transactions.New(api,readAdapter,getSettingsRevision)
     return item
   end
 
+  -- Confirmation needs only identity, not tooltip/binding or equipment-set scans.
+  function adapter:ReadSaleIdentity(bag,slot)
+    local ok,link=call(api,"GetContainerItemLink",bag,slot)
+    local infoOk,texture=call(api,"GetContainerItemInfo",bag,slot)
+    if not ok or not infoOk then return {state="UNKNOWN"} end
+    if link==nil and texture==nil then return {state="EMPTY"} end
+    local id=type(link)=="string" and tonumber(link:match("item:(%d+)"))
+    if not id then return {state="UNKNOWN"} end
+    return {state="OCCUPIED",itemId=id}
+  end
+
   function adapter:ReadContext(sessionId,settingsRevision)
     local safe,reason=safeNonCursorContext(api)
     local cursorOk,cursorType=call(api,"GetCursorInfo")
@@ -69,7 +80,7 @@ function Transactions.New(api,readAdapter,getSettingsRevision)
     return {
       sessionId=sessionId,settingsRevision=settingsRevision,
       now=timeOk and type(now)=="number" and now or 0,
-      inCombat=not combatOk or inCombat==true,
+      inCombat=not combatOk or (inCombat~=nil and inCombat~=false and inCombat~=0),
       cursorEmpty=cursorEmpty,safeContext=safe,contextReason=reason,
       merchantOpen=merchantOpen,currentSettingsRevision=currentRevision
     }
@@ -91,8 +102,9 @@ function Transactions.New(api,readAdapter,getSettingsRevision)
     local intent=type(token)=="table" and token.intent
     if type(intent)~="table" then return false,"INVALID_INTENT" end
     local current,reason=self:ReadItem(intent.bag,intent.slot)
-    if not sameItem(current,intent) or current.refundable~=false or current.quest~=false or
-        current.inEquipmentSet~=false or type(current.unitVendorPrice)~="number" or current.unitVendorPrice<=0 then
+    if not sameItem(current,intent) or current.refundable~=false or type(current.quest)~="boolean" or
+        type(current.inEquipmentSet)~="boolean" or current.quest~=intent.quest or
+        current.inEquipmentSet~=intent.inEquipmentSet or type(current.unitVendorPrice)~="number" or current.unitVendorPrice<=0 then
       return false,reason or "STALE_OR_PROTECTED_ITEM"
     end
     local context=self:ReadContext(token.sessionId,intent.settingsRevision)
@@ -132,7 +144,7 @@ function Transactions.New(api,readAdapter,getSettingsRevision)
     local context=self:ReadContext(item.sessionId,item.settingsRevision)
     local cursorOk,cursorType,cursorId=call(api,"GetCursorInfo")
     local source,reason=self:ReadItem(item.bag,item.slot)
-    if context.safeContext~=true or context.inCombat~=false or not cursorOk or cursorType~="item" or
+    if context.safeContext~=true or context.inCombat~=false or context.currentSettingsRevision~=item.settingsRevision or not cursorOk or cursorType~="item" or
         cursorId~=item.itemId or not source or source.state~="EMPTY" then
       return false,reason or "CURSOR_OR_SLOT_MISMATCH"
     end
@@ -252,6 +264,9 @@ function Runtime.New(environment)
     end
     local function refresh()
       local maximum=range()
+      local offset=scroll:GetVerticalScroll() or 0
+      local clamped=math.max(0,math.min(maximum,offset))
+      if offset~=clamped then scroll:SetVerticalScroll(clamped) end
       if maximum<=0 then track:Hide(); return end
       local height=math.max(1,scroll:GetHeight() or 1)
       local trackHeight=math.max(1,track:GetHeight() or height)
@@ -478,13 +493,24 @@ function Runtime.New(environment)
   local listMetadataElapsed,listMetadataAge=0,0
 
   function runtime:Inspect() return Addon.Client.Inspect(api) end
-  function runtime:Print(message)
+  function runtime:ForcePrint(message)
     local text = "[Dejunk-WotLK] " .. message
     if api.DEFAULT_CHAT_FRAME and type(api.DEFAULT_CHAT_FRAME.AddMessage) == "function" then
       api.DEFAULT_CHAT_FRAME:AddMessage(text)
     elseif type(api.print) == "function" then
       api.print(text)
     end
+  end
+  function runtime:Print(message)
+    local callbacks=self.configCallbacks
+    local global=callbacks and callbacks.globalOptions and callbacks.globalOptions() or {}
+    if type(global.chatMessages)=="table" and global.chatMessages.enabled==false then return end
+    self:ForcePrint(message)
+  end
+  function runtime:PrintVerbose(message)
+    local callbacks=self.configCallbacks
+    local global=callbacks and callbacks.globalOptions and callbacks.globalOptions() or {}
+    if type(global.chatMessages)=="table" and global.chatMessages.detail=="VERBOSE" then self:Print(message) end
   end
   function runtime:CharacterKey()
     if type(api.UnitName) ~= "function" or type(api.GetRealmName) ~= "function" then return nil end
@@ -1316,7 +1342,7 @@ function Runtime.New(environment)
             self:ShowKeybindings(runtime.configCallbacks)
           end)))
           overview:AttachComponent(Addon.Waffle:Flex(text(nil,"Dejunk",28,"blue")))
-          overview:AttachComponent(Addon.Waffle:Flex(text(nil,"Settings and inventory previews are read-only. No item action will be taken.",46)))
+          overview:AttachComponent(Addon.Waffle:Flex(text(nil,"Configure item lists, filters and inventory actions. Previews do not change inventory.",46)))
           overview:AttachComponent(Addon.Waffle:Flex({height=26,frameFactory=function(parent)
             configSummary=parent:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall"); configSummary:SetJustifyH("LEFT"); configSummary:SetWordWrap(true); return configSummary
           end}))
@@ -1628,21 +1654,22 @@ function Runtime.New(environment)
       end)
       local row=0
       for _,child in ipairs(profileButtons) do child:Hide() end
-      profileButtons={}
       for index,profile in ipairs(profiles) do
         local profileEntry=profile
-        local button=api.CreateFrame("Button",nil,profileList)
+        local button=profileButtons[index] or api.CreateFrame("Button",nil,profileList)
+        button:Show()
+        button.actions=button.actions or {}
         button.profileId=profile.id
         button:SetWidth(470); button:SetHeight(48); button:SetPoint("TOPLEFT",profileList,"TOPLEFT",0,-row*52)
         button:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); button:SetBackdropBorderColor(0,0,0,0)
         button:SetBackdropColor(1,1,1,0.03)
-        local accent=button:CreateTexture(nil,"ARTWORK"); accent:SetTexture("Interface\\Buttons\\WHITE8x8")
+        local accent=button.accent or button:CreateTexture(nil,"ARTWORK"); button.accent=accent; accent:SetTexture("Interface\\Buttons\\WHITE8x8")
         accent:SetWidth(3); accent:SetPoint("TOPLEFT"); accent:SetPoint("BOTTOMLEFT")
         accent:SetVertexColor(theme.blue[1],theme.blue[2],theme.blue[3],profile.active and 1 or 0)
-        local name=button:CreateFontString(nil,"ARTWORK","GameFontNormal")
+        local name=button.nameLabel or button:CreateFontString(nil,"ARTWORK","GameFontNormal"); button.nameLabel=name
         name:SetPoint("TOPLEFT",12,-7); name:SetPoint("RIGHT",-132,0); name:SetJustifyH("LEFT")
         name:SetText(profile.name); setTextColor(name,profile.active and "blue" or "white")
-        local summary=button:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall")
+        local summary=button.summaryLabel or button:CreateFontString(nil,"ARTWORK","GameFontHighlightSmall"); button.summaryLabel=summary
         summary:SetPoint("BOTTOMLEFT",name,"BOTTOMLEFT",0,-15); summary:SetPoint("RIGHT",-132,0); summary:SetJustifyH("LEFT")
         local bits={}
         if profile.autoSell then bits[#bits+1]=(profile.active and "|cffffd100" or "|cff9d9d9d").."Auto Sell|r" end
@@ -1688,11 +1715,14 @@ function Runtime.New(environment)
         local right=-5
         for _,entry in ipairs(actions) do
           local action,label,iconPath=entry[2],entry[1],entry[3]
-          local actionButton=api.CreateFrame("Button",nil,button)
+          local actionButton=button.actions[action] or api.CreateFrame("Button",nil,button)
+          button.actions[action]=actionButton
+          actionButton:Enable(); actionButton:SetAlpha(1)
           actionButton:SetWidth(32); actionButton:SetHeight(32); actionButton:SetPoint("RIGHT",button,"RIGHT",right,0)
           actionButton:EnableMouse(true)
           actionButton:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8"}); actionButton:SetBackdropColor(0,0,0,0)
-          local actionIcon=actionButton:CreateTexture(nil,"ARTWORK"); actionIcon:SetTexture(iconPath)
+          local actionIcon=actionButton.icon or actionButton:CreateTexture(nil,"ARTWORK"); actionIcon:SetTexture(iconPath)
+          if type(actionIcon.SetDesaturated)=="function" then actionIcon:SetDesaturated(false) end
           actionIcon:SetWidth(14); actionIcon:SetHeight(14); actionIcon:SetPoint("CENTER",actionButton,"CENTER")
           actionButton.icon=actionIcon
           actionButton:SetScript("OnEnter",function(self)
@@ -1716,7 +1746,7 @@ function Runtime.New(environment)
           end)
           right=right-32
         end
-        profileButtons[#profileButtons+1]=button
+        profileButtons[index]=button
         row=row+1
       end
       profileList:SetHeight(math.max(175,row*52))
@@ -1897,6 +1927,9 @@ function Runtime.New(environment)
             local contentHeight=type(rowContent.GetHeight)=="function" and rowContent:GetHeight() or rowContent.height or 0
             local scrollHeight=type(scroll.GetHeight)=="function" and scroll:GetHeight() or scroll.height or 0
             local max=math.max(0,contentHeight-scrollHeight)
+            local offset=scroll:GetVerticalScroll() or 0
+            local clamped=math.max(0,math.min(max,offset))
+            if offset~=clamped then scroll:SetVerticalScroll(clamped) end
             if max<=0 then scrollTrack:Hide(); return end
             scrollTrack:Show(); scrollThumb:Show()
             local trackHeight=type(scrollTrack.GetHeight)=="function" and scrollTrack:GetHeight() or math.max(1,scrollHeight)
@@ -1937,9 +1970,9 @@ function Runtime.New(environment)
               if presentation.link and type(tooltip.SetHyperlink)=="function" then tooltip:SetHyperlink(presentation.link)
               elseif type(tooltip.SetText)=="function" then tooltip:SetText(presentation.name or ("Item #"..tostring(self.itemId))) end
               tooltip:AddLine(" "); tooltip:AddDoubleLine("Right-click","Remove",157/255,157/255,157/255,1,1,1)
-              tooltip:AddDoubleLine("Shift-right-click","Move to opposite list",157/255,157/255,157/255,1,1,1)
-              tooltip:AddDoubleLine("Ctrl-right-click","Move to other scope, opposite list",157/255,157/255,157/255,1,1,1)
-              tooltip:AddDoubleLine("Alt-right-click","Move to other scope",157/255,157/255,157/255,1,1,1); tooltip:Show()
+              tooltip:AddDoubleLine("Shift-right-click","Add to opposite list",157/255,157/255,157/255,1,1,1)
+              tooltip:AddDoubleLine("Ctrl-right-click","Add to other scope, opposite list",157/255,157/255,157/255,1,1,1)
+              tooltip:AddDoubleLine("Alt-right-click","Add to other scope",157/255,157/255,157/255,1,1,1); tooltip:Show()
             end)
             row:SetScript("OnLeave",function(self)
               self:SetBackdropColor(theme.dark[1],theme.dark[2],theme.dark[3],0.55)
@@ -1967,7 +2000,7 @@ function Runtime.New(environment)
                   return
                 end
                 local added,reason=callbacks.editItem(targetScope,targetKind,row.itemId,true)
-                self:Print(added and "Item moved to list." or ("List update failed: "..tostring(reason)))
+                self:Print(added and "Item added to list." or ("List update failed: "..tostring(reason)))
                 self:ShowLists(callbacks)
                 return
               end
@@ -2781,12 +2814,11 @@ function Runtime.New(environment)
             end
           end
           local edit=edits[#edits]
-          local apply=styleThemedButton(api.CreateFrame("Button",nil,optionsContentFrame))
-          apply.thresholdKey=row.key
-          apply:SetWidth(68); apply:SetHeight(22); apply:SetText("Apply")
-          if isPrice then apply:SetPoint("TOPLEFT",x+4,valueY) else apply:SetPoint("LEFT",edit,"RIGHT",8,0) end
-          apply:SetScript("OnClick",function()
+          local function saveThreshold()
             local currentCallbacks=optionsCallbacks or callbacks
+            local current=currentCallbacks.options and currentCallbacks.options() or {}
+            if type(current[row.key])~="table" or not current[row.key].enabled then return end
+            for _,input in ipairs(edits) do if input:GetText()=="" then return end end
             local number
             if isPrice then
               local gold=tonumber(edits[1]:GetText()) or 0
@@ -2796,13 +2828,53 @@ function Runtime.New(environment)
             else
               local raw=edit:GetText(); number=raw~="" and tonumber(raw) or 0
             end
-            local current=currentCallbacks.options and currentCallbacks.options() or {}
             local previous=current[row.key] or {scope=(row.key=="excludeAbovePrice" or row.key=="includeBelowPrice") and "DESTROY" or "BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}}
-            local value={enabled=true,scope=previous.scope or "BOTH",value=number or previous.value or 0,qualities=previous.qualities or {poor=true,common=true,uncommon=true,rare=true,epic=true}}
+            if number==previous.value then return end
+            local value={enabled=previous.enabled==true,scope=previous.scope or "BOTH",value=number or previous.value or 0,qualities=previous.qualities or {poor=true,common=true,uncommon=true,rare=true,epic=true}}
             local changed,reason=currentCallbacks.setOption and currentCallbacks.setOption(row.key,value)
-            self:Print(changed and (row.label.." updated.") or ("Option update failed: "..tostring(reason)))
-            self:ShowOptions(currentCallbacks,"profile")
-          end)
+            if not changed then self:Print("Option update failed: "..tostring(reason)) end
+
+          end
+          local function restoreThreshold()
+            local currentCallbacks=optionsCallbacks or callbacks
+            local options=currentCallbacks.options and currentCallbacks.options() or {}
+            local value=options[row.key] and options[row.key].value or 0
+            if isPrice then
+              edits[1]:SetText(tostring(math.floor(value/10000)))
+              edits[2]:SetText(tostring(math.floor(value%10000/100)))
+              edits[3]:SetText(tostring(value%100))
+            else edit:SetText(tostring(value)) end
+          end
+          for part,input in ipairs(edits) do
+            input:SetScript("OnTextChanged",function(self,userInput)
+              if userInput then self.pendingSave=0.5 end
+            end)
+            input:SetScript("OnUpdate",function(self,elapsed)
+              if self.pendingSave then
+                self.pendingSave=self.pendingSave-elapsed
+                if self.pendingSave<=0 then self.pendingSave=nil; saveThreshold() end
+              end
+            end)
+            input:SetScript("OnEnterPressed",function(self)
+              self.pendingSave=nil; saveThreshold(); self:ClearFocus()
+            end)
+            input:SetScript("OnEditFocusLost",function(self)
+              self.pendingSave=nil; saveThreshold()
+              restoreThreshold()
+            end)
+            input:SetScript("OnEscapePressed",function(self)
+              self.pendingSave=nil
+              restoreThreshold()
+              self:ClearFocus()
+            end)
+            input:SetScript("OnHide",function(self) self.pendingSave=nil; self:ClearFocus() end)
+            input:SetScript("OnTabPressed",function(self)
+              self.pendingSave=nil; saveThreshold(); self:ClearFocus()
+              local backward=type(api.IsShiftKeyDown)=="function" and api.IsShiftKeyDown()
+              local nextPart=((part-1+(backward and -1 or 1))%#edits)+1
+              edits[nextPart]:SetFocus()
+            end)
+          end
           local scopeChoices=addScopeChoices(row.key,110,scopeY,98,
             {enabled=true,scope=(row.key=="excludeAbovePrice" or row.key=="includeBelowPrice") and "DESTROY" or "BOTH",value=0,qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}})
           local qualityButtons={}
@@ -2828,18 +2900,11 @@ function Runtime.New(environment)
             end)
             qualityButtons[quality]=button
           end
-          optionsThresholdFields[index]={key=row.key,edit=edit,edits=edits,isPrice=isPrice,label=label,apply=apply,scopeChoices=scopeChoices,qualityButtons=qualityButtons,valueLabel=valueLabel,scopeLabel=scopeLabel,qualityLabel=qualityLabel}
+          optionsThresholdFields[index]={key=row.key,edit=edit,edits=edits,isPrice=isPrice,label=label,scopeChoices=scopeChoices,qualityButtons=qualityButtons,valueLabel=valueLabel,scopeLabel=scopeLabel,qualityLabel=qualityLabel}
         end
         optionsEquipmentTypeFields={}
         local function readAuctionSubclasses(classId)
-          if type(api.GetAuctionItemClasses)~="function" or type(api.GetAuctionItemSubClasses)~="function" then return {} end
-          local ok,classes=pcall(function() return {api.GetAuctionItemClasses()} end)
-          if not ok or type(classes)~="table" or not classes[classId+1] then return {} end
-          local success,values=pcall(function() return {api.GetAuctionItemSubClasses(classId+1)} end)
-          if not success or type(values)~="table" then return {} end
-          local result={}
-          for index,name in ipairs(values) do if type(name)=="string" and name~="" then result[#result+1]={id=index-1,name=name} end end
-          return result
+          return Addon.Legacy.GetEquipmentTypes(api,classId)
         end
         local function typeDefaults()
           return {enabled=false,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false},armor={},weapons={}}
@@ -3043,11 +3108,11 @@ function Runtime.New(environment)
       end
       for _,button in ipairs(optionsQualityButtons) do
         if scope=="profile" then button:Show() else button:Hide() end
-        setOptionCheckEnabled(button,true)
+        setOptionCheckEnabled(button,qualityRule.enabled==true)
       end
       for _,entry in ipairs(optionsThresholdFields) do
-        if scope=="profile" then entry.label:Show(); entry.apply:Show()
-        else entry.label:Hide(); entry.apply:Hide() end
+        if scope=="profile" then entry.label:Show()
+        else entry.label:Hide() end
         for _,input in ipairs(entry.edits) do if scope=="profile" then input:Show() else input:Hide() end end
         local option=opts[entry.key]
         local thresholdLabel=entry.key=="includeBelowItemLevel" and "Include below item level" or
@@ -3055,9 +3120,13 @@ function Runtime.New(environment)
           entry.key=="excludeAboveItemLevel" and "Exclude above item level" or "Exclude above price"
         setOptionCheckChecked(entry.label,type(option)=="table" and option.enabled==true)
         setOptionCheckText(entry.label,thresholdLabel)
-        entry.apply:Enable()
-        -- Settings remain editable while their filter is off. Apply saves the
-        -- value and enables the filter, matching the visible button's behavior.
+        local active=type(option)=="table" and option.enabled==true
+        for _,input in ipairs(entry.edits) do
+          input:EnableMouse(active); input:EnableKeyboard(active)
+          input:SetTextColor(active and 1 or 0.4,active and 1 or 0.4,active and 1 or 0.4,1)
+          if not active then input.pendingSave=nil; input:ClearFocus() end
+        end
+        -- Saving a value must never activate a disabled filter.
         local storedValue=type(option)=="table" and tonumber(option.value) or 0
         if entry.isPrice then
           local gold=math.floor(storedValue/10000)
@@ -3071,7 +3140,7 @@ function Runtime.New(environment)
         for _,control in ipairs(entry.scopeChoices) do
           setOptionCheckChecked(control,control.scopeValue==optionScope)
           if scope=="profile" then control:Show() else control:Hide() end
-          setOptionCheckEnabled(control,true)
+          setOptionCheckEnabled(control,active)
         end
         for quality,button in ipairs(entry.qualityButtons) do
           local name=({"poor","common","uncommon","rare","epic"})[quality]
@@ -3079,7 +3148,7 @@ function Runtime.New(environment)
           setOptionCheckChecked(button,enabled)
           setOptionCheckText(button,({"Poor","Common","Uncommon","Rare","Epic"})[quality])
           if scope=="profile" then button:Show() else button:Hide() end
-          setOptionCheckEnabled(button,true)
+          setOptionCheckEnabled(button,active)
         end
       end
       for _,entry in ipairs(optionsScopeFields) do
@@ -3088,7 +3157,7 @@ function Runtime.New(environment)
         for _,control in ipairs(entry.choices) do
           setOptionCheckChecked(control,control.scopeValue==selectedScope)
           if scope=="profile" then control:Show() else control:Hide() end
-          setOptionCheckEnabled(control,true)
+          setOptionCheckEnabled(control,type(option)=="table" and option.enabled==true)
         end
       end
       setOptionCheckChecked(optionsFrame.qualityTitle,qualityRule.enabled~=false)
@@ -3100,7 +3169,7 @@ function Runtime.New(environment)
         setOptionCheckChecked(button,enabled)
           setOptionCheckText(button,({"Poor","Common","Uncommon","Rare","Epic"})[quality])
         if scope=="profile" then button:Show() else button:Hide() end
-        setOptionCheckEnabled(button,true)
+        setOptionCheckEnabled(button,type(unbound)=="table" and unbound.enabled==true)
       end
       for _,entry in ipairs(optionsEquipmentTypeFields or {}) do
         local option=opts[entry.key] or {enabled=false,scope="BOTH",qualities={},armor={},weapons={}}
@@ -3111,7 +3180,7 @@ function Runtime.New(environment)
         for _,control in ipairs(entry.scopeChoices) do
           setOptionCheckChecked(control,control.scopeValue==(option.scope or "BOTH"))
           if scope=="profile" then control:Show() else control:Hide() end
-          setOptionCheckEnabled(control,true)
+          setOptionCheckEnabled(control,type(option)=="table" and option.enabled==true)
         end
         for _,frame in ipairs(entry.labels) do if scope=="profile" then frame:Show() else frame:Hide() end end
         for _,control in ipairs(entry.typeButtons) do
@@ -3120,14 +3189,14 @@ function Runtime.New(environment)
           setOptionCheckChecked(control.button,enabled)
           setOptionCheckText(control.button,control.item.name)
           if scope=="profile" then control.button:Show() else control.button:Hide() end
-          setOptionCheckEnabled(control.button,true)
+          setOptionCheckEnabled(control.button,option.enabled==true)
         end
         for _,control in ipairs(entry.qualityButtons) do
           local enabled=type(option.qualities)~="table" or option.qualities[control.name]~=false
           setOptionCheckChecked(control.button,enabled)
           setOptionCheckText(control.button,({poor="Poor",common="Common",uncommon="Uncommon",rare="Rare",epic="Epic"})[control.name] or control.name)
           if scope=="profile" then control.button:Show() else control.button:Hide() end
-          setOptionCheckEnabled(control.button,true)
+          setOptionCheckEnabled(control.button,option.enabled==true)
         end
       end
       local labels={"Poor","Common","Uncommon","Rare","Epic"}

@@ -67,34 +67,53 @@ local function unknownSlot(bag, slot, reason)
   }
 end
 
+-- Canonical item IDs are not auction-list positions. Match known labels rather
+-- than inferring IDs from a compressed/reordered auction tuple. Unknown localized
+-- labels stay unknown; they must never silently select a different equipment type.
+local classNames = {Weapon=2,Armor=4,Container=1,Consumable=0,Glyph=16,
+  ["Trade Goods"]=7,Recipe=9,Gem=3,Miscellaneous=15,Quest=12,Quiver=11,Projectile=6}
+local typeNames = {
+  [2] = {["One-Handed Axes"]=0,["Two-Handed Axes"]=1,Bows=2,Guns=3,
+    ["One-Handed Maces"]=4,["Two-Handed Maces"]=5,Polearms=6,
+    ["One-Handed Swords"]=7,["Two-Handed Swords"]=8,Staves=10,
+    ["Fist Weapons"]=13,Miscellaneous=14,Daggers=15,Thrown=16,
+    Crossbows=18,Wands=19,["Fishing Poles"]=20},
+  [4] = {Miscellaneous=0,Cloth=1,Leather=2,Mail=3,Plate=4,
+    Cosmetic=5,Shields=6,Librams=7,Idols=8,Totems=9,Sigils=10}
+}
+function Legacy.ResolveItemType(itemType,itemSubType)
+  local classId=classNames[itemType]
+  return classId,typeNames[classId] and typeNames[classId][itemSubType]
+end
+function Legacy.GetEquipmentTypes(api,classId)
+  local result={}
+  local classes=read(api,"GetAuctionItemClasses")
+  if not classes or not typeNames[classId] then return result end
+  for index=1,classes.n do
+    if classNames[classes[index]]==classId then
+      local subclasses=read(api,"GetAuctionItemSubClasses",index)
+      if subclasses then
+        for subIndex=1,subclasses.n do
+          local name=subclasses[subIndex]
+          local id=typeNames[classId][name]
+          if id~=nil and (id~=0 or classId==2) then
+            if not (classId==2 and (id==14 or id==20)) and not (classId==4 and id==5) then
+              result[#result+1]={id=id,name=name}
+            end
+          end
+        end
+      end
+      break
+    end
+  end
+  return result
+end
+
 -- Only injected legacy read functions are used; no mutating methods exist.
 function Legacy.New(api)
   local adapter = {}
-  local itemClasses, itemSubClasses = nil, {}
   local function resolveItemType(itemType,itemSubType)
-    if type(itemType)~="string" or type(itemSubType)~="string" then return end
-    if not itemClasses then
-      local classes=read(api,"GetAuctionItemClasses")
-      if classes and classes.n>0 then itemClasses=classes end
-    end
-    if not itemClasses then return end
-    for classIndex=1,itemClasses.n do
-      if itemClasses[classIndex]==itemType then
-        local classId=classIndex-1
-        if classId~=2 and classId~=4 then return classId end
-        local subclasses=itemSubClasses[classIndex]
-        if subclasses==nil then
-          subclasses=read(api,"GetAuctionItemSubClasses",classIndex)
-          if subclasses then itemSubClasses[classIndex]=subclasses end
-        end
-        if subclasses then
-          for subclassIndex=1,subclasses.n do
-            if subclasses[subclassIndex]==itemSubType then return classId,subclassIndex-1 end
-          end
-        end
-        return classId
-      end
-    end
+    return Legacy.ResolveItemType(itemType,itemSubType)
   end
 
   function adapter:ReadBagSize(bag)

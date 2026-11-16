@@ -34,6 +34,6 @@ function Client.Inspect(api)
       return result
     end
   end
-  result.supported, result.reason = true, "SUPPORTED_READ_ONLY"
+  result.supported, result.reason = true, "SUPPORTED"
   return result
 end
