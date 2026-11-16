@@ -837,7 +837,7 @@ function Runtime.New(environment)
     frame, update = result, onUpdate
     frame:SetScript("OnEvent", function(_, event, ...)
       onEvent(event, ...)
-      if event=="BAG_UPDATE" or event=="ITEM_LOCK_CHANGED" or event=="ITEM_LOCKED" or event=="ITEM_UNLOCKED" then
+      if event=="ADDON_LOADED" or event=="PLAYER_LOGIN" or event=="BAG_UPDATE" or event=="ITEM_LOCK_CHANGED" or event=="ITEM_LOCKED" or event=="ITEM_UNLOCKED" then
         runtime:RefreshBagIcons()
       end
     end)
@@ -3693,6 +3693,67 @@ function Runtime.New(environment)
     pcall(overlay.SetWidth,overlay,24); pcall(overlay.SetHeight,overlay,24)
     return overlay
   end
+  local bagnonButtons=setmetatable({},{__mode="k"})
+  local bagnonHooks=setmetatable({},{__mode="k"})
+  local function paintBagIcon(button,bag,slot)
+    clearBagIcon(button)
+    if not bagIconSettings.enabled or type(bagIconDecisionProvider)~="function" then return end
+    local read,sell,destroy=pcall(bagIconDecisionProvider,bag,slot)
+    if not read or not (sell and sell.result=="JUNK" or destroy and destroy.result=="JUNK") then return end
+    local overlay=createBagIcon(button)
+    if not overlay then return end
+    local large=bagIconSettings.style=="LARGE"
+    local background=button.dejunkWotLKIconBackground
+    if background then
+      background:SetVertexColor(0,0,0,large and 0.75 or 0.3)
+      background:Show()
+    end
+    overlay:ClearAllPoints()
+    if large then overlay:SetAllPoints(button)
+    else overlay:SetPoint("TOPLEFT",button,"TOPLEFT",0,0); overlay:SetWidth(24); overlay:SetHeight(24) end
+    overlay:Show()
+  end
+  local function refreshBagnonButton(button)
+    clearBagIcon(button)
+    -- Bagnon can display cached characters and bank contents through the same
+    -- pooled widgets. Only live carried bags belong to Dejunk's decision cache.
+    local ok,bag,slot,link=pcall(function()
+      if not button:IsVisible() or button:IsCached()~=false then return end
+      return button:GetBag(),button:GetID(),button:GetItem()
+    end)
+    if not ok or not validInteger(bag,0,4) or not validInteger(slot,1,128) or type(link)~="string" then return end
+    if type(api.GetContainerNumSlots)~="function" or type(api.GetContainerItemLink)~="function" then return end
+    local counted,count=pcall(api.GetContainerNumSlots,bag)
+    local linked,current=pcall(api.GetContainerItemLink,bag,slot)
+    if not counted or not validInteger(count,0,128) or slot>count or not linked or current~=link then return end
+    paintBagIcon(button,bag,slot)
+  end
+  local function discoverBagnon()
+    -- RichSteini/Bagnon-3.3.5: main.lua exports Bagnon; Classy instances inherit
+    -- ItemSlot methods. Post-hooks preserve its scripts, drag/drop and search.
+    local bagnon=api.Bagnon
+    local class=type(bagnon)=="table" and bagnon.ItemSlot
+    if not class or type(api.hooksecurefunc)~="function" then return end
+    local hooks=bagnonHooks[class] or {}; bagnonHooks[class]=hooks
+    if not hooks.Update and type(class.Update)=="function" then
+      hooks.Update=pcall(api.hooksecurefunc,class,"Update",function(button)
+        bagnonButtons[button]=true
+        refreshBagnonButton(button)
+      end)
+    end
+    if not hooks.Free and type(class.Free)=="function" then
+      hooks.Free=pcall(api.hooksecurefunc,class,"Free",function(button)
+        clearBagIcon(button); bagnonButtons[button]=nil
+      end)
+    end
+    -- Also discover widgets created before Dejunk, without creating/opening a bag.
+    for _,window in pairs(type(bagnon.frames)=="table" and bagnon.frames or {}) do
+      local items=window.itemFrame and window.itemFrame.itemSlots
+      if type(items)=="table" then
+        for _,button in pairs(items) do bagnonButtons[button]=true end
+      end
+    end
+  end
   function runtime:RegisterBagIcons(getDecisions)
     if type(getDecisions)~="function" then return false,"ICON_PROVIDER_UNAVAILABLE" end
     bagIconDecisionProvider=getDecisions
@@ -3710,8 +3771,10 @@ function Runtime.New(environment)
     return self:RefreshBagIcons()
   end
   function runtime:RefreshBagIcons()
+    discoverBagnon()
     for _,button in ipairs(bagIconButtons) do clearBagIcon(button) end
     bagIconButtons={}
+    for button in pairs(bagnonButtons) do refreshBagnonButton(button) end
     if not bagIconSettings.enabled or type(bagIconDecisionProvider)~="function" then return true end
     local maxFrames=tonumber(api.NUM_CONTAINER_FRAMES) or 13
     maxFrames=math.max(0,math.min(math.floor(maxFrames),20))
@@ -3728,28 +3791,12 @@ function Runtime.New(environment)
           if ok and validInteger(count,0,maxSlots) then
             for buttonIndex=1,count do
               local button=api["ContainerFrame"..frameIndex.."Item"..buttonIndex]
-              if button and type(button.GetID)=="function" then
+              if button and type(button.GetID)=="function" and not bagnonButtons[button] and
+                  type(button.GetBag)~="function" then
                 local slot=button:GetID()
                 if validInteger(slot,1,count) then
                   bagIconButtons[#bagIconButtons+1]=button
-                  local read,sell,destroy=pcall(bagIconDecisionProvider,bag,slot)
-                  if read and (sell and sell.result=="JUNK" or destroy and destroy.result=="JUNK") then
-                    local overlay=createBagIcon(button)
-                    if overlay then
-                      local background=button.dejunkWotLKIconBackground
-                      if background then
-                        background:SetVertexColor(0,0,0,bagIconSettings.style=="LARGE" and 0.75 or 0.3)
-                        background:Show()
-                      end
-                      if bagIconSettings.style=="LARGE" then
-                        pcall(overlay.ClearAllPoints,overlay); pcall(overlay.SetAllPoints,overlay,button)
-                      else
-                        pcall(overlay.ClearAllPoints,overlay); pcall(overlay.SetPoint,overlay,"TOPLEFT",button,"TOPLEFT",0,0)
-                        pcall(overlay.SetWidth,overlay,24); pcall(overlay.SetHeight,overlay,24)
-                      end
-                      pcall(overlay.Show,overlay)
-                    end
-                  end
+                  paintBagIcon(button,bag,slot)
                 end
               end
             end

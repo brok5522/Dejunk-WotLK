@@ -76,3 +76,8 @@ local reordered={GetAuctionItemClasses=function() return "Quest","Armor","Weapon
   GetAuctionItemSubClasses=function(i) if i==2 then return "Shields","Cloth" else return "Staves","Fishing Poles" end end}
 local armor=a.Legacy.GetEquipmentTypes(reordered,4); assert(armor[1].id==6 and armor[2].id==1)
 local weapons=a.Legacy.GetEquipmentTypes(reordered,2); assert(#weapons==1 and weapons[1].id==10)
+
+local redraws=0
+w.app.runtime.UpdateBagIcons=function() redraws=redraws+1 end
+assert(w.app.store:EditList("global","exclusions",987,true))
+assert(redraws>0,"list changes did not refresh bag overlay settings")

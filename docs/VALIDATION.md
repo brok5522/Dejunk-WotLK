@@ -680,3 +680,17 @@ English label matching is order-independent and maps staff=10, shield=6,
 fishing pole=20. Unsupported localized labels stay unknown. Threshold tests now
 exercise enabled/disabled controls, delayed save, Enter and Escape. Native focus
 handling, localization and third-party bag overlays still need client evidence.
+
+## 1.0.2 — RichSteini Bagnon integration (2026-11-16)
+
+Reviewed Bagnon revision `27a08f89819311d772e7ec7a71a41eafb813f122`.
+See BAGNON-COMPATIBILITY.md for immutable source paths and client acceptance steps.
+No reference code is bundled and no live inventory action was executed.
+
+`python3 tools/check_phase0.py`, the complete `tools/check.py` suite with actual
+Lua/luac 5.1, and `git diff --check` passed. New UI fixtures cover pre-existing and
+new Bagnon widgets, pooled Blizzard button reuse, delayed loading, one-time secure
+hooks, original callbacks/drag scripts, cached-character and bank exclusion,
+stale links, SMALL/LARGE/off styles and rule-driven clearing. A production-store
+fixture confirms that list changes trigger overlay refresh. Reproducible 41-entry
+ZIP validation also passed. Original-client Bagnon visuals are not tested here.

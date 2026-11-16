@@ -185,6 +185,85 @@ assert(not ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown,"stale junk over
 assert(not ui.ContainerFrame1Item1.dejunkWotLKIconBackground.shown,"stale bag overlay background was not cleared")
 runtime:UpdateBagIcons({itemIcons=false})
 assert(not ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown,"disabled item icons remained visible")
+-- RichSteini Bagnon 27a08f8: Classy ItemSlot methods, pooled buttons and
+-- frame.itemFrame.itemSlots; no button-name assumptions or replacement scripts.
+local stockHook=ui.hooksecurefunc
+local hooksInstalled=0
+local class={}
+function class:Update() self.originalUpdates=(self.originalUpdates or 0)+1 end
+function class:Free() self:Hide(); self.freed=true end
+ui.hooksecurefunc=function(target,name,hook)
+  if target==class then
+    hooksInstalled=hooksInstalled+1
+    local original=target[name]
+    target[name]=function(self,...) original(self,...); hook(self,...) end
+  else return stockHook(target,name,hook) end
+end
+local oldLink=ui.GetContainerItemLink
+local displayedLink="item:123:0:0:0:0:0:0:0"
+ui.GetContainerItemLink=function(bag,slot) if bag==0 and slot==1 then return displayedLink end end
+local function bagnonButton(button)
+  button=button or object("Button",nil,ui)
+  button.id=1; button.bag=0; button.cached=false; button.link=displayedLink; button:Show()
+  button.IsVisible=button.IsShown
+  function button:GetBag() return self.bag end
+  function button:IsCached() return self.cached end
+  function button:GetItem() return self.link end
+  setmetatable(button,{__index=class})
+  return button
+end
+local reused=bagnonButton(ui.ContainerFrame1Item1)
+local drag=function() end; reused:SetScript("OnDragStart",drag)
+ui.Bagnon={ItemSlot=class,frames={{itemFrame={itemSlots={[1]=reused}}}}}
+local providerCalls=0
+runtime:RegisterBagIcons(function(bag,slot)
+  providerCalls=providerCalls+1; assert(bag==0 and slot==1)
+  return {result="JUNK"},{result="KEEP"}
+end)
+runtime:UpdateBagIcons({itemIcons=true,itemIconStyle="SMALL"})
+assert(reused.dejunkWotLKIconOverlay.shown,"pre-existing Bagnon button was not discovered")
+assert(hooksInstalled==2 and reused.scripts.OnDragStart==drag,"Bagnon hooks replaced input scripts")
+local allocated=#uiFrames
+runtime:RefreshBagIcons(); runtime:RefreshBagIcons()
+assert(hooksInstalled==2 and #uiFrames==allocated,"refresh duplicated Bagnon hooks or textures")
+reused.cached=true; local before=providerCalls
+reused:Update()
+assert(not reused.dejunkWotLKIconOverlay.shown and providerCalls==before,"cached alt inventory used live player decisions")
+reused.cached=false; reused.bag=-1; reused:Update()
+assert(not reused.dejunkWotLKIconOverlay.shown and providerCalls==before,"bank slot used carried-bag decisions")
+reused.bag=0; reused.link="item:456:0"; reused:Update()
+assert(not reused.dejunkWotLKIconOverlay.shown,"stale displayed link received a new slot's icon")
+reused.link=displayedLink; reused:Update()
+assert(reused.dejunkWotLKIconOverlay.shown and reused.originalUpdates==4,"original Bagnon Update was not preserved")
+runtime:UpdateBagIcons({itemIcons=true,itemIconStyle="LARGE"})
+assert(reused.dejunkWotLKIconOverlay.allPoints==reused and reused.dejunkWotLKIconBackground.vertexColor[4]==0.75)
+reused:Free(); ui.Bagnon.frames[1].itemFrame.itemSlots[1]=nil
+assert(not reused.dejunkWotLKIconOverlay.shown and reused.freed,"freed widget retained an icon")
+local created=bagnonButton(); created:Update()
+assert(created.dejunkWotLKIconOverlay.shown,"new pooled Bagnon button was not hooked")
+runtime:UpdateBagIcons({itemIcons=false})
+assert(not created.dejunkWotLKIconOverlay.shown,"disabled setting left Bagnon icons visible")
+runtime:UpdateBagIcons({itemIcons=true})
+runtime:RegisterBagIcons(function() return {result="KEEP"},{result="KEEP"} end)
+assert(not created.dejunkWotLKIconOverlay.shown,"changed rules left a stale Bagnon icon")
+created:Hide(); created:Update()
+assert(not created.dejunkWotLKIconOverlay.shown)
+-- Delayed addon availability is retried by the runtime event listener.
+ui.Bagnon=nil
+assert(runtime:Start(function() end,function() end))
+local eventFrame=uiFrames[#uiFrames]
+runtime:RegisterBagIcons(function() return {result="JUNK"},{result="KEEP"} end)
+class={Update=function(self) self.updated=true end,Free=function(self) self:Hide() end}
+local late=bagnonButton()
+ui.Bagnon={ItemSlot=class,frames={{itemFrame={itemSlots={[1]=late}}}}}
+assert(not late.dejunkWotLKIconOverlay)
+eventFrame.scripts.OnEvent(eventFrame,"ADDON_LOADED","Bagnon")
+assert(late.dejunkWotLKIconOverlay.shown and hooksInstalled==4)
+late:Update(); assert(late.updated)
+runtime:UpdateBagIcons({itemIcons=false})
+ui.Bagnon=nil; ui.hooksecurefunc=stockHook; ui.GetContainerItemLink=oldLink
+reused.GetBag=nil; reused.IsCached=nil; reused.GetItem=nil; setmetatable(reused,nil)
+print("BAGNON RESULT: discovery, reuse, live identity, cached/bank exclusion, settings and hook preservation passed")
 local savedWindowPoint
 runtime:SetWindowPointHandlers(function(key)
   if key=="junkFrame" then return {point="TOPLEFT",relativePoint="TOPLEFT",offsetX=25,offsetY=-30} end

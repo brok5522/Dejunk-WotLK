@@ -860,6 +860,12 @@ function Addon.NewApplication(runtime)
       junkFrameAutoShown=false
     end
   end
+  app.bus:On("StateUpdated",function()
+    if app.store and runtime.UpdateBagIcons then runtime:UpdateBagIcons(app.store:GetState().global) end
+  end)
+  app.bus:On("BagsUpdated",function()
+    if runtime.RefreshBagIcons then runtime:RefreshBagIcons() end
+  end)
   app.bus:On("BagsUpdated",function(snapshot) refreshVisibleJunkFrame(snapshot); refreshMerchantButton() end)
   app.bus:On("BagsUpdated",function(snapshot) updateAutoJunkFrame(snapshot) end)
   app.bus:On("BagsInvalidated",function() runtime:UpdateJunkFrame(nil); refreshMerchantButton() end)

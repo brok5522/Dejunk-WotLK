@@ -47,8 +47,9 @@ Changes are included in release 1.0.1. Original-client acceptance has not been r
   the saved value; price Tab/Shift-Tab cycles inputs. Disabled parent filters disable
   their scope/quality/type/input controls. Client focus and timing acceptance pending.
 - **14 — Open:** comprehensive localization has not been ported.
-- **15 — Open:** third-party bag widget discovery/integration has not been added.
-  Stock ContainerFrame overlays remain the supported implementation.
+- **15 — Implemented for requested Bagnon in 1.0.2:** stock bags and RichSteini
+  Bagnon 3.3.5 now have live-slot icon integration. Other bag addons are not claimed.
+  See [source contract and tests](BAGNON-COMPATIBILITY.md); native-client acceptance pending.
 
 ## Validation and interpretation
 
