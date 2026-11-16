@@ -5,7 +5,7 @@
 **A cleaner inventory for original World of Warcraft 3.3.5a.**
 
 [![Client](https://img.shields.io/badge/WoW-3.3.5a%20%2812340%29-4fafe3)](#compatibility)
-[![Status](https://img.shields.io/badge/release-1.0.0-green)](#release-status)
+[![Status](https://img.shields.io/badge/release-1.0.5-green)](#release-status)
 [![Code license](https://img.shields.io/badge/code-MIT-green)](LICENSE)
 
 [Download](https://github.com/brok5522/Dejunk-WotLK/releases) · [فارسی](README.fa.md) · [Report an issue](https://github.com/brok5522/Dejunk-WotLK/issues)
@@ -28,7 +28,7 @@ and sell junk at a merchant through a familiar interface.
 - **Lootable Items window:** open supported bag items and ignore an item type
   for the current session.
 - **Interface controls:** minimap icon, keybindings, explanatory bag tooltips,
-  and small/large bag overlays.
+  and small/large bag overlays, including [Bagnon 3.3.5](docs/BAGNON-COMPATIBILITY.md).
 - **Action checks:** current slot identity, cursor and merchant checks, a
   twelve-attempt Safe Sell limit, and Safe Destroy confirmation by default.
 
@@ -48,7 +48,7 @@ is listed in the AddOns menu and the release.
 
 ## Install
 
-1. Download **`Dejunk-WotLK-1.0.0.zip`** from
+1. Download **`Dejunk-WotLK-1.0.5.zip`** from
    [Releases](https://github.com/brok5522/Dejunk-WotLK/releases).
 2. Close WoW. If upgrading, back up your `WTF` SavedVariables and replace the
    old `Dejunk-WotLK` folder rather than mixing files from multiple versions.
@@ -110,17 +110,17 @@ to add them to the selected list.
 
 ## Release status
 
-**1.0.0 is the first numbered release, incorporating owner-tested client fixes.**
-The owner has reported successful testing of the main UI and merchant-button
-placement. Automated checks use actual Lua 5.1 and cover runtime, store, services,
-UI interaction, action lifecycle and reproducible packaging.
+**1.0.2 adds RichSteini Bagnon 3.3.5 support to the 1.0.1 audit fixes.** See the
+[release notes](docs/RELEASE-1.0.2.md) and [detailed fix status](docs/FIXES-REVIEW-1.0.0.md).
+Actual Lua 5.1 checks cover saved data, filters, action lifecycle, UI interactions
+and reproducible packaging. The owner's previous client acceptance applies to
+1.0.0; the changed paths need the [1.0.1 retest](docs/RELEASE-1.0.2.md).
 
-This does **not** establish exact upstream parity or full original-client
-acceptance. Lootable-item acceptance, localization, third-party bag integrations,
-filter edge cases and exact upstream transaction messages/outcome observation
-remain under review. See [the parity matrix](docs/PARITY.md),
-[validation evidence](docs/VALIDATION.md) and
-[the client-test guide](docs/CLIENT-TEST-0.16.58.fa.md).
+Full upstream parity is not claimed. Comprehensive localization and integrations with other bag addons remain incomplete.
+The tested Bagnon source contract is documented [here](docs/BAGNON-COMPATIBILITY.md). Canonical category mapping recognizes English
+item labels; unknown localized labels are not guessed from auction positions.
+Original-client visual and transaction acceptance is separate from offline tests.
+See [the parity matrix](docs/PARITY.md) and [validation evidence](docs/VALIDATION.md).
 
 ## Troubleshooting
 

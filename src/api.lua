@@ -5,8 +5,8 @@ local _, Addon = ...
 local listeners = {}
 local publicApi = {
   Events = {
-    BagsUpdated = "Dejunk_BagsUpdated",
-    StateUpdated = "Dejunk_StateUpdated"
+    BagsUpdated = "BagsUpdated",
+    StateUpdated = "StateUpdated"
   }
 }
 

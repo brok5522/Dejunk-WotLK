@@ -31,7 +31,7 @@ function Addon.NewDiagnostics()
     local client = application.client
     local snapshot = application.cache and application.cache:GetSnapshot()
     local lines = {
-      "Dejunk-WotLK " .. Addon.version .. " | PHASE 1 | READ ONLY",
+      "Dejunk-WotLK " .. Addon.version .. " | DIAGNOSTICS",
       "This is diagnostic evidence, not approval for inventory operations.",
       "state=" .. safe(application.state) .. " reason=" .. safe(client.reason),
       "version=" .. safe(client.version) .. " build=" .. safe(client.build) .. " interface=" .. safe(client.interface),
@@ -61,7 +61,7 @@ function Addon.NewDiagnostics()
     end
     lines[#lines + 1] = "recent event payload types (last 32; values omitted):"
     for _, line in ipairs(self.events) do lines[#lines + 1] = "  " .. line end
-    lines[#lines + 1] = "No inventory mutation APIs are implemented or called."
+    lines[#lines + 1] = "Generating this report does not mutate inventory. Sale, repair, loot and destroy actions are implemented separately."
     return table.concat(lines, "\n")
   end
   return diagnostics

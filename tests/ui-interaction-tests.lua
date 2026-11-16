@@ -127,8 +127,11 @@ ui.GetContainerNumSlots=function(bag) return bag==0 and 1 or 0 end
 ui.ContainerFrame1=object("Frame","ContainerFrame1",ui); ui.ContainerFrame1.id=0; ui.ContainerFrame1:Show()
 ui.ContainerFrame1Item1=object("Button","ContainerFrame1Item1",ui.ContainerFrame1); ui.ContainerFrame1Item1.id=1
 ui.Minimap=object("Frame","Minimap",ui)
+ui.Minimap.width,ui.Minimap.height=140,140
 function ui.Minimap:GetCenter() return 100,100 end
 function ui.Minimap:GetEffectiveScale() return 1 end
+ui.minimapShape="ROUND"
+ui.GetMinimapShape=function() return ui.minimapShape end
 ui.GetCursorPosition=function() return 180,100 end
 ui.IsShiftKeyDown=function() return ui.shiftDown==true end
 ui.IsControlKeyDown=function() return ui.controlDown==true end
@@ -142,6 +145,7 @@ local runtime=Addon.Runtime.New(setmetatable({print=function(message) messages[#
 local bagTooltipHook,hookCount
 ui.GameTooltip={lines={},AddLine=function(self,text) self.lines[#self.lines+1]={text=text} end,
   AddDoubleLine=function(self,left,right) self.lines[#self.lines+1]={left=left,right=right} end,
+  ClearLines=function(self) self.lines={} end,
   SetOwner=function(self,owner) self.owner=owner end,
   SetText=function(self,text) self.text=text end,
   SetBagItem=function(self,bag,slot) self.bag,self.slot=bag,slot end,
@@ -152,28 +156,77 @@ ui.hooksecurefunc=function(target,name,hook)
   if target==ui.GameTooltip and name=="SetBagItem" then
     bagTooltipHook=hook; hookCount=(hookCount or 0)+1
   elseif target=="ContainerFrame_Update" then
-    ui.containerUpdateHook=hook
+    ui.containerUpdateHook=type(name)=="function" and name or hook
   elseif target==ui and name=="ContainerFrame_Update" then
     ui.containerUpdateHook=hook
   else error("unexpected secure hook") end
 end
 ui.ContainerFrame_Update=function() end
-assert(runtime:RegisterBagTooltips(function()
-  return {result="JUNK",reasonCode="QUALITY"},{result="KEEP",reasonCode="EXCLUDED"}
-end),"legacy bag tooltip hook did not register")
+ui.tooltipSell={result="JUNK",reasonCode="QUALITY"}
+ui.tooltipDestroy={result="KEEP",reasonCode="GLOBAL_EXCLUSION"}
+ui.GetCoinTextureString=function(value)
+  if value==456 or value==789 then return tostring(value).."c" end
+end
+assert(runtime:RegisterBagTooltips(function() return ui.tooltipSell,ui.tooltipDestroy end),
+  "legacy bag tooltip hook did not register")
 bagTooltipHook(ui.GameTooltip,0,1)
 assert(ui.GameTooltip.shown and ui.GameTooltip.lines[2].text:find("Dejunk",1,true) and
   ui.GameTooltip.lines[3].text:find("Selling",1,true) and
-  ui.GameTooltip.lines[4].text:find("Included by quality",1,true) and
+  ui.GameTooltip.lines[4].text:find("Profile Options > Include By Quality",1,true) and
   ui.GameTooltip.lines[5].text:find("Not Destroying",1,true),"bag tooltip omitted readable filter decisions")
+do
+  local reasonCases={
+    {"PROFILE_INCLUSION","Lists > Inclusions (Profile)"},
+    {"GLOBAL_INCLUSION","Lists > Inclusions (Global)"},
+    {"PROFILE_EXCLUSION","Lists > Exclusions (Profile)"},
+    {"GLOBAL_EXCLUSION","Lists > Exclusions (Global)"}
+  }
+  for _,entry in ipairs(reasonCases) do
+    ui.GameTooltip.lines={}; ui.tooltipSell.reasonCode=entry[1]
+    bagTooltipHook(ui.GameTooltip,0,1)
+    assert(ui.GameTooltip.lines[4].text:find(entry[2],1,true),
+      "tooltip reason did not match upstream English list wording: "..entry[1])
+  end
+end
+do
+  local reasonCases={
+    {"ABOVE_MAX_ITEM_LEVEL",23,"Exclude Above Item Level (23)"},
+    {"BELOW_MIN_ITEM_LEVEL",17,"Include Below Item Level (17)"},
+    {"ABOVE_MAX_STACK_PRICE",456,"Exclude Above Price (456c)"},
+    {"BELOW_MIN_STACK_PRICE",789,"Include Below Price (789c)"},
+    {"INCLUDED_EQUIPMENT_TYPE","Cloth","Include By Equipment Type (Cloth)"},
+    {"EXCLUDED_EQUIPMENT_TYPE","Sword","Exclude By Equipment Type (Sword)"}
+  }
+  for _,entry in ipairs(reasonCases) do
+    ui.GameTooltip.lines={}; ui.tooltipSell.reasonCode=entry[1]; ui.tooltipSell.reasonValue=entry[2]
+    bagTooltipHook(ui.GameTooltip,0,1)
+    assert(ui.GameTooltip.lines[4].text:find(entry[3],1,true),
+      "tooltip omitted dynamic reason details: "..entry[1])
+  end
+end
+ui.tooltipSell.reasonCode="QUALITY"; ui.GameTooltip.lines={}; bagTooltipHook(ui.GameTooltip,0,1)
 assert(runtime:RegisterBagTooltips(function() end) and hookCount==1,"bag tooltip hook registered more than once")
 assert(runtime:RegisterBagIcons(function()
+  ui.stockIconProviderCalls=(ui.stockIconProviderCalls or 0)+1
   return {result="JUNK"},{result="KEEP"}
 end),"bag icon provider did not register")
 assert(runtime:UpdateBagIcons({itemIcons=true,itemIconStyle="SMALL"}) and
   ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown,"small junk overlay did not appear")
 assert(ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\dejunk-icon",
   "junk overlay texture did not load")
+assert(type(ui.containerUpdateHook)=="function","stock bag refresh hook was not installed")
+do
+  ui.containerUpdateHook()
+  assert(ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown,"stock bag update did not restore the overlay")
+  ui.ContainerFrame1:Hide()
+  local hiddenProviderCalls=ui.stockIconProviderCalls
+  ui.containerUpdateHook()
+  assert(not ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown and ui.stockIconProviderCalls==hiddenProviderCalls,
+    "hidden stock bag frame was queried or kept a stale overlay")
+  ui.ContainerFrame1:Show(); ui.containerUpdateHook()
+  assert(ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown and ui.stockIconProviderCalls==hiddenProviderCalls+1,
+    "visible stock bag refresh did not restore its current overlay")
+end
 runtime:UpdateBagIcons({itemIcons=true,itemIconStyle="LARGE"})
 assert(ui.ContainerFrame1Item1.dejunkWotLKIconBackground.shown and
   ui.ContainerFrame1Item1.dejunkWotLKIconBackground.vertexColor[4]==0.75,
@@ -185,6 +238,93 @@ assert(not ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown,"stale junk over
 assert(not ui.ContainerFrame1Item1.dejunkWotLKIconBackground.shown,"stale bag overlay background was not cleared")
 runtime:UpdateBagIcons({itemIcons=false})
 assert(not ui.ContainerFrame1Item1.dejunkWotLKIconOverlay.shown,"disabled item icons remained visible")
+-- RichSteini Bagnon 27a08f8: Classy ItemSlot methods, pooled buttons and
+-- frame.itemFrame.itemSlots; no button-name assumptions or replacement scripts.
+local stockHook=ui.hooksecurefunc
+local hooksInstalled=0
+local class={}
+function class:UpdateSearch() self:SetAlpha(self.searchMatch==false and 0.4 or 1) end
+function class:Update() self:UpdateSearch(); self.originalUpdates=(self.originalUpdates or 0)+1 end
+function class:Free() self:Hide(); self.freed=true end
+ui.hooksecurefunc=function(target,name,hook)
+  if target==class then
+    hooksInstalled=hooksInstalled+1
+    local original=target[name]
+    target[name]=function(self,...) original(self,...); hook(self,...) end
+  else return stockHook(target,name,hook) end
+end
+local oldLink=ui.GetContainerItemLink
+local displayedLink="item:123:0:0:0:0:0:0:0"
+ui.GetContainerItemLink=function(bag,slot) if bag==0 and slot==1 then return displayedLink end end
+local function bagnonButton(button)
+  button=button or object("Button",nil,ui)
+  button.id=1; button.bag=0; button.cached=false; button.link=displayedLink; button:Show()
+  button.IsVisible=button.IsShown
+  function button:GetAlpha() return self.alpha or 1 end
+  function button:GetBag() return self.bag end
+  function button:IsCached() return self.cached end
+  function button:GetItem() return self.link end
+  setmetatable(button,{__index=class})
+  return button
+end
+local reused=bagnonButton(ui.ContainerFrame1Item1)
+local drag=function() end; reused:SetScript("OnDragStart",drag)
+ui.Bagnon={ItemSlot=class,frames={{itemFrame={itemSlots={[1]=reused}}}}}
+local providerCalls=0
+runtime:RegisterBagIcons(function(bag,slot)
+  providerCalls=providerCalls+1; assert(bag==0 and slot==1)
+  return {result="JUNK"},{result="KEEP"}
+end)
+runtime:UpdateBagIcons({itemIcons=true,itemIconStyle="SMALL"})
+assert(reused.dejunkWotLKIconOverlay.shown,"pre-existing Bagnon button was not discovered")
+assert(hooksInstalled==2 and reused.scripts.OnDragStart==drag,"Bagnon hooks replaced input scripts")
+local allocated=#uiFrames
+runtime:RefreshBagIcons(); runtime:RefreshBagIcons()
+assert(hooksInstalled==2 and #uiFrames==allocated,"refresh duplicated Bagnon hooks or textures")
+reused.cached=true; local before=providerCalls
+reused:Update()
+assert(not reused.dejunkWotLKIconOverlay.shown and providerCalls==before,"cached alt inventory used live player decisions")
+reused.cached=false; reused.bag=-1; reused:Update()
+assert(not reused.dejunkWotLKIconOverlay.shown and providerCalls==before,"bank slot used carried-bag decisions")
+reused.bag=0; reused.link="item:456:0"; reused:Update()
+assert(not reused.dejunkWotLKIconOverlay.shown,"stale displayed link received a new slot's icon")
+reused.link=displayedLink; reused:Update()
+assert(reused.dejunkWotLKIconOverlay.shown and reused.originalUpdates==4,"original Bagnon Update was not preserved")
+reused.searchMatch=false; before=providerCalls; reused:UpdateSearch()
+assert(not reused.dejunkWotLKIconOverlay.shown and providerCalls==before,
+  "Bagnon search kept the Dejunk overlay on a filtered slot")
+reused.searchMatch=true; reused:UpdateSearch()
+assert(reused.dejunkWotLKIconOverlay.shown and providerCalls==before+1,
+  "Bagnon search did not restore the overlay when a slot matched again")
+runtime:UpdateBagIcons({itemIcons=true,itemIconStyle="LARGE"})
+assert(reused.dejunkWotLKIconOverlay.allPoints==reused and reused.dejunkWotLKIconBackground.vertexColor[4]==0.75)
+reused:Free(); ui.Bagnon.frames[1].itemFrame.itemSlots[1]=nil
+assert(not reused.dejunkWotLKIconOverlay.shown and reused.freed,"freed widget retained an icon")
+local created=bagnonButton(); created:Update()
+assert(created.dejunkWotLKIconOverlay.shown,"new pooled Bagnon button was not hooked")
+runtime:UpdateBagIcons({itemIcons=false})
+assert(not created.dejunkWotLKIconOverlay.shown,"disabled setting left Bagnon icons visible")
+runtime:UpdateBagIcons({itemIcons=true})
+runtime:RegisterBagIcons(function() return {result="KEEP"},{result="KEEP"} end)
+assert(not created.dejunkWotLKIconOverlay.shown,"changed rules left a stale Bagnon icon")
+created:Hide(); created:Update()
+assert(not created.dejunkWotLKIconOverlay.shown)
+-- Delayed addon availability is retried by the runtime event listener.
+ui.Bagnon=nil
+assert(runtime:Start(function() end,function() end))
+local eventFrame=uiFrames[#uiFrames]
+runtime:RegisterBagIcons(function() return {result="JUNK"},{result="KEEP"} end)
+class={Update=function(self) self.updated=true end,Free=function(self) self:Hide() end}
+local late=bagnonButton()
+ui.Bagnon={ItemSlot=class,frames={{itemFrame={itemSlots={[1]=late}}}}}
+assert(not late.dejunkWotLKIconOverlay)
+eventFrame.scripts.OnEvent(eventFrame,"ADDON_LOADED","Bagnon")
+assert(late.dejunkWotLKIconOverlay.shown and hooksInstalled==4)
+late:Update(); assert(late.updated)
+runtime:UpdateBagIcons({itemIcons=false})
+ui.Bagnon=nil; ui.hooksecurefunc=stockHook; ui.GetContainerItemLink=oldLink
+reused.GetBag=nil; reused.IsCached=nil; reused.GetItem=nil; setmetatable(reused,nil)
+print("BAGNON RESULT: discovery, reuse, live identity, cached/bank exclusion, settings and hook preservation passed")
 local savedWindowPoint
 runtime:SetWindowPointHandlers(function(key)
   if key=="junkFrame" then return {point="TOPLEFT",relativePoint="TOPLEFT",offsetX=25,offsetY=-30} end
@@ -243,6 +383,15 @@ assert(runtime:UpdateMinimapIcon(minimapState,
 local minimapButton=namedFrame("DejunkWotLKMinimapButton")
 assert(minimapButton and minimapButton.shown and minimapButton.dragButtons[1]=="LeftButton",
   "minimap icon did not appear with a movable button")
+assert(math.abs(minimapButton.point[4]-math.cos(math.rad(220))*75)<0.01 and
+  math.abs(minimapButton.point[5]-math.sin(math.rad(220))*75)<0.01,
+  "minimap icon did not use the reference radius and circular position")
+ui.minimapShape="CORNER-TOPLEFT"
+runtime:UpdateMinimapIcon(minimapState)
+assert(minimapButton.point[4]>-75 and minimapButton.point[5]>-75,
+  "minimap icon was placed outside a clipped minimap corner")
+ui.minimapShape="ROUND"
+runtime:UpdateMinimapIcon(minimapState)
 minimapButton.scripts.OnClick(minimapButton,"LeftButton")
 assert(openFromMinimap==1,"minimap icon click did not open the addon")
 minimapButton.scripts.OnClick(minimapButton,"RightButton")
@@ -315,6 +464,32 @@ for _,frame in ipairs(uiFrames) do
   if frame.kind=="Button" and frame.parent==junkWindow and frame.height==40 and frame.backdrop then junkValuePanel=frame end
 end
 assert(junkValuePanel and totalPrice.parent==junkValuePanel,"Junk total value is not in the upstream summary panel")
+do
+  local bulk={items={},sellable=0,destroyable=0}
+  for index=1,300 do
+    bulk.items[index]={itemId=2000+index,name="Bulk "..index,count=1,quality=0,locked=false,unitVendorPrice=0}
+  end
+  local savedCallbacks=runtime.configCallbacks
+  local editedId
+  runtime.configCallbacks={editItem=function(_,_,id) editedId=id; return true end,junkItems=function() return bulk end}
+  local scroll=namedFrame("DejunkWotLKJunkScroll"); scroll:SetHeight(250)
+  runtime:UpdateJunkFrame(bulk)
+  local pooledCount,firstCard=0,nil
+  for _,frame in ipairs(uiFrames) do
+    if frame.actionButtons and frame.height==36 and frame.item and frame.item.itemId>=2001 and frame.item.itemId<=2300 then
+      pooledCount=pooledCount+1; firstCard=firstCard or frame
+    end
+  end
+  assert(pooledCount==7 and firstCard,"Junk item window did not pool exactly seven visible cards")
+  scroll:SetVerticalScroll(38*20); scroll.scripts.OnVerticalScroll(scroll)
+  assert(firstCard.item.itemId==2021,"Junk card did not rebind to the scrolled item")
+  firstCard.actionButtons[2]:Click()
+  assert(editedId==2021,"recycled Junk action targeted a stale item")
+  runtime:UpdateJunkFrame({items={bulk.items[1]},sellable=0,destroyable=0})
+  assert(scroll:GetVerticalScroll()==0,"Junk scroll offset did not reset when the list shrank")
+  runtime.configCallbacks=savedCallbacks
+  runtime:UpdateJunkFrame({sellable=1,destroyable=2,items={{itemId=123},{itemId=456}}})
+end
 local previousCallbacks=runtime.configCallbacks
 local listEdits={}
 runtime.configCallbacks={editItem=function(scope,kind,id,present)
@@ -323,9 +498,22 @@ end,junkItems=function() return {sellable=1,destroyable=2,items={{itemId=123},{i
 cursorItemId=999; local junkCard
 for _,frame in ipairs(uiFrames) do if frame.kind=="Frame" and frame.item and frame.item.itemId==123 then junkCard=frame end end
 assert(junkCard and junkCard.scripts.OnMouseUp,"Junk item row cannot accept a cursor item")
+eventFrame.scripts.OnEvent(eventFrame,"CURSOR_UPDATE")
+assert(junkCard.actionButtons[2].enabled==false,
+  "Junk exclusion action remained enabled while the cursor held an item")
+assert(junkCard.alpha==0.5,"Junk row did not dim while cursor input disables its actions")
 junkCard.scripts.OnMouseUp(junkCard,"LeftButton")
 assert(listEdits[1] and listEdits[1].scope=="profile" and listEdits[1].kind=="inclusions" and
   listEdits[1].id==999 and cursorItemId==nil,"Junk item row did not add and clear the cursor item safely")
+assert(junkCard.actionButtons[2].enabled==true,
+  "Junk exclusion action stayed disabled after the cursor item was committed")
+assert(junkCard.alpha==1,"Junk row did not recover after the cursor was cleared")
+runtime.itemActionsBusy=true
+runtime:UpdateJunkFrame({sellable=1,destroyable=2,items={{itemId=123},{itemId=456}}})
+assert(junkCard.actionButtons[2].enabled==false,
+  "Junk exclusion action remained enabled while an item action was pending")
+assert(junkCard.alpha==0.5,"Junk row did not dim while an item action was pending")
+runtime.itemActionsBusy=false
 ui.controlDown=true; ui.altDown=true; junkValuePanel:Click("RightButton"); ui.controlDown=false; ui.altDown=false
 assert(listEdits[2] and listEdits[2].kind=="exclusions" and listEdits[2].id==123 and listEdits[3].id==456,
   "Junk total bar did not add all candidates to exclusions")
@@ -353,12 +541,14 @@ assert(merchantButton.point[4]==210 and merchantButton.point[5]==-44,
   "legacy merchant position was not moved out of the portrait area")
 assert(merchantButton and merchantButton.parent==ui.MerchantFrame and merchantButton.shown,
   "enabled merchant button did not appear on the open merchant frame")
-assert(merchantButton.width==108 and merchantButton.height==28 and
+assert(merchantButton.width==108 and merchantButton.height==28 and merchantButton.strata=="HIGH" and
   merchantButton.children[1].texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\dejunk-icon" and
   merchantButton.children[2].text=="(1/1)","merchant button did not match upstream icon and count layout")
 ui.GameTooltip.lines={}; merchantButton.scripts.OnEnter(merchantButton)
 assert(ui.GameTooltip.lines[1].left=="Dejunk (1/1)" and ui.GameTooltip.lines[1].right=="3.3.5",
   "merchant tooltip omitted the upstream item counts or version")
+merchantButton.scripts.OnEnter(merchantButton)
+assert(#ui.GameTooltip.lines==4,"merchant hover appended duplicate tooltip lines")
 ui.GameTooltip.lines={}; ui.altDown=true; merchantButton.scripts.OnEnter(merchantButton); ui.altDown=false
 assert(ui.GameTooltip.bag==0 and ui.GameTooltip.slot==1 and ui.GameTooltip.lines[2].right=="Destroy",
   "holding Alt over the merchant button did not preview the next destroyable item")
@@ -414,6 +604,16 @@ assert(requestedActions.sellItem==778 and requestedActions.destroyItem==778 and
   requestedActions.startSelling==true and requestedActions.destroyNext==true,
   "Junk frame controls did not dispatch to their injected action handlers")
 runtime:UpdateMerchantButton({merchantButton=true},actionData,true)
+requestedActions.startSelling=nil
+requestedActions.destroyNext=nil
+ui.shiftDown=true; merchantButton:Click("LeftButton"); ui.shiftDown=false
+ui.controlDown=true; merchantButton:Click("RightButton"); ui.controlDown=false
+ui.shiftDown=true; ui.altDown=true; merchantButton:Click("RightButton"); ui.shiftDown=false; ui.altDown=false
+ui.controlDown=true; ui.altDown=true; merchantButton:Click("RightButton"); ui.controlDown=false; ui.altDown=false
+assert(requestedActions.startSelling==nil and requestedActions.destroyNext==nil and
+  savedMerchantPoint.point=="TOPLEFT" and savedMerchantPoint.offsetX==210 and
+  savedMerchantPoint.offsetY==-44 and junkWindow.shown==false,
+  "unsupported merchant modifier combinations triggered an action")
 merchantButton:Click("LeftButton")
 ui.altDown=true; merchantButton:Click("RightButton"); ui.altDown=false
 assert(requestedActions.startSelling==true and requestedActions.destroyNext==true,
@@ -490,6 +690,10 @@ opButton:Click(); assert(control("Button","Operator: GT"))
 opButton:Click(); assert(control("Button","Operator: EQ"))
 control("Button","Group: ALL"):Click()
 editBox(110):SetText("8")
+editBox(110):SetFocus(); editBox(110).scripts.OnEnterPressed(editBox(110))
+assert(editBox(110).focused==false,"Enter did not release focus from the rule number field")
+editBox(150):SetFocus(); editBox(150).scripts.OnEscapePressed(editBox(150))
+assert(editBox(150).focused==false,"Escape did not release focus from the rule ID field")
 control("Button","Add condition"):Click()
 assert(#rules==0 and summaryText():find("Draft",1,true)==nil)
 editBox(110):SetText("0")
@@ -538,6 +742,7 @@ assert(listStore:EditList("global","inclusions",6948,true))
 local listCallbacks={
   listItems=function(scope,kind) return listStore:ExportList(scope,kind) end,
   editItem=function(scope,kind,id,present) return listStore:EditList(scope,kind,id,present) end,
+  clearList=function(scope,kind) return listStore:ClearList(scope,kind) end,
   previewListImport=function(scope,kind,text) return listStore:ImportPreview(scope,kind,text) end,
   commitListImport=function(preview) return listStore:CommitImport(preview) end,
   activeProfileName=function() return "Test" end,
@@ -593,6 +798,7 @@ for _,candidate in ipairs(uiFrames) do
 end
 local listFrame=namedFrame("DejunkWotLKLists")
 local mainWindow=namedFrame("DejunkWotLK_MainWindow")
+assert(mainWindow.width==800 and mainWindow.height==640,"main shell dimensions do not match the reference window")
 runtime:UpdateMinimapIcon(minimapState,nil,function() runtime:ToggleConfig(listCallbacks) end)
 for cycle=1,3 do
   minimapButton:Click("LeftButton")
@@ -674,6 +880,49 @@ for _,frame in ipairs(uiFrames) do
   end
 end
 assert(visibleListRows>=11,"scrollable list did not create rows for entries beyond the first seven")
+-- Hundreds of entries must reuse the visible rows, including after scrolling.
+local scrollList=listPanes["global:inclusions"].scrollFrame
+scrollList:SetHeight(196)
+for id=7100,7399 do assert(listStore:EditList("global","inclusions",id,true)) end
+runtime:ShowLists(listCallbacks)
+local function listButtons()
+  local all={}
+  for _,frame in ipairs(uiFrames) do
+    if frame.kind=="Button" and frame.listScope=="global" and frame.listKind=="inclusions" then all[#all+1]=frame end
+  end
+  return all
+end
+local beforeCount=#listButtons()
+assert(beforeCount<=12,"large list allocated one frame per item")
+local firstId=listButtons()[1].itemId
+scrollList:SetVerticalScroll(28*100); scrollList.scripts.OnVerticalScroll()
+local afterRows=listButtons()
+assert(#afterRows==beforeCount and afterRows[1].itemId~=firstId,"scroll did not recycle rows for later items")
+assert(tonumber(afterRows[1].itemId)>=7100,"scroll did not reach a later item")
+local listTrack=listPanes["global:inclusions"].scrollTrack
+listTrack:SetHeight(200); listTrack.GetTop=function() return 200 end
+listTrack.GetEffectiveScale=function() return 1 end
+local previousOffset=scrollList:GetVerticalScroll()
+listTrack.scripts.OnMouseDown(listTrack,"LeftButton")
+assert(scrollList:GetVerticalScroll()~=previousOffset and listTrack.scripts.OnUpdate,
+  "clicking the list scrollbar did not seek and begin dragging")
+listTrack.scripts.OnMouseUp(listTrack,"LeftButton")
+assert(listTrack.scripts.OnUpdate==nil,"list scrollbar drag did not stop")
+local afterRows=listButtons()
+cursorItemId=9999
+local firstRow=afterRows[1]
+local heldRowId=tonumber(firstRow.itemId)
+firstRow.scripts.OnMouseDown(firstRow,"RightButton")
+firstRow.scripts.OnClick(firstRow,"RightButton")
+assert(cursorItemId==9999 and listStore:GetState().global.inclusions[heldRowId],
+  "right-clicking with a cursor item consumed it or removed the list entry")
+cursorItemId=nil
+firstRow.scripts.OnClick(firstRow,"RightButton")
+assert(not listStore:GetState().global.inclusions[heldRowId],
+  "recycled row action did not target its currently displayed item")
+for id=7100,7399 do
+  if listStore:GetState().global.inclusions[id] then assert(listStore:EditList("global","inclusions",id,false)) end
+end
 for id=7000,7008 do assert(listStore:EditList("global","inclusions",id,false)) end
 runtime:ShowLists(listCallbacks)
 control("Button","Profile Options"):Click()
@@ -691,6 +940,8 @@ assert(firstOptionsPage.shown and namedFrame("DejunkWotLKProfiles").shown==false
 control("Button","Lists"):Click()
 assert(mainWindow.shown and listFrame.shown and firstOptionsPage.shown==false,
   "Lists navigation did not restore Lists and hide the Options Waffle page")
+assert(listFrame.shown and not namedFrame("DejunkWotLKProfiles").shown,
+  "opening the main window did not land on Lists as the reference does")
 
 control("Button","Keybindings"):Click()
 local keybindingPage=namedFrame("DejunkWotLKKeybindings")
@@ -778,6 +1029,20 @@ mainWindowBinding:Click("LeftButton")
 keybindingPage.scripts.OnKeyDown(keybindingPage,"ESCAPE")
 assert(listStore:GetState().global.keybindings.toggleMainWindow=="" and keybindingPage.keyboard==false,
   "Escape did not cancel key capture without changing the binding")
+mainWindowBinding:Click("LeftButton")
+keybindingPage.scripts.OnMouseDown(keybindingPage,"LeftButton")
+assert(keybindingPage.keyboard==true and listStore:GetState().global.keybindings.toggleMainWindow=="",
+  "the click that started capture was incorrectly captured as a binding")
+keybindingPage.scripts.OnKeyDown(keybindingPage,"ESCAPE")
+local originalCombatCheck=ui.InCombatLockdown
+ui.InCombatLockdown=function() return 0 end
+mainWindowBinding:Click("LeftButton")
+assert(keybindingPage.keyboard==true,"legacy zero combat flag blocked key capture")
+keybindingPage.scripts.OnKeyDown(keybindingPage,"ESCAPE")
+ui.InCombatLockdown=function() return 1 end
+mainWindowBinding:Click("LeftButton")
+assert(keybindingPage.keyboard==false,"legacy one combat flag allowed key capture")
+ui.InCombatLockdown=originalCombatCheck
 ui.combatLocked=true
 mainWindowBinding:Click("LeftButton")
 assert(keybindingPage.keyboard==false,"key capture started during combat")
@@ -815,12 +1080,16 @@ for _,frame in ipairs(uiFrames) do
   if frame.kind=="Texture" and frame.parent==searchBox and frame.texture=="Interface\\AddOns\\Dejunk-WotLK\\assets\\search-icon" then searchIcon=frame end
 end
 assert(searchIcon and searchIcon.width==14,"Lists is missing the upstream search icon")
+searchBox.scripts.OnEditFocusGained(searchBox)
+assert(searchBox.borderColor and searchBox.borderColor[4]==0.4,
+  "Lists search field did not highlight its border on focus")
 searchBox:SetFocus(); searchBox:SetText("2"); searchBox:SetText("23")
 assert(searchBox:GetText()=="23" and searchBox.focused and listFrame.shown,
   "refreshing Lists while typing lost the search text, focus or selected page")
 searchBox.scripts.OnEscapePressed(searchBox)
 assert(searchBox:GetText()=="" and not searchBox.focused and listFrame.shown,
   "Escape did not clear Lists search and release focus while preserving the page")
+assert(searchBox.borderColor[4]==1,"Escape did not restore the unfocused search border")
 local savedTransportPoint
 runtime:SetWindowPointHandlers(function(key) return key=="transportFrame" and savedTransportPoint end,
   function(key,value) if key=="transportFrame" then savedTransportPoint=value; return true end return false end)
@@ -857,6 +1126,7 @@ for _,frame in ipairs(uiFrames) do if frame.kind=="EditBox" and frame.width==245
 assert(importInput)
 importInput:SetText("123, 456")
 control("Button","Import"):Click()
+assert(not importInput.focused,"Import must release the text field focus")
 assert(namedFrame("DejunkWotLKListImport").shown,
   "successful import did not keep the transport window open")
 assert(listStore:ExportList("global","inclusions")=="123\n456\n6948\n6949")
@@ -878,15 +1148,34 @@ assert(globalInclusionRow.accent.texture=="Interface\\Buttons\\WHITE8x8",
   "Lists item quality stripe has no visible texture")
 ui.shiftDown=true; globalInclusionRow:Click("RightButton"); ui.shiftDown=false
 assert(listStore:ExportList("global","exclusions")=="6948")
+assert(not listStore:GetState().global.inclusions[6948],"Shift did not reconcile opposite membership")
+assert(listStore:EditList("global","inclusions",6948,true));runtime:ShowLists(listCallbacks)
 ui.controlDown=true; listRow("global","inclusions",6948):Click("RightButton"); ui.controlDown=false
 assert(listStore:ExportList("profile","exclusions")=="6948")
 ui.altDown=true; listRow("global","inclusions",6948):Click("RightButton"); ui.altDown=false
 assert(listStore:ExportList("profile","inclusions")=="6948")
 listRow("global","inclusions",6948):Click("RightButton")
 assert(listStore:ExportList("global","inclusions")=="123\n456\n6949")
-assert(listStore:EditList("global","exclusions",6948,false))
-assert(listStore:EditList("profile","exclusions",6948,false))
+assert(not listStore:GetState().global.exclusions[6948])
+assert(not listStore:GetActiveProfile().exclusions[6948])
 assert(listStore:EditList("profile","inclusions",6948,false))
+
+-- A title-bar modifier click removes only that list, and right-click does not
+-- consume a cursor item as though it were a left-click drop.
+assert(listStore:EditList("profile","exclusions",1234,true))
+assert(listStore:EditList("global","exclusions",4321,true))
+runtime:ShowLists(listCallbacks)
+local titleBar=listPanes["profile:exclusions"].titleBar
+cursorItemId=9999
+ui.controlDown=true;ui.altDown=true
+titleBar.scripts.OnMouseDown(titleBar,"RightButton")
+assert(cursorItemId==9999,"right-click title bar consumed the cursor item")
+titleBar.scripts.OnMouseUp(titleBar,"RightButton")
+ui.controlDown=false;ui.altDown=false
+assert(listStore:ExportList("profile","exclusions")=="" and
+  listStore:ExportList("global","exclusions")=="4321","title-bar clear changed the wrong list")
+cursorItemId=nil
+assert(listStore:EditList("global","exclusions",4321,false))
 
 runtime:ShowConfig({
   summary=function() return "Active profile: Test" end,
@@ -898,15 +1187,24 @@ runtime:ShowConfig({
 local configFrame
 configFrame=namedFrame("DejunkWotLK_MainWindow")
 assert(configFrame and configFrame.shown)
-assert(control("Button","Junk Items") and control("Button","Lootable Items"),
-  "main window omitted the upstream item-list entry buttons")
+assert(namedFrame("DejunkWotLKFooter_junk") and namedFrame("DejunkWotLKFooter_lootable"),
+  "main window omitted the upstream footer links to item-list windows")
 for _,message in ipairs(messages) do assert(not message:find("Waffle configuration UI failed",1,true)) end
-control("Button","Preview SELL"):Click()
+for _,frame in ipairs(uiFrames) do
+  assert(not (frame.kind=="Button" and (frame.text=="Preview SELL" or frame.text=="Preview DESTROY")),
+    "port-only preview controls leaked into the reference main-window flow")
+end
+runtime:ShowReport("READ-ONLY SELL PREVIEW\nNo action will be taken.","Read-only preview: sell","config")
 assert(configFrame.shown==false)
 local reportClose=lastChild(namedFrame("DejunkWotLKReadOnlyReport"),"Button")
 assert(reportClose.text=="X")
 reportClose:Click()
 assert(configFrame.shown==true)
+runtime:ShowReport("Escape closes this report.","Escape test","config")
+reportClose=lastControl("EditBox",nil)
+reportClose.scripts.OnEscapePressed(reportClose)
+assert(not namedFrame("DejunkWotLKReadOnlyReport").shown and configFrame.shown,
+  "Escape from the report input did not close and return to its caller")
 local selectedProfile
 local profileOperations={}
 local profileCallbacks={
@@ -1016,14 +1314,32 @@ assert(profilePopup.editBox.textColor and profilePopup.editBox.textColor[1]==1,
 assert(profilePopup.acceptButton:GetFrameLevel()>profilePopup:GetFrameLevel() and
   profilePopup.cancelButton:GetFrameLevel()>profilePopup:GetFrameLevel(),
   "profile modal buttons do not sit above the full-screen mouse blocker")
-profilePopup.editBox:SetText("Fresh")
+profilePopup.editBox:SetText("   ")
 profilePopup.acceptButton:Click()
+assert(profilePopup.shown and not profileOperations.create,
+  "empty profile name closed the prompt or reached the create callback")
+profilePopup.editBox:SetText("Fresh")
+profilePopup.editBox.scripts.OnEnterPressed(profilePopup.editBox)
 assert(profileOperations.create and profileOperations.create.name=="Fresh","New Profile dialog did not create the entered name")
+profileAction("duplicate","profile-1"):Click()
+profilePopup.editBox:SetText("Cancelled Copy")
+profilePopup.editBox.scripts.OnEscapePressed(profilePopup.editBox)
+assert(not profilePopup.shown and not profileOperations.duplicate,
+  "Escape in the profile name field did not cancel without a mutation")
 profileAction("duplicate","profile-1"):Click()
 profilePopup.editBox:SetText("Test Copy")
 profilePopup.acceptButton:Click()
 assert(profileOperations.duplicate and profileOperations.duplicate.id=="profile-1" and profileOperations.duplicate.name=="Test Copy",
   "profile card duplicate did not copy the selected profile")
+local duplicateFrom=profileCallbacks.duplicateProfileFrom
+local unexpectedFallback=0
+profileCallbacks.duplicateProfileFrom=function() return nil,"SOURCE_GONE" end
+profileCallbacks.duplicateProfile=function() unexpectedFallback=unexpectedFallback+1; return "wrong-profile" end
+profileAction("duplicate","profile-1"):Click()
+profilePopup.editBox:SetText("Stale Copy"); profilePopup.acceptButton:Click()
+assert(unexpectedFallback==0,"failed selected-profile copy fell back to a different active profile")
+profileCallbacks.duplicateProfileFrom=duplicateFrom; profileCallbacks.duplicateProfile=nil
+
 profileAction("rename","profile-1"):Click()
 profilePopup.editBox:SetText("Renamed")
 profilePopup.acceptButton:Click()
@@ -1038,9 +1354,28 @@ profileAction("delete","profile-1"):Click()
 profilePopup.acceptButton:Click()
 assert(profileOperations.delete=="profile-1","profile delete did not target the selected profile")
 assert(protectedRename.icon and protectedDelete.icon,"default profile action icons are missing")
+do
+  local manyProfiles={{id="default",name="Default",active=true}}
+  for index=1,12 do
+    manyProfiles[#manyProfiles+1]={id="profile-"..index,name="Profile "..index,active=false}
+  end
+  runtime:ShowProfiles({profiles=function() return manyProfiles end,activeProfileId=function() return "default" end,
+    activeProfileName=function() return "Default" end})
+  local profileScroll=namedFrame("DejunkWotLKProfileScrollFrame")
+  local profileListFrame=profileScroll and profileScroll.scrollChild
+  assert(profileListFrame and profileListFrame:GetHeight()>=13*52,
+    "profile list did not expand to hold all profiles")
+  profileScroll.scripts.OnMouseWheel(profileScroll,-1)
+  assert(profileScroll:GetVerticalScroll()==52,
+    "profile card list did not advance by one card per wheel notch")
+  profileScroll:SetVerticalScroll(600)
+  control("Button","Lists"):Click()
+  runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function() return "default" end,activeProfileName=function() return "Default" end})
+  assert(profileScroll:GetVerticalScroll()<=profileListFrame:GetHeight(),
+    "profile scroll offset was not clamped after the profile list shrank")
+end
 control("Button","Lists"):Click()
 assert(profilesPage.shown==false and namedFrame("DejunkWotLKLists").shown,"Lists navigation left the Profiles page visible")
-runtime:ShowProfiles({profiles=function() return {} end,activeProfileId=function() return "default" end,activeProfileName=function() return "Default" end})
 local optionState={quality={[0]=true},includeByQuality={enabled=true,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},includeBelowItemLevel={enabled=false,scope="BOTH",value=0,qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},includeBelowPrice={enabled=false,scope="SELL",value=0,qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},excludeAboveItemLevel={enabled=false,scope="BOTH",value=0,qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},excludeAbovePrice={enabled=false,scope="DESTROY",value=0,qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},includeByEquipmentType={enabled=false,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false},armor={},weapons={}},excludeByEquipmentType={enabled=false,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true},armor={},weapons={}},autoSell=false,autoRepair=false,excludeEquipmentSets={enabled=true,scope="BOTH"},excludeUnboundEquipment={enabled=false,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},excludeQuestItems={enabled=true,scope="BOTH"}}
 local globalOptionState={safeSell=false,safeDestroy=true,merchantButton=true,minimapIcon={hide=false},
   autoJunkFrame=false,autoLootableFrame=false,chatMessages={enabled=true,detail="REDUCED"},
@@ -1076,8 +1411,8 @@ local previousHeight=optionsScroll.height
 optionsScroll:SetHeight(160); optionsScroll.scrollTrack:SetHeight(160)
 optionsScroll:SetVerticalScroll(0)
 optionsScroll.scripts.OnMouseWheel(optionsScroll,-1)
-assert(optionsScroll:GetVerticalScroll()==28 and optionsScroll.scrollTrack.shown,
-  "plain option scrollbar did not move or reveal its overflow track")
+assert(optionsScroll:GetVerticalScroll()==48 and optionsScroll.scrollTrack.shown,
+  "plain option scrollbar did not use the source's clamped adaptive wheel step")
 optionsScroll.scripts.OnMouseWheel(optionsScroll,-10000)
 assert(optionsScroll:GetVerticalScroll()==optionsPage.contentFrame:GetHeight()-160,
   "plain option scrollbar exceeded its content range")
@@ -1143,19 +1478,11 @@ local thresholdEdit
 for _,frame in ipairs(uiFrames) do if frame.kind=="EditBox" and frame.parent==optionsPage.contentFrame and frame.thresholdKey=="includeBelowItemLevel" then thresholdEdit=frame; break end end
 assert(thresholdEdit,"profile threshold editor was not created")
 thresholdEdit:SetText("60")
-local applyThreshold,afterEditor
-for _,frame in ipairs(uiFrames) do
-  if frame==thresholdEdit then afterEditor=true
-  elseif afterEditor and frame.kind=="Button" and frame.text=="Apply" and frame.parent==optionsPage.contentFrame then applyThreshold=frame; break end
-end
-assert(applyThreshold,"profile threshold Apply control was not created")
-assert(applyThreshold.template==nil,"profile Apply still uses the red Blizzard button template")
-applyThreshold:Click()
+thresholdEdit.scripts.OnEnterPressed(thresholdEdit)
 assert(optionState.includeBelowItemLevel.enabled and optionState.includeBelowItemLevel.value==60,"minimum item level did not persist through the UI")
-local minimumScope,afterApply
+local minimumScope
 for _,frame in ipairs(uiFrames) do
-  if frame==applyThreshold then afterApply=true
-  elseif afterApply and frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.scopeKey=="includeBelowItemLevel" and frame.scopeValue=="SELL" then minimumScope=frame; break end
+  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.scopeKey=="includeBelowItemLevel" and frame.scopeValue=="SELL" then minimumScope=frame; break end
 end
 assert(minimumScope,"threshold scope control was not created")
 minimumScope.labelHit:Click()
@@ -1212,14 +1539,8 @@ for _,frame in ipairs(uiFrames) do
   if frame.kind=="EditBox" and frame.parent==optionsPage.contentFrame and frame.thresholdKey=="includeBelowPrice" and frame.thresholdPart==1 then frame:SetText("1") end
   if frame.kind=="EditBox" and frame.parent==optionsPage.contentFrame and frame.thresholdKey=="includeBelowPrice" and frame.thresholdPart==2 then frame:SetText("2") end
 end
-local applyPrice,afterPriceEdit
-for _,frame in ipairs(uiFrames) do
-  if frame==priceEdit then afterPriceEdit=true
-  elseif afterPriceEdit and frame.kind=="Button" and frame.text=="Apply" and frame.parent==optionsPage.contentFrame then applyPrice=frame; break end
-end
-assert(applyPrice,"minimum stack price Apply control was not created")
-applyPrice:Click()
-assert(optionState.includeBelowPrice.enabled and optionState.includeBelowPrice.value==10203,"minimum stack price did not persist through UI")
+priceEdit.scripts.OnEnterPressed(priceEdit)
+assert(optionState.includeBelowPrice.value==10203,"minimum stack price did not persist through UI")
 local includeTypes
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionLabel=="Include by equipment type" then includeTypes=frame; break end
@@ -1234,12 +1555,12 @@ end
 assert(clothType,"localized Armor subclass controls were not built from the 3.3.5 API")
 clothType:Click()
 assert(optionState.includeByEquipmentType.armor[1]==true,"Armor subclass selection did not persist")
-local fishingPoles
+local staffType
 for _,frame in ipairs(uiFrames) do
-  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionLabel=="Fishing Poles" then fishingPoles=frame; break end
+  if frame.kind=="CheckButton" and frame.parent==optionsPage.contentFrame and frame.optionLabel=="Staves" then staffType=frame; break end
 end
-assert(fishingPoles,"localized weapon subclass controls were not built from the 3.3.5 API")
-fishingPoles:Click()
+assert(staffType,"localized weapon subclass controls were not built from the 3.3.5 API")
+staffType:Click()
 assert(optionState.includeByEquipmentType.weapons[10]==true,"weapon subclass selection did not persist")
 control("CheckButton","Include by quality"):Click()
 assert(optionState.includeByQuality.enabled==false and optionState.includeByQuality.qualities.poor==true,"quality rule toggle did not preserve the quality selection")
@@ -1297,6 +1618,15 @@ assert(resetPoint and resetPoint.offsetX==210 and resetPoint.offsetY==-44 and gl
   "right-clicking Merchant Button options did not reset its position without toggling it")
 control("CheckButton","Verbose").labelHit:Click()
 assert(globalOptionState.chatMessages.detail=="VERBOSE","chat detail choice did not persist")
+control("CheckButton","Chat Messages"):Click()
+assert(control("CheckButton","Verbose").enabled==false,"chat detail must be disabled with chat messages")
+control("CheckButton","Chat Messages"):Click()
+assert(control("CheckButton","Verbose").enabled==true and globalOptionState.chatMessages.detail=="VERBOSE",
+  "chat detail should be restored when messages are re-enabled")
+
+assert(control("CheckButton","Large").enabled==false,"icon size must be disabled while bag icons are off")
+control("CheckButton","Bag Item Icons"):Click()
+assert(control("CheckButton","Large").enabled==true)
 control("CheckButton","Large").labelHit:Click()
 assert(globalOptionState.itemIconStyle=="LARGE","clicking the icon-size label did not save its choice")
 control("CheckButton","Safe Sell"):Click(); assert(globalOptionState.safeSell==true)
@@ -1321,6 +1651,24 @@ assert(queries==50,"next metadata tick did not advance the bounded queue")
 listsWindow.scripts.OnUpdate(listsWindow,29.9)
 assert(listsWindow.scripts.OnUpdate==nil,"uncached item metadata polling did not time out")
 assert(not listPanes["global:inclusions"].spinner.shown,"list loading indicator stayed active after metadata timeout")
+-- A page refresh after timeout must not restart a spinner without a timer.
+runtime:ShowLists({listItems=function(scope,kind)
+  return scope=="global" and kind=="inclusions" and table.concat(ids,"\n") or ""
+end})
+assert(not listPanes["global:inclusions"].spinner.shown and listsWindow.scripts.OnUpdate==nil,
+  "refresh restarted a loading spinner after timeout")
+local fallbackFound=false
+for _,f in ipairs(uiFrames) do
+  if f.text and f.text:find("Item #1001",1,true) then fallbackFound=true end
+end
+assert(fallbackFound,"unresolved item omitted its identifying ID")
+
+
+-- Async import completion must not reopen a user-closed main window.
+runtime.configCallbacks={listItems=function() return "" end}
+listsWindow:Hide()
+runtime:RefreshListsIfVisible()
+assert(not listsWindow.shown,"background import reopened the hidden Lists page")
 
 print("UI INTERACTION RESULT: options, keybindings, item windows, list transport, metadata polling and report navigation passed")
 
@@ -1372,26 +1720,26 @@ for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.scopeKey=="includeBelowItemLevel" and frame.scopeValue=="SELL" then persistedLevelScope=frame end
   if frame.kind=="CheckButton" and frame.optionGroup=="includeBelowItemLevel" and frame.optionQuality=="poor" then persistedLevelQuality=frame end
 end
-assert(persistedLevelScope and persistedLevelScope.enabled~=false and persistedLevelQuality and persistedLevelQuality.enabled~=false,
-  "disabled threshold filter blocked configuration of its scope or qualities")
+assert(persistedLevelScope.enabled==false and persistedLevelQuality.enabled==false,
+  "disabled threshold must disable its subcontrols")
+persistedLevelToggle:Click()
 persistedLevelScope:Click(); persistedLevelQuality:Click()
-local offState=persistedUiStore:GetActiveProfile().options.includeBelowItemLevel
-assert(offState.enabled==false and offState.scope=="SELL" and offState.qualities.poor==false,
-  "threshold scope and qualities could not be edited while the filter was disabled")
-local persistedLevelEdit,persistedLevelApply
+local persistedLevelEdit
 for _,frame in ipairs(uiFrames) do
   if frame.kind=="EditBox" and frame.thresholdKey=="includeBelowItemLevel" then persistedLevelEdit=frame end
-  if frame.kind=="Button" and frame.thresholdKey=="includeBelowItemLevel" then persistedLevelApply=frame end
 end
-assert(persistedLevelEdit and persistedLevelApply,"item-level input or Apply button is missing")
-assert(persistedLevelApply.enabled~=false,"Apply is disabled while the threshold filter is off")
-persistedLevelEdit.scripts.OnMouseDown(persistedLevelEdit)
-assert(persistedLevelEdit.focused,"threshold input did not receive focus on click")
+assert(persistedLevelEdit and persistedLevelEdit.mouse==true)
 persistedLevelEdit:SetText("47")
-persistedLevelApply:Click()
+persistedLevelEdit.scripts.OnEnterPressed(persistedLevelEdit)
 local appliedThreshold=persistedUiStore:GetActiveProfile().options.includeBelowItemLevel
-assert(appliedThreshold.value==47 and appliedThreshold.enabled==true and appliedThreshold.scope=="SELL" and appliedThreshold.qualities.poor==false,
-  "Profile Options Apply did not persist and enable the configured threshold")
+assert(appliedThreshold.value==47 and appliedThreshold.enabled and appliedThreshold.scope=="SELL" and appliedThreshold.qualities.poor==false)
+persistedLevelEdit:SetText("99")
+persistedLevelEdit.scripts.OnEscapePressed(persistedLevelEdit)
+assert(persistedLevelEdit:GetText()=="47" and persistedUiStore:GetActiveProfile().options.includeBelowItemLevel.value==47)
+persistedLevelEdit:SetText("48")
+persistedLevelEdit.scripts.OnTextChanged(persistedLevelEdit,true)
+persistedLevelEdit.scripts.OnUpdate(persistedLevelEdit,0.6)
+assert(persistedUiStore:GetActiveProfile().options.includeBelowItemLevel.value==48)
 local moreThresholds={
   {key="includeBelowPrice",value=1234,scope="SELL",parts={"0","12","34"}},
   {key="excludeAboveItemLevel",value=58,scope="DESTROY",parts={"58"}},
@@ -1407,12 +1755,12 @@ for _,spec in ipairs(moreThresholds) do
     if frame.kind=="EditBox" and frame.thresholdKey==spec.key then inputs[frame.thresholdPart]=frame end
     if frame.kind=="Button" and frame.thresholdKey==spec.key then apply=frame end
   end
-  assert(label and scopeChoice and qualityChoice and apply,"missing threshold controls for "..spec.key)
-  assert(apply.enabled~=false and scopeChoice.enabled~=false and qualityChoice.enabled~=false,
-    "disabled filter blocked editing controls for "..spec.key)
+  assert(label and scopeChoice and qualityChoice,"missing threshold controls for "..spec.key)
+  assert(scopeChoice.enabled==false and qualityChoice.enabled==false)
+  label:Click()
   scopeChoice:Click(); qualityChoice:Click()
   for part,value in ipairs(spec.parts) do assert(inputs[part],"missing threshold part "..part); inputs[part]:SetText(value) end
-  apply:Click()
+  inputs[1].scripts.OnEnterPressed(inputs[1])
   local result=persistedUiStore:GetActiveProfile().options[spec.key]
   assert(result.enabled==true and result.scope==spec.scope and result.value==spec.value and result.qualities.poor==false,
     "threshold controls did not persist full state for "..spec.key)
@@ -1427,13 +1775,44 @@ for _,frame in ipairs(uiFrames) do
   if frame.kind=="CheckButton" and frame.scopeKey=="includeByQuality" and frame.scopeValue=="SELL" then includeQualityScope=frame end
   if frame.kind=="CheckButton" and frame.optionGroup=="includeByQuality" and frame.optionQuality=="poor" then includeQualityPoor=frame end
 end
-assert(includeQualityTitle and includeQualityScope and includeQualityPoor and includeQualityScope.enabled~=false and includeQualityPoor.enabled~=false,
-  "Include by quality subcontrols were disabled with the parent filter")
+assert(includeQualityTitle and includeQualityScope and includeQualityPoor and includeQualityScope.enabled==false and includeQualityPoor.enabled==false,
+  "Include by quality subcontrols must disable with the parent filter")
+includeQualityTitle:Click()
 includeQualityScope:Click(); includeQualityPoor:Click()
 local savedQualityRule=Addon.Config.GetOptions(persistedUiStore).includeByQuality
-assert(savedQualityRule.enabled==false and savedQualityRule.scope=="SELL" and savedQualityRule.qualities.poor==false,
+assert(savedQualityRule.enabled==true and savedQualityRule.scope=="SELL" and savedQualityRule.qualities.poor==false,
   "Include by quality scope and quality were not saved while its filter was off")
-includeQualityTitle:Click()
 assert(Addon.Config.GetOptions(persistedUiStore).includeByQuality.enabled==true and
   lastControl("CheckButton","Include by quality"):GetChecked()==true,
   "Include by quality did not activate or render its persisted state")
+
+-- The Junk gear toggles Profile Options and keeps the Junk window open.
+runtime:ShowJunkFrame({sellable=0,destroyable=0,items={}})
+runtime:ShowOptions(persistedCallbacks,"profile")
+assert(junkWindow.shown and mainWindow.shown)
+junkWindow.settingsButton:Click()
+assert(junkWindow.shown and not mainWindow.shown,"gear did not close the selected Profile Options window")
+junkWindow.settingsButton:Click()
+assert(junkWindow.shown and mainWindow.shown,"gear did not reopen Profile Options while keeping Junk visible")
+
+runtime:ShowProfiles(profileCallbacks)
+local profileFrameCount=#uiFrames
+runtime:ShowProfiles(profileCallbacks)
+assert(#uiFrames==profileFrameCount,"Profiles refresh allocated replacement rows")
+-- Shrinking content resets the offset even if no wheel event follows.
+runtime:ShowOptions(persistedCallbacks,"profile")
+local scroll=optionsPage.scrollFrame
+scroll:SetVerticalScroll(100000)
+scroll.scripts.OnScrollRangeChanged()
+assert(scroll:GetVerticalScroll()<=math.max(0,optionsPage.contentFrame:GetHeight()-scroll:GetHeight()),
+  "scroll offset remained beyond the reduced content range")
+local beforeMessages=#messages
+assert(persistedUiStore:SetGlobalOption("chatMessages",{enabled=false,detail="VERBOSE"}))
+runtime:Print("hidden");runtime:PrintVerbose("hidden verbose")
+assert(#messages==beforeMessages,"disabled chat messages still printed")
+runtime:ForcePrint("forced help")
+assert(#messages==beforeMessages+1)
+assert(persistedUiStore:SetGlobalOption("chatMessages",{enabled=true,detail="REDUCED"}))
+runtime:PrintVerbose("hidden detail");assert(#messages==beforeMessages+1)
+assert(persistedUiStore:SetGlobalOption("chatMessages",{detail="VERBOSE"}))
+runtime:PrintVerbose("shown detail");assert(#messages==beforeMessages+2)

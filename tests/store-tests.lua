@@ -11,6 +11,46 @@ local function eq(a,b) assert(a==b,"expected "..tostring(b)..", got "..tostring(
 local function test(fn) fn(); passed=passed+1 end
 
 test(function()
+  local saved={schemaVersion=1,profiles={default={options={quality={["0"]=false,["2"]=true}}}}}
+  local s=Store.Initialize(saved,"Test")
+  local options=s:GetActiveProfile().options
+  eq(options.quality[0],false); eq(options.includeByQuality.qualities.poor,false)
+  eq(options.quality[2],true); eq(options.includeByQuality.qualities.uncommon,true)
+  local reloaded=Store.Initialize(s:Serialize(),"Test")
+  eq(reloaded:GetActiveProfile().options.includeByQuality.qualities.uncommon,true)
+end)
+
+test(function()
+  local saved={schemaVersion=2,profiles={default={options={excludeUnboundEquipment=true}}}}
+  local s=Store.Initialize(saved,"Test")
+  local filter=s:GetActiveProfile().options.excludeUnboundEquipment
+  eq(filter.enabled,true); eq(filter.scope,"BOTH")
+  for _,quality in ipairs({"poor","common","uncommon","rare","epic"}) do eq(filter.qualities[quality],true) end
+  local reload=Store.Initialize(s:Serialize(),"Test")
+  eq(reload:GetActiveProfile().options.excludeUnboundEquipment.qualities.poor,true)
+end)
+
+test(function()
+  local s=Store.Initialize(nil,"Test")
+  assert(s:EditList("profile","exclusions",123,true))
+  assert(s:EditList("profile","exclusions",456,true))
+  assert(s:EditList("global","exclusions",789,true))
+  local events=0; s:OnChange(function() events=events+1 end)
+  assert(s:ClearList("profile","exclusions"))
+  eq(s:ExportList("profile","exclusions"),""); eq(s:ExportList("global","exclusions"),"789")
+  eq(events,1); assert(s:ClearList("profile","exclusions")); eq(events,1)
+  assert(not s:ClearList("unknown","exclusions")); assert(not s:ClearList("global","bad"))
+  eq(s:ExportList("global","exclusions"),"789")
+end)
+
+test(function()
+  local s=Store.Initialize(nil,"Realm\31Alice")
+  local before=s:GetRevision()
+  assert(s:SwitchProfile(s:GetActiveProfileId()))
+  eq(s:GetRevision(),before)
+end)
+
+test(function()
   local s=Store.Initialize(nil,"Realm\31Alice"); eq(s:GetActiveProfileId(),"default")
   eq(s:Serialize().schemaVersion,2); eq(s.mode,"created")
   eq(s:GetActiveProfile().options.quality[0],true)
@@ -100,7 +140,7 @@ end)
 test(function()
   local s=Store.Initialize(nil,"A"); local id=s:CreateProfile("Raid")
   eq(id,"profile-1"); eq(s:GetActiveProfileId(),id); assert(s:RenameProfile(id,"Raid 2"))
-  assert(not s:RenameProfile("default","x")); assert(not s:DeleteProfile("default")); assert(not s:ResetProfile("default"))
+  assert(not s:RenameProfile("default","x")); assert(not s:DeleteProfile("default")); assert(s:ResetProfile("default"))
 end)
 test(function()
   local s=Store.Initialize(nil,"A"); local id=s:CreateProfile("A")
@@ -162,6 +202,31 @@ test(function()
   eq(options.minItemLevel,nil); eq(options.includeBelowItemLevel.value,10)
   eq(options.excludeAboveItemLevel.value,80); eq(options.excludeAbovePrice.value,500)
   eq(options.excludeAbovePrice.scope,"DESTROY")
+end)
+test(function()
+  local saved={schemaVersion=1,global={minimap={hide=true},keybindings={toggleMainWindow="CTRL-O"}},
+    profiles={default={options={quality={[0]=false,[2]=true},excludeEquipmentSets=false,
+      excludeQuestItems=true,excludeUnboundEquipment=true,minItemLevel=10,
+      includeBelowItemLevel={enabled=false,scope="SELL",value=27,
+        qualities={poor=false,common=true,uncommon=false,rare=true,epic=false}}}},
+      ["profile-4"]={name="Raid",options={quality={[1]=true}}}},
+    characterProfiles={A="default"},nextProfileId=2}
+  local store=Store.Initialize(saved,"A")
+  local global=store:GetState().global
+  local options=store:GetActiveProfile().options
+  eq(store:GetActiveProfileId(),"default"); eq(store.state.nextProfileId,5)
+  eq(global.minimapIcon.hide,true); eq(global.keybindings.toggleMainWindow,"CTRL-O")
+  eq(options.quality[0],false); eq(options.quality[2],true)
+  eq(store.state.profiles["profile-4"].options.quality[1],true)
+  eq(options.excludeEquipmentSets.enabled,false); eq(options.excludeEquipmentSets.scope,"BOTH")
+  eq(options.excludeQuestItems.enabled,true); eq(options.excludeUnboundEquipment.enabled,true)
+  -- A structured option takes precedence over its legacy scalar alias.
+  eq(options.includeBelowItemLevel.enabled,false); eq(options.includeBelowItemLevel.value,27)
+  eq(options.includeBelowItemLevel.scope,"SELL"); eq(options.includeBelowItemLevel.qualities.common,true)
+  local roundTrip=Store.Initialize(store:Serialize(),"A")
+  eq(roundTrip:GetActiveProfileId(),"default")
+  eq(roundTrip:GetActiveProfile().options.includeBelowItemLevel.value,27)
+  eq(roundTrip.state.nextProfileId,5)
 end)
 test(function()
   local saved={schemaVersion=77,profiles={default={name="Future"}}}; local s=Store.Initialize(saved,"A")

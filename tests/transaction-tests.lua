@@ -29,8 +29,33 @@ local function intent()
   local value=tx:ReadItem(0,1); value.settingsRevision=revision; value.sessionId="test"; return value
 end
 
+-- Binding tooltip reads may observe a different item if the source slot changes.
+local stableIntent=intent()
+local originalBinding=reads.ReadBinding
+reads.ReadBinding=function()
+  slot.link="|Hitem:88:0|h[Other]|h"; slot.itemId=88
+  return true
+end
+local changed,changedReason=tx:ReadItem(0,1)
+assert(changed==nil and changedReason=="SLOT_CHANGED_DURING_BINDING_READ")
+slot=Addon.Copy(item)
+assert(not tx:AttemptSale({sessionId="test",intent=stableIntent}) and api.sale==0)
+slot=Addon.Copy(item)
+assert(not tx:PickupContainerItem(stableIntent) and api.pickup==0)
+slot=Addon.Copy(item); reads.ReadBinding=originalBinding
+
 local token={sessionId="test",intent=intent()}
 local ok=tx:AttemptSale(token); eq(ok,true); eq(api.sale,1)
+-- A second read may change a rule input without changing link, count or slot.
+for _,change in ipairs({{field="unitVendorPrice",value=500},{field="quality",value=4},
+    {field="itemLevel",value=100},{field="quest",value=true},{field="refundable",value=true},
+    {field="inEquipmentSet",value=true}}) do
+  local before=intent(); slot[change.field]=change.value
+  assert(not tx:AttemptSale({sessionId="test",intent=before}),"sale accepted changed "..change.field)
+  assert(not tx:PickupContainerItem(before),"destroy pickup accepted changed "..change.field)
+  slot[change.field]=item[change.field]
+end
+assert(api.sale==1 and api.pickup==0)
 api.cursor=999
 ok=tx:AttemptSale({sessionId="test",intent=intent()}); eq(ok,false); eq(api.sale,1)
 api.cursor=nil; api.combat=true
@@ -96,8 +121,14 @@ assert(app.runtime.itemActionHandlers.startSelling())
 local duplicate,duplicateReason=app.runtime.itemActionHandlers.startSelling()
 assert(duplicate==false and duplicateReason=="BUSY","a second start restarted the running sale")
 assert(app.runtime.itemActionsBusy,"runtime was not marked busy during a sale run")
+local busySell,busySellReason=app.runtime.itemActionHandlers.sellItem(candidates[1])
+local busyDestroy,busyDestroyReason=app.runtime.itemActionHandlers.destroyItem(candidates[1])
+assert(not busySell and busySellReason=="BUSY" and not busyDestroy and busyDestroyReason=="BUSY",
+  "manual item actions must not interrupt a sale run")
+
 for _=1,30 do saleWorld:Tick(0.1) end
 assert(#attempts==12,"Safe Sell counted non-sale candidates or exceeded twelve sale attempts")
+for index,id in ipairs(attempts) do assert(id==13-index,"Safe Sell did not consume the first twelve sorted sellable entries in reverse order") end
 for _,id in ipairs(attempts) do assert(id<=15,"a destroy-only candidate reached the sale adapter") end
 assert(not app.saleRun and not app.runtime.itemActionsBusy,"sale completion did not clear busy state")
 assert(app.runtime.itemActionHandlers.startSelling())
@@ -111,6 +142,7 @@ saleWorld:Tick(0.2)
 assert(#attempts==12 and not app.saleRun,"settings changes did not cancel a pending sale")
 assert(app.store:SetGlobalOption("safeSell",true))
 local failedDispatches=0
+saleWorld:Tick(6) -- Previous successful dispatch mocks left slots unchanged: expire their confirmations.
 app.transactions.AttemptSale=function() failedDispatches=failedDispatches+1; return false,"API_FAILED",true end
 assert(app.runtime.itemActionHandlers.startSelling())
 for _=1,30 do saleWorld:Tick(0.1) end
@@ -155,3 +187,106 @@ assert(repairWorld.app.store:SetOption("autoRepair",true))
 repairWorld:Fire("MERCHANT_SHOW"); repairWorld:Tick(0.2)
 assert(repairs==1 and repairWorld.mutations==0)
 print("PASS: delayed auto repair follows the current merchant session and preference")
+local autoWorld=H.New():Load():Ready()
+local autoRequests=0
+autoWorld.app.runtime.RequestItemAction=function(_,action)
+  if action=="startSelling" then autoRequests=autoRequests+1 end
+end
+assert(autoWorld.app.store:SetOption("autoSell",true))
+autoWorld:Fire("MERCHANT_SHOW");assert(autoRequests==0,"auto sell started before merchant delay")
+autoWorld:Fire("MERCHANT_CLOSED");autoWorld:Tick(0.2);assert(autoRequests==0,"closed merchant triggered auto sell")
+autoWorld:Fire("MERCHANT_SHOW");assert(autoWorld.app.store:SetOption("autoSell",false));autoWorld:Tick(0.2)
+assert(autoRequests==0,"disabled auto sell still triggered")
+autoWorld:Fire("MERCHANT_SHOW");assert(autoWorld.app.store:SetOption("autoSell",true));autoWorld:Tick(0.2)
+assert(autoRequests==1,"auto sell did not use current setting after merchant delay")
+assert(autoWorld.mutations==0)
+print("PASS: delayed auto sell uses current settings and cancels with merchant session")
+
+
+local observedWorld=H.New():Load();observedWorld:AddItem(0,1);observedWorld:Ready()
+local observedApp=observedWorld.app
+observedApp.transactions.AttemptSale=function() return true end -- dispatch is not proof of sale
+observedWorld:Fire("MERCHANT_SHOW")
+local function messageContains(fragment)
+  for _,message in ipairs(observedWorld.messages) do if message:find(fragment,1,true) then return true end end
+  return false
+end
+local function sellObserved()
+  return observedApp.runtime.itemActionHandlers.sellItem(observedApp:ProbeSlot(0,1))
+end
+assert(sellObserved())
+assert(observedApp.runtime.itemActionsBusy,"pending sale must keep action controls disabled")
+assert(not messageContains("Sold:"),"dispatch was reported as confirmed")
+assert(not sellObserved(),"pending slot was dispatched twice")
+local pendingItem=observedApp:ProbeSlot(0,1)
+local blockedDestroy,blockedWhy=observedApp.runtime.itemActionHandlers.destroyItem(pendingItem)
+local blockedRun,runWhy=observedApp.runtime.itemActionHandlers.startSelling()
+assert(not blockedDestroy and blockedWhy=="BUSY" and not blockedRun and runWhy=="BUSY",
+  "pending sale must block destruction and another selling run")
+
+observedWorld:Tick(5.1)
+assert(messageContains("Sale could not be confirmed:"))
+assert(not observedApp.runtime.itemActionsBusy,"sale timeout must re-enable action controls")
+observedWorld.messages={}
+assert(sellObserved());observedWorld:Fire("ITEM_UNLOCKED",0,1)
+assert(messageContains("Failed to sell:"));observedWorld:Tick(6)
+assert(not messageContains("Sale could not be confirmed:"),"failed sale retained its timeout")
+observedWorld.messages={}
+assert(sellObserved());observedWorld.slots["0:1"]=nil;observedWorld:Tick(0.2)
+assert(messageContains("Sold:"));assert(not next(observedApp.pendingSales))
+observedWorld:Tick(6);assert(not messageContains("Sale could not be confirmed:"))
+observedWorld.messages={}
+observedWorld:AddItem(0,1);observedWorld:Fire("BAG_UPDATE",0);observedWorld:Tick(0.2)
+assert(observedApp.runtime.itemActionHandlers.startSelling());observedWorld:Tick(0.2)
+observedWorld.slots["0:1"]=nil;observedWorld:Fire("BAG_UPDATE",0)
+for _=1,5 do observedWorld:Tick(0.2) end
+assert(messageContains("Items sold: 1 | Vendor value: 15 copper"),"confirmed run was not summarized")
+assert(not observedApp.saleRun and not next(observedApp.pendingSales))
+assert(observedWorld.mutations==0)
+print("PASS: production sale observation distinguishes dispatch, timeout, unlock failure and disappearance")
+
+-- Production callback: dispatch is not a server deletion receipt. Only fake
+-- adapters are used; timeout and unlock never claim a successful destruction.
+local dw=H.New():Load();dw:AddItem(0,1);dw:Ready()
+assert(dw.app.store:SetGlobalOption("safeDestroy",false))
+local dispatched=0
+dw.app.transactions.AttemptDestroy=function() dispatched=dispatched+1; return true end
+dw.app.transactions.ReadContext=function() return {safeContext=true,inCombat=false,cursorEmpty=true} end
+local function has(fragment)
+  for _,msg in ipairs(dw.messages) do if msg:find(fragment,1,true) then return true end end
+  return false
+end
+local function destroyNow() return dw.app.runtime.itemActionHandlers.destroyItem(dw.app:ProbeSlot(0,1)) end
+assert(destroyNow()); assert(dispatched==1 and has("Destroy attempted."))
+assert(dw.app.runtime.itemActionsBusy,"pending destroy must keep controls disabled")
+assert(not destroyNow() and dispatched==1,"pending destruction allowed another dispatch")
+local busySale,busyReason=dw.app.runtime.itemActionHandlers.sellItem(dw.app:ProbeSlot(0,1))
+assert(not busySale and busyReason=="BUSY","manual sale started during pending destruction")
+dw:Tick(5.1)
+assert(has("May not have destroyed:") and not dw.app.pendingDestroy)
+assert(not dw.app.runtime.itemActionsBusy,"destroy timeout must re-enable controls")
+dw.messages={}; assert(destroyNow()); dw:Fire("ITEM_UNLOCKED",0,1)
+assert(has("Destroy failed:") and not dw.app.pendingDestroy)
+dw:Tick(6); assert(not has("May not have destroyed:"))
+dw:AddItem(0,1); dw:Fire("BAG_UPDATE",0); dw:Tick(0.1)
+local contextReads=0
+dw.app.transactions.ReadContext=function()
+  contextReads=contextReads+1
+  return {safeContext=true,inCombat=false,cursorEmpty=contextReads==1}
+end
+dw.app.transactions.AttemptDestroy=function() dispatched=dispatched+1; dw.slots["0:1"]=nil; return true end
+dw.messages={}; assert(destroyNow()); dw:Tick(0.2)
+assert(not has("Destroyed:") and dw.app.pendingDestroy,"nonempty cursor was treated as a completed deletion")
+dw:Tick(5.1); assert(has("May not have destroyed:"))
+dw:AddItem(0,1); dw:Fire("BAG_UPDATE",0); dw:Tick(0.1)
+dw.app.transactions.ReadContext=function() return {safeContext=true,inCombat=false,cursorEmpty=true} end
+dw.app.transactions.AttemptDestroy=function() dispatched=dispatched+1; dw.slots["0:1"]=nil; return true end
+dw.messages={}; assert(destroyNow()); dw:Tick(0.2)
+assert(has("Destroyed:") and not dw.app.pendingDestroy,"removed source item was not confirmed as destroyed")
+dw:AddItem(0,1); dw:Fire("BAG_UPDATE",0); dw:Tick(0.1)
+dw.app.transactions.AttemptDestroy=function() dispatched=dispatched+1; return true end
+dw.messages={}; assert(destroyNow()); dw:Fire("PLAYER_LOGOUT"); dw:Tick(6)
+assert(not has("May not have destroyed:") and not dw.app.pendingDestroy,
+  "logout did not cancel a pending destroy observer")
+assert(dw.mutations==0)
+print("PASS: production destroy observation reports disappearance, unlock failure and timeout")

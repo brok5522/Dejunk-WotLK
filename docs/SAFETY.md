@@ -5,7 +5,17 @@ The read-only legacy adapter and transaction adapter are isolated sections of
 invoke inventory-mutating 3.3.5a APIs. UI handlers re-read item data and rule eligibility immediately before
 dispatch. Sale, repair, loot and destroy integrations are connected but still
 require acceptance testing in the original client; offline fakes do not prove
-live-client behavior.
+live-client behavior. Destroy observation follows the upstream original-slot
+item-ID check, requires an empty cursor before reporting success, and warns
+after five seconds if the result remains unclear.
+
+Audit fixes (2026-11-16): legacy numeric combat/death flags block dispatch;
+settings revision is checked after pickup as well as before it. Sale dispatch
+requires known quest/set states identical to the rule-approved intent instead
+of overriding configured eligibility with unconditional exclusions. Binding
+reads in the cache revalidate slot identity. Sale confirmations use read-only
+slot identity polls, unlock failure and a five-second timeout; dispatch alone
+never counts as a confirmed sale. See [fix status](FIXES-REVIEW-1.0.0.md).
 
 ## Mandatory gates before any sale or deletion
 - Restrict scope to carried bags 0..4; exclude bank, equipped inventory, keyring,
@@ -53,8 +63,12 @@ can consume/equip/use rather than sell.
 ## Observability and evidence
 Record bounded in-memory operation diagnostics without account identifiers.
 Always separate attempted calls from observed changes and ambiguous results.
-A move, split, stack merge or unrelated money delta cannot independently prove
-success. Prefer conservative cancellation over preserving throughput. See
+A destroy attempt is reported as successful only after the original slot no
+longer contains the attempted item ID and the cursor is empty, matching the
+upstream slot check with an added cursor guard. A move, split, stack merge or
+unrelated money delta cannot independently prove success. If the slot still
+contains the item after five seconds, report that deletion may not have
+succeeded. Prefer conservative cancellation over preserving throughput. See
 [testing](TESTING.md) for required adversarial scenarios and release gates.
 
 The upstream Lists screen has one narrow cursor interaction: clicking a list

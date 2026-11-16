@@ -125,6 +125,11 @@ function Config.EditItem(store,scope,kind,itemId,present)
   return store:EditList(scope,kind,itemId,present)
 end
 
+function Config.ClearList(store,scope,kind)
+  if not store then return false,"STORE_UNAVAILABLE" end
+  return store:ClearList(scope,kind)
+end
+
 function Config.ListRules(store)
   if not store then return nil,"STORE_UNAVAILABLE" end
   return store:GetActiveProfile().rules or {}

@@ -15,9 +15,17 @@ local function selectedQuality(option, quality)
   return name~=nil and type(option.qualities)=="table" and option.qualities[name]==true
 end
 local function isEquipment(item)
-  return type(item.equipLoc)=="string" and item.equipLoc~=""
+  if type(item.equipLoc)~="string" or item.equipLoc=="" then return false end
+  if item.classId==4 then
+    if item.equipLoc=="INVTYPE_FINGER" or item.equipLoc=="INVTYPE_NECK" or
+        item.equipLoc=="INVTYPE_TRINKET" or item.equipLoc=="INVTYPE_HOLDABLE" then return true end
+    return item.subclassId~=0 and item.subclassId~=5
+  end
+  if item.classId==2 then return item.subclassId~=14 and item.subclassId~=20 end
+  return item.classId==nil
 end
 local function equipmentTypeSelected(item, option)
+  if item.equipLoc=="INVTYPE_CLOAK" then return false end
   if not isEquipment(item) then return false end
   if type(item.classId)~="number" then return nil end
   if item.classId==4 then
@@ -30,17 +38,17 @@ local function equipmentTypeSelected(item, option)
   end
   return false
 end
-local function decision(result, reason, action, ruleId)
-  return { result=result, reasonCode=reason, action=action, ruleId=ruleId }
+local function decision(result, reason, action, ruleId, reasonValue)
+  return { result=result, reasonCode=reason, action=action, ruleId=ruleId, reasonValue=reasonValue }
 end
-local function junkDecision(action, reason, item, ruleId)
+local function junkDecision(action, reason, item, ruleId, reasonValue)
   if action == "SELL" then
-    if item.refundable==UNKNOWN then return decision("UNKNOWN", "REFUND_UNKNOWN", action, ruleId) end
+    if isUnknown(item.refundable) then return decision("UNKNOWN", "REFUND_UNKNOWN", action, ruleId) end
     if item.refundable then return decision("KEEP", "REFUNDABLE", action, ruleId) end
     if isUnknown(item.unitVendorPrice) then return decision("UNKNOWN", "PRICE_UNKNOWN", action, ruleId) end
     if item.unitVendorPrice <= 0 then return decision("KEEP", "NO_VENDOR_VALUE", action, ruleId) end
   end
-  return decision("JUNK", reason, action, ruleId)
+  return decision("JUNK", reason, action, ruleId, reasonValue)
 end
 
 -- Pure decision function. It has no game API access and cannot trigger actions.
@@ -75,7 +83,7 @@ function Rules.Evaluate(item, action, settings)
   if applies(excludeLevel,action) and isEquipment(item) and selectedQuality(excludeLevel,item.quality) then
     if type(excludeLevel.value)~="number" then return decision("UNKNOWN","INVALID_SETTINGS",action) end
     if isUnknown(item.itemLevel) then return decision("UNKNOWN", "ITEM_LEVEL_UNKNOWN", action) end
-    if item.itemLevel > excludeLevel.value then return decision("KEEP", "ABOVE_MAX_ITEM_LEVEL", action) end
+    if item.itemLevel > excludeLevel.value then return decision("KEEP", "ABOVE_MAX_ITEM_LEVEL", action, nil, excludeLevel.value) end
   end
   local excludePrice=options.excludeAbovePrice
   if not excludePrice and type(settings.maxStackVendorPrice)=="number" then
@@ -85,7 +93,7 @@ function Rules.Evaluate(item, action, settings)
     if type(excludePrice.value)~="number" then return decision("UNKNOWN","INVALID_SETTINGS",action) end
     if isUnknown(item.unitVendorPrice) then return decision("UNKNOWN", "PRICE_UNKNOWN", action) end
     if item.unitVendorPrice>0 and item.unitVendorPrice * item.count > excludePrice.value then
-      return decision("KEEP", "ABOVE_MAX_STACK_PRICE", action)
+      return decision("KEEP", "ABOVE_MAX_STACK_PRICE", action, nil, excludePrice.value)
     end
   end
 
@@ -112,7 +120,7 @@ function Rules.Evaluate(item, action, settings)
   if applies(excludeType,action) and selectedQuality(excludeType,item.quality) then
     local selected=equipmentTypeSelected(item,excludeType)
     if selected==nil then return decision("UNKNOWN","EQUIPMENT_TYPE_UNKNOWN",action) end
-    if selected then return decision("KEEP","EXCLUDED_EQUIPMENT_TYPE",action) end
+    if selected then return decision("KEEP","EXCLUDED_EQUIPMENT_TYPE",action,nil,item.itemSubType) end
   end
   local questOption=options.excludeQuestItems
   if questOption==true then questOption={enabled=true,scope="BOTH"} end
@@ -136,20 +144,20 @@ function Rules.Evaluate(item, action, settings)
     if type(includeLevel.value)~="number" then return decision("UNKNOWN","INVALID_SETTINGS",action) end
     if isUnknown(item.itemLevel) then return decision("UNKNOWN", "ITEM_LEVEL_UNKNOWN", action) end
     if item.itemLevel < includeLevel.value then
-      return junkDecision(action, "BELOW_MIN_ITEM_LEVEL", item)
+      return junkDecision(action, "BELOW_MIN_ITEM_LEVEL", item, nil, includeLevel.value)
     end
   end
   local includePrice=options.includeBelowPrice
   if applies(includePrice,action) and selectedQuality(includePrice,item.quality) then
     if type(includePrice.value)~="number" then return decision("UNKNOWN","INVALID_SETTINGS",action) end
     if isUnknown(item.unitVendorPrice) then return decision("UNKNOWN","PRICE_UNKNOWN",action) end
-    if item.unitVendorPrice>0 and item.unitVendorPrice*item.count<includePrice.value then return junkDecision(action,"BELOW_MIN_STACK_PRICE",item) end
+    if item.unitVendorPrice>0 and item.unitVendorPrice*item.count<includePrice.value then return junkDecision(action,"BELOW_MIN_STACK_PRICE",item,nil,includePrice.value) end
   end
   local includeType=options.includeByEquipmentType
   if applies(includeType,action) and selectedQuality(includeType,item.quality) then
     local selected=equipmentTypeSelected(item,includeType)
     if selected==nil then return decision("UNKNOWN","EQUIPMENT_TYPE_UNKNOWN",action) end
-    if selected then return junkDecision(action,"INCLUDED_EQUIPMENT_TYPE",item) end
+    if selected then return junkDecision(action,"INCLUDED_EQUIPMENT_TYPE",item,nil,item.itemSubType) end
   end
   return decision("KEEP", "NO_RULE_MATCH", action)
 end

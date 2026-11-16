@@ -95,9 +95,9 @@ eq(report:find("Eligible: 1 | Keep: 1 | Unknown: 0",1,true)~=nil,true)
 eq(totals.JUNK,1); eq(totals.KEEP,1); eq(totals.UNKNOWN,0)
 local invalid,invalidReason=Addon.Preview.Format({},"SELLER")
 eq(invalid,nil); eq(invalidReason,"INVALID_ACTION")
--- The fixture rejects named native frames; runtime must fall back to chat help.
+-- The fixture rejects native-frame construction; do not show the old partial overview.
 w:Ready(); w:Command("config")
 local found=false
-for _,line in ipairs(w.messages) do if line:find("Configuration panel unavailable",1,true) then found=true end end
+for _,line in ipairs(w.messages) do if line:find("Main configuration UI unavailable",1,true) then found=true end end
 assert(found); eq(w.mutations,0)
 print("UI MODEL RESULT: 62 passed")

@@ -25,6 +25,18 @@ local function listValid(value)
   end
   return true
 end
+local function cleanList(value)
+  local result,count={},0
+  if type(value)=="table" then
+    for raw,enabled in pairs(value) do
+      local id=validId(raw)
+      if id and enabled==true and not result[id] and count<MAX_IDS then
+        result[id]=true; count=count+1
+      end
+    end
+  end
+  return result
+end
 local function profile(id, name) return { id=id, name=name, inclusions={}, exclusions={}, autoSell=false, autoRepair=false, options={quality={[0]=true},includeByQuality={enabled=true,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},excludeAboveItemLevel={enabled=false,scope="BOTH",value=0,qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},excludeAbovePrice={enabled=false,scope="DESTROY",value=0,qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},excludeByEquipmentType={enabled=false,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true},armor={},weapons={}},excludeEquipmentSets={enabled=true,scope="BOTH"},excludeQuestItems={enabled=true,scope="BOTH"},excludeUnboundEquipment={enabled=false,scope="BOTH",qualities={poor=true,common=true,uncommon=true,rare=true,epic=true}},includeBelowItemLevel={enabled=false,scope="BOTH",value=0,qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},includeBelowPrice={enabled=false,scope="SELL",value=0,qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}},includeByEquipmentType={enabled=false,scope="BOTH",qualities={poor=true,common=false,uncommon=false,rare=false,epic=false},armor={},weapons={}}}, rules={} } end
 local RULE_FIELDS = { itemId=true, quality=true, itemLevel=true, unitVendorPrice=true, count=true }
 local function cleanRules(value)
@@ -66,9 +78,13 @@ local function cleanOptions(value)
     end
   end
   local names={[0]="poor",[1]="common",[2]="uncommon",[3]="rare",[4]="epic"}
-  for quality,name in pairs(names) do if value.quality and type(value.quality[quality])=="boolean" then out.includeByQuality.qualities[name]=value.quality[quality] end end
+  for quality,name in pairs(names) do if type(value.quality)=="table" and type(out.quality[quality])=="boolean" then out.includeByQuality.qualities[name]=out.quality[quality] end end
   for _,key in ipairs({"excludeEquipmentSets","excludeQuestItems","excludeUnboundEquipment"}) do
-    if type(value[key])=="boolean" then out[key]=value[key] and {enabled=true,scope="BOTH"} or {enabled=false,scope="BOTH"} end
+    if type(value[key])=="boolean" then
+      -- Preserve the default quality map for legacy boolean settings.
+      out[key].enabled=value[key]
+      out[key].scope="BOTH"
+    end
   end
   local legacyFilters={
     minItemLevel={key="includeBelowItemLevel",reason="JUNK"},
@@ -120,7 +136,7 @@ end
 local function cleanGlobal(value)
   local out=globalDefaults()
   if type(value)~="table" then return out end
-  for _,key in ipairs({"inclusions","exclusions"}) do if listValid(value[key]) then out[key]=copy(value[key]) end end
+  for _,key in ipairs({"inclusions","exclusions"}) do out[key]=cleanList(value[key]) end
   for _,key in ipairs({"safeSell","safeDestroy","merchantButton","autoJunkFrame","autoLootableFrame","itemIcons","itemTooltips"}) do
     if type(value[key])=="boolean" then out[key]=value[key] end
   end
@@ -173,8 +189,8 @@ local function cleanProfile(value,id)
   local name=type(value)=="table" and cleanName(value.name) or nil
   local out=profile(id,name or (id==DEFAULT and "Default" or "Profile"))
   if type(value)=="table" then
-    if listValid(value.inclusions) then out.inclusions=copy(value.inclusions) end
-    if listValid(value.exclusions) then out.exclusions=copy(value.exclusions) end
+    out.inclusions=cleanList(value.inclusions)
+    out.exclusions=cleanList(value.exclusions)
     out.options=cleanOptions(value.options)
     out.rules=cleanRules(value.rules)
     out.autoSell=value.autoSell==true
@@ -192,6 +208,20 @@ function Store.Initialize(saved,character)
     elseif saved.schemaVersion==Store.VERSION or saved.schemaVersion==1 then
       mode=saved.schemaVersion==Store.VERSION and "loaded" or "migrated-v1"
       state.global=cleanGlobal(saved.global)
+      state.recovery=copy(saved.recovery)
+      local damaged=false
+      local function checkLists(owner)
+        if type(owner)~="table" then return end
+        for _,kind in ipairs({"inclusions","exclusions"}) do
+          if owner[kind]~=nil and not listValid(owner[kind]) then damaged=true end
+        end
+      end
+      checkLists(saved.global)
+      if type(saved.profiles)=="table" then for _,entry in pairs(saved.profiles) do checkLists(entry) end end
+      if damaged then
+        local original=copy(saved); original.recovery=nil
+        state.recovery=original; mode="recovered-lists"
+      end
       if type(saved.profiles)=="table" then
         local n=0
         for id,value in pairs(saved.profiles) do
@@ -232,6 +262,7 @@ end
 function Store:GetActiveProfile() return copy(self.state.profiles[self:GetActiveProfileId()]) end
 function Store:AssignCharacter(key,id)
   if self.readonly or type(key)~="string" or #key>96 or not self.state.profiles[id] then return false end
+  if self.state.characterProfiles[key]==id then return true end
   self.state.characterProfiles[key]=id; self:Changed(); return true
 end
 function Store:SwitchProfile(id) return self:AssignCharacter(self.character,id) end
@@ -273,7 +304,7 @@ function Store:SetOption(key,value)
   elseif key=="excludeEquipmentSets" or key=="excludeQuestItems" or key=="excludeUnboundEquipment" then
     if type(value)=="boolean" then
       local previous=options[key]
-      options[key]={enabled=value,scope="BOTH"}
+      options[key]={enabled=value,scope=type(previous)=="table" and previous.scope or "BOTH"}
       if key=="excludeUnboundEquipment" then
         options[key].qualities=type(previous)=="table" and copy(previous.qualities) or
           {poor=true,common=true,uncommon=true,rare=true,epic=true}
@@ -387,7 +418,7 @@ function Store:RemoveRule(id)
   return false,"UNKNOWN_RULE"
 end
 function Store:ResetProfile(id)
-  if self.readonly or id==DEFAULT or not self.state.profiles[id] then return false end
+  if self.readonly or not self.state.profiles[id] then return false end
   -- Reset settings and lists while preserving the profile identity/name.
   self.state.profiles[id]=profile(id,self.state.profiles[id].name); self:Changed(); return true
 end
@@ -402,11 +433,28 @@ function Store:EditList(scope,kind,raw,present)
   local list=scope=="global" and self.state.global[kind] or scope=="profile" and self.state.profiles[self:GetActiveProfileId()][kind]
   local id=validId(raw); if not list then return false,"INVALID_SCOPE" end; if not id then return false,"INVALID_ITEM_ID" end
   if present then
-    if list[id] then return false,"ALREADY_PRESENT" end
+    local owner=scope=="global" and self.state.global or self.state.profiles[self:GetActiveProfileId()]
+    local opposite=owner[kind=="inclusions" and "exclusions" or "inclusions"]
+    if list[id] then
+      if opposite[id] then opposite[id]=nil; self:Changed(); return true end
+      return false,"ALREADY_PRESENT"
+    end
     local n=0; for _ in pairs(list) do n=n+1 end; if n>=MAX_IDS then return false,"LIST_LIMIT" end
     list[id]=true
+    opposite[id]=nil
   else if not list[id] then return false,"NOT_PRESENT" end; list[id]=nil end
   self:Changed(); return true
+end
+function Store:ClearList(scope,kind)
+  if self.readonly then return false,"READ_ONLY" end
+  if kind~="inclusions" and kind~="exclusions" then return false,"INVALID_LIST" end
+  local owner=scope=="global" and self.state.global or
+    scope=="profile" and self.state.profiles[self:GetActiveProfileId()]
+  if not owner then return false,"INVALID_SCOPE" end
+  if not next(owner[kind]) then return true end
+  owner[kind]={}
+  self:Changed()
+  return true
 end
 function Store:ImportPreview(scope,kind,text)
   if self.readonly or type(text)~="string" or #text>MAX_IMPORT then return nil,"IMPORT_LIMIT" end
@@ -451,6 +499,12 @@ function Store:CommitImport(preview)
     end
   end
   if scope=="global" then self.state.global[kind]=nextList else self.state.profiles[self:GetActiveProfileId()][kind]=nextList end
+  local owner=scope=="global" and self.state.global or self.state.profiles[self:GetActiveProfileId()]
+  local opposite=owner[kind=="inclusions" and "exclusions" or "inclusions"]
+  for _,raw in ipairs(preview.add) do opposite[validId(raw)]=nil end
+  for _,raw in ipairs(type(preview.existing)=="table" and preview.existing or {}) do
+    local id=validId(raw); if id and nextList[id] then opposite[id]=nil end
+  end
   self:Changed(); return true
 end
 function Store:ExportList(scope,kind)

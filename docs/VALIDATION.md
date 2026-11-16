@@ -538,3 +538,273 @@ first combined-list row. The Persian client test guide records installation,
 UI/storage/keybinding/list checks, low-value sale/repair/loot checks, and
 cancel-only destroy confirmation checks. No live inventory operation was run.
 GitHub distribution uses an isolated test-candidate branch; main is not merged.
+
+## Review-only verification — 2026-11-16
+
+Snapshot: f416bdd52906d440ae060e194a15fb639f9e824b. No executable changes.
+See [REVIEW-1.0.0.md](REVIEW-1.0.0.md) for open findings and coverage limits.
+
+- `python3 tools/check_phase0.py`: passed (31 deliverables, 69 Markdown files,
+  62 local links, 54 source digests and 153 API references at execution time).
+- `python3 tools/check.py --lua /workspace/work/lua51/usr/bin/lua5.1 --luac /workspace/work/lua51/usr/bin/luac5.1`:
+  passed; syntax for 28 files, 67 core fixtures, 22 store, 8 service, 11 destroyer,
+  62 UI model fixtures, transaction and UI interaction checks; two reproducible
+  41-entry archives built only in temporary storage.
+- Profiles allocation probe using the existing UI fixture in memory: two
+  identical refreshes each created 24 additional mock UI objects (finding 18).
+- Final documentation validation: `git diff --check` passed; Phase 0 checks
+  passed again with 63 local links after adding this note.
+- Not run: original WoW client rendering, live inventory operations, live
+  performance profiling. No package upload, GitHub release or runtime patch.
+
+Passing existing tests does not resolve the review findings. In particular,
+the Profiles probe demonstrates missing repeated-refresh coverage. Modifier
+semantics in finding 12 were corrected against upstream, not changed in code.
+
+### Settings review continuation
+
+No executable files changed. Additional actual Lua 5.1 probes:
+
+- Each of excludeEquipmentSets, excludeQuestItems and excludeUnboundEquipment
+  initialized with SELL scope became BOTH after SetOption(false), SetOption(true).
+  This reproduces finding 20 using the actual Store implementation.
+- The existing UI interaction fixture passed; a probe appended in memory then
+  used its persisted Store callbacks to disable includeBelowItemLevel, enter 61,
+  and click Apply. Result: enabled=true, value=61 (finding 21). The earlier probe
+  against an obsolete fixture variable was discarded, not counted as evidence.
+- No live WoW operation or release upload. The full regression suite's earlier
+  pass remains applicable to the unchanged executable snapshot; these probes
+  expose missing or reference-inconsistent expectations in that suite.
+
+### Application-path binding probe
+
+Actual Lua 5.1, existing tests/harness.lua, real Application/Store methods and
+fake bag/tooltip APIs: a bound Poor head item with excludeUnboundEquipment on
+was absent from GetJunkItems while GetSlotDecisions classified it JUNK/QUALITY
+for selling and JUNK for destruction. Output: `BINDING_PROJECTION 0 JUNK QUALITY
+JUNK`. Asserted zero inventory mutations. Finding 4 is now directly reproduced.
+No executable changes or live-client tests were made during this continuation.
+
+### Profile and recovery probes
+
+Actual Lua 5.1 with existing harness and real Store/Application code:
+
+- Default reset after enabling autoSell: `RESET_DEFAULT false true` (finding 22).
+- Valid exclusion 123 plus one invalid saved key: after reload,
+  `RECOVERY_LIST nil nil` for that exclusion and the recovery field (finding 23).
+- ADDON_LOADED with schemaVersion="2": failed at bootstrap.lua:348 with
+  "attempt to compare number with string" (additional reproduction of finding 1).
+  Mutation count was asserted zero in the event-path probe.
+
+Only review/validation documents changed. Existing passing runtime suites do not
+cover these malformed-input and Default-reset expectations; no new release or
+live operation was performed.
+
+### Equipment predicate follow-up
+
+Actual Lua 5.1 pure Rules.Evaluate probes used common-quality, level-10 items
+and a level-20 inclusion threshold. Fishingpole (2/20, INVTYPE_2HWEAPON), Generic
+armor (4/0, INVTYPE_CHEST), and a ring control (4/0, INVTYPE_FINGER) each returned
+JUNK/BELOW_MIN_ITEM_LEVEL. Reference Items:IsItemEquipment exempts the first two
+but deliberately accepts the ring. Finding 17 is now directly reproduced at
+the evaluator boundary. Actual legacy API metadata and live inventory actions
+were not tested. No executable source or test fixtures were changed.
+
+### Merchant lifecycle follow-up
+
+- Actual Lua 5.1 tests/transaction-tests.lua: passed existing checks, including
+  merchant-close/settings cancellation, failed-dispatch Safe Sell counting,
+  confirmation lifetime and delayed auto repair. All transaction APIs were fake.
+- Application/cache probe after manually closing Auto Junk: BAG_UPDATE reopened
+  it; output `AUTO_JUNK_MANUAL_CLOSE 2 true`, zero inventory mutations (24).
+- Explicit inclusion with quest=true, then inEquipmentSet=true: Rules returned
+  JUNK but AttemptSale returned false/STALE_OR_PROTECTED_ITEM; zero calls to
+  fake UseContainerItem (7).
+- No executable changes, live-client operation or publication.
+
+### Final offline review closeout
+
+Reran the complete `tools/check.py` with actual Lua/luac 5.1: exit 0; 67 core,
+22 store, 8 service, 11 destroyer and 62 UI model fixtures passed, along with
+transaction/UI interaction suites and reproducible 41-entry package validation.
+Temporary output: /tmp/dejunk-review-closeout.log. No archives were published.
+The review report is consolidated in numeric finding order with a final Persian
+disposition and acceptance gates. Its 24 findings remain open; 15 have direct
+reproductions. This closes the documented offline review round, not every-line
+certification of all upstream/vendor code or in-client acceptance.
+
+## Audit implementation — 2026-11-16
+
+The later user instruction authorized implementing the findings. Current status
+is in [FIXES-REVIEW-1.0.0.md](FIXES-REVIEW-1.0.0.md), separate from the historical
+baseline review. Runtime, Store, cache, rules and production sale observation
+have now changed. No live inventory operation was performed.
+
+Added tests/review-regressions.lua to the mandatory check.py suite. It exercises
+the actual Store, Application and transaction adapter with fake APIs. Updated
+old test expectations where they encoded the defects (Default reset, opposite
+membership, quest-class equipment predicate and Apply implicitly enabling a
+filter). The stale-tooltip test now changes the adapter's binding read rather
+than replacing CreateFrame after the tooltip has already been cached.
+
+UI tests cover row reuse, scroll offset clamping, message levels and preserved
+disabled threshold state. Transaction tests now exercise production observation:
+dispatch is not confirmation, duplicate pending-slot requests are rejected,
+unchanged slots time out, Unlock reports failure, disappearance confirms, and
+confirmed run totals are emitted once. Confirmation reads only slot identity
+instead of rescanning binding/equipment sets on every poll.
+
+Full actual-Lua-5.1 check.py passed after these fixes, including the new review
+suite; focused UI and transaction tests passed after follow-up additions.
+Final rerun: check.py exited 0 (67 core, 22 store, 8 service, 11 destroyer,
+62 UI-model tests, transaction/UI interaction and new review regressions).
+Reproducible 41-entry package checks passed; git diff --check passed. Output was
+saved to /tmp/dejunk-fix-final.log. Package checks created temporary archives
+only. No new GitHub release asset has been published.
+
+## 1.0.1 audit-fix release — 2026-11-16
+
+Executed after the category and input fixes:
+
+- `python3 tools/check_phase0.py`: passed research deliverables, links and pinned digests.
+- `python3 tools/check.py --lua /workspace/work/lua51/usr/bin/lua5.1 --luac /workspace/work/lua51/usr/bin/luac5.1`:
+  passed 67 core, 22 store, 8 service, 11 destroyer and 62 UI-model cases;
+  production transaction, UI-interaction and review-regression fixtures passed.
+- `git diff --check`: passed.
+- Two independently built 41-entry ZIPs were byte-identical; checked runtime
+  contents, CRC, layout, license notices and overwrite protection.
+- No live WoW inventory calls or original-client visual tests were performed.
+
+Category tests no longer encode the incorrect contiguous auction-ID assumption:
+English label matching is order-independent and maps staff=10, shield=6,
+fishing pole=20. Unsupported localized labels stay unknown. Threshold tests now
+exercise enabled/disabled controls, delayed save, Enter and Escape. Native focus
+handling, localization and third-party bag overlays still need client evidence.
+
+## 1.0.2 — RichSteini Bagnon integration (2026-11-16)
+
+Reviewed Bagnon revision `27a08f89819311d772e7ec7a71a41eafb813f122`.
+See BAGNON-COMPATIBILITY.md for immutable source paths and client acceptance steps.
+No reference code is bundled and no live inventory action was executed.
+
+`python3 tools/check_phase0.py`, the complete `tools/check.py` suite with actual
+Lua/luac 5.1, and `git diff --check` passed. New UI fixtures cover pre-existing and
+new Bagnon widgets, pooled Blizzard button reuse, delayed loading, one-time secure
+hooks, original callbacks/drag scripts, cached-character and bank exclusion,
+stale links, SMALL/LARGE/off styles and rule-driven clearing. A production-store
+fixture confirms that list changes trigger overlay refresh. Reproducible 41-entry
+ZIP validation also passed. Original-client Bagnon visuals are not tested here.
+
+## Unreleased audit continuation — delayed metadata and destroy observer
+
+Actual Lua 5.1 full `tools/check.py` passed with delayed metadata (2.5 seconds),
+five-second retry deadline and production destroy timeout/unlock fixtures. The
+latter mock dispatch and never delete inventory. Original-client acceptance and
+successful-destruction confirmation remain unverified.
+
+## Unreleased audit continuation — conflicting actions
+
+Actual Lua 5.1 suite and phase-0 checks passed with production callback tests
+for manual sell/destroy while a seller is running, a sale is awaiting outcome,
+or a destruction attempt is awaiting outcome. No live actions were performed;
+original-client acceptance remains required.
+
+## Unreleased audit continuation — coherent slot observations
+
+Actual Lua 5.1 tests pass for direct probes and cached bag reads when metadata
+changes during the binding tooltip scan. Both paths reject mixed observations.
+No real-client operations were used; target-client acceptance remains outstanding.
+
+## Unreleased asynchronous import validation
+
+Lua 5.1 production callback fixtures cover delayed item-info response, bounded
+batching, atomic result, timeout and stale-revision cancellation. Unavailable data
+is reported as unavailable rather than conclusively invalid. No original-client
+acceptance has been run, and direct list-add paths do not use this queue.
+
+## Unreleased rules/store/API comparison
+
+Actual Lua 5.1 checks passed after adding canonical/fallback unknown-refund,
+legacy boolean protection, string-key quality migration/reload and exact public
+API event-value fixtures. These are offline checks; no target-client run occurred.
+
+## Unreleased Junk/Options UI comparison
+
+Lua 5.1 fixtures verify Junk gear toggle without closing Junk, global child
+control enable/disable and remembered values, reference equipment-type ordering,
+and action-control busy state during pending outcomes. The original client was
+not used and the new changes are not yet published.
+
+## Unreleased profile-review checks
+
+Lua 5.1 UI and store fixtures cover failed selected-profile duplication without
+copying a different active profile, and reselecting the active profile without
+changing the store revision. Offline checks do not prove live-client behavior.
+
+## Unreleased transport focus comparison
+
+The UI fixture verifies pressing Import releases edit focus and keeps the
+transport window open. The queue is atomic, unlike the upstream per-item parsing
+flow; unresolved and eligibility cases remain documented differences.
+
+## Unreleased list and keybinding comparison
+
+Lua 5.1 UI fixtures exercise Ctrl+Alt+right-click on the list title, preserving a
+cursor item on right-click and limiting changes to the chosen list. Store tests
+cover one change notification and no-op empty clear. Keybinding tests cover
+legacy numeric 0/1 combat flags. Live-client pointer routing and input remain
+unverified.
+
+## Unreleased list viewport check
+
+A fake-UI Lua 5.1 test scrolls a 300-item list while confirming a fixed pool of
+12 item-row buttons for the fixture viewport, scrollbar seeking, drag cleanup,
+and right-click behavior with an item on the cursor. Native 3.3.5 scroll-frame
+clipping, scaling and pointer hit-testing still need client acceptance.
+
+## Unreleased per-item import and generic API checks
+
+Actual Lua 5.1 tests exercise mixed valid/unavailable/unsupported import IDs,
+25-ID batches, timeout and profile changes after partial success. They also
+verify generic IsJunk can classify a known refundable SELL-only item while the
+explicit sale decision remains blocked. Real client/server responses and the
+owner's in-game acceptance remain untested.
+
+### Local source-review continuation
+
+With Lua 5.1, `python3 tools/check_phase0.py`, `python3 tools/check.py --lua
+/workspace/work/lua51/usr/bin/lua5.1 --luac
+/workspace/work/lua51/usr/bin/luac5.1`, and `git diff --check` passed after the
+direct list eligibility change. Tests use mock game APIs; original-client
+acceptance remains outstanding. The change is local and unpublished.
+
+### Safe Sell source-review continuation
+
+`python3 tools/check_phase0.py`, `python3 tools/check.py --lua
+/workspace/work/lua51/usr/bin/lua5.1 --luac
+/workspace/work/lua51/usr/bin/luac5.1`, and `git diff --check` passed after the
+Safe Sell selection change. The new mock fixture checks which entries are
+selected as well as the 12-attempt limit. No live game actions were executed.
+
+## Remediation batch 1 — UI click and minimap parity
+
+Commands run from the addon root:
+
+```sh
+python3 tools/check_phase0.py
+python3 tools/check.py --lua /workspace/work/lua51/usr/bin/lua5.1 --luac /workspace/work/lua51/usr/bin/luac5.1
+git diff --check
+```
+
+All passed with actual Lua 5.1. The interaction fixtures check merchant frame
+strata, supported versus unsupported modifier combinations, reference minimap
+radius/corner placement, and repeated merchant tooltip entry without duplicate
+lines. The package checker built two identical 41-entry archives in temporary
+storage. Original-client visual acceptance was not run.
+
+## Unreleased destruction outcome observer
+
+The production fake-API transaction suite now checks destroy disappearance,
+unlock failure, five-second timeout, duplicate suppression and the cursor-empty
+guard. It uses no live inventory. The offline result follows the upstream
+original-slot item-ID criterion; target-client confirmation remains outstanding.

@@ -85,16 +85,16 @@ test("tuple normalization and zero price stay numeric", function()
   w.slots["0:1"].price = 0
   equal(w.app.adapter:ReadSlot(0, 1).unitVendorPrice, 0)
 end)
-test("legacy item categories map through Auction class and subclass names", function()
+test("legacy item categories use canonical IDs, not auction positions", function()
   local w=populated():Ready()
   w.slots["0:1"].itemType="Armor"; w.slots["0:1"].itemSubType="Cloth"
   local item=w.addon.Legacy.New(w.api):ReadSlot(0,1,{known=false,ids={}})
   equal(item.classId,4); equal(item.subclassId,1)
   w.slots["0:1"].itemType="Weapon"; w.slots["0:1"].itemSubType="Fishing Poles"
   item=w.addon.Legacy.New(w.api):ReadSlot(0,1,{known=false,ids={}})
-  equal(item.classId,2); equal(item.subclassId,10)
+  equal(item.classId,2); equal(item.subclassId,20)
 end)
-test("legacy category mapping stays unknown when Auction APIs are missing or labels do not match", function()
+test("legacy category mapping recognizes known labels without auction APIs", function()
   local w=populated():Ready()
   w.slots["0:1"].itemType="Armor"; w.slots["0:1"].itemSubType="Unrecognized locale label"
   local api={}; for key,value in pairs(w.api) do api[key]=value end
@@ -102,6 +102,7 @@ test("legacy category mapping stays unknown when Auction APIs are missing or lab
   local item=w.addon.Legacy.New(api):ReadSlot(0,1,{known=false,ids={}})
   equal(item.classId,4); equal(item.subclassId,nil)
   api.GetAuctionItemClasses=nil
+  w.slots["0:1"].itemType="Unrecognized class"
   item=w.addon.Legacy.New(api):ReadSlot(0,1,{known=false,ids={}})
   equal(item.classId,nil); equal(item.subclassId,nil)
 end)
@@ -184,8 +185,8 @@ test("empty equipment set collection is known negative", function()
   local w = populated():Ready()
   equal(w.app.cache:GetSnapshot().items["0:1"].inEquipmentSet, false)
 end)
-test("localized binding probe is opt-in and tri-state", function()
-  local w = populated():Ready(); equal(w.tooltipReads, 0)
+test("localized binding is cached and explicit probes remain tri-state", function()
+  local w = populated():Ready(); assert(w.tooltipReads>0)
   w.tooltipLines = { "item", w.api.ITEM_BIND_ON_EQUIP }
   equal(w.app:ProbeSlot(0, 1).bound, false)
   w.tooltipLines = { "item", w.api.ITEM_SOULBOUND }
@@ -197,12 +198,17 @@ test("localized binding probe is opt-in and tri-state", function()
 end)
 test("changed slot during tooltip probe is marked stale", function()
   local w = populated():Ready()
-  w.api.CreateFrame = function(kind)
-    if kind ~= "GameTooltip" then error("unexpected UI") end
-    return { SetOwner = function() end, ClearLines = function() end, Hide = function() end,
-      SetBagItem = function() w.slots["0:1"].count = 9 end, NumLines = function() return 0 end }
-  end
+  w.app.adapter.ReadBinding=function() w.slots["0:1"].count=9; return true end
   equal(w.app:ProbeSlot(0, 1).reason, "PROBE_CHANGED")
+end)
+test("binding probe rejects changed price without a bag event", function()
+  local w=populated():Ready()
+  w.app.adapter.ReadBinding=function() w.slots["0:1"].price=500; return true end
+  equal(w.app:ProbeSlot(0,1).reason,"PROBE_CHANGED")
+  w.slots["0:1"].price=5
+  w:Fire("BAG_UPDATE",0); w:Tick(0.1)
+  local item=w.app.cache:GetSnapshot().items["0:1"]
+  equal(item.state,"UNKNOWN"); equal(item.reason,"PROBE_CHANGED")
 end)
 test("bag event immediately invalidates old snapshots", function()
   local w = populated():Ready()
@@ -233,10 +239,46 @@ test("uncached retry is bounded and resolves without a bag event", function()
   equal(w.app.cache:GetSnapshot().items["0:1"].metadata, "known")
   equal(next(w.app.scheduler.jobs), nil)
 end)
-test("permanently uncached items stop retrying after two attempts", function()
+test("metadata retry rereads only unresolved slots while preserving known bag entries", function()
+  local w=populated(); w:AddItem(0,2,{id=124,link="|cffffffff|Hitem:124:0:0:0:0:0:0:0|h[Other]|h|r"})
+  w.slots["0:1"].uncached=true; w:Ready()
+  local unresolvedReads,resolvedReads=0,0
+  local readSlot=w.app.adapter.ReadSlot
+  w.app.adapter.ReadSlot=function(adapter,bag,slot,sets)
+    if bag==0 and slot==1 then unresolvedReads=unresolvedReads+1 end
+    if bag==0 and slot==2 then resolvedReads=resolvedReads+1 end
+    return readSlot(adapter,bag,slot,sets)
+  end
+  w.slots["0:1"].uncached=false; w:Tick(0.5)
+  equal(w.app.cache:GetSnapshot().items["0:1"].metadata,"known")
+  equal(w.app.cache:GetSnapshot().items["0:2"].itemId,124)
+  assert(unresolvedReads>0 and resolvedReads==0,"retry rescanned a resolved slot (pending="..unresolvedReads..", resolved="..resolvedReads..")")
+end)
+test("bag update preempts a delayed unresolved metadata retry", function()
+  local w=populated(); w.slots["0:1"].uncached=true; w:Ready()
+  assert(w.app.cache.pending)
+  w.slots["0:1"].uncached=false
+  w:Fire("BAG_UPDATE",0)
+  assert(not w.app.cache:GetSnapshot().valid)
+  w:Tick(0.1)
+  local snapshot=w.app.cache:GetSnapshot()
+  assert(snapshot.valid and snapshot.items["0:1"].metadata=="known")
+  equal(next(w.app.scheduler.jobs),nil)
+end)
+test("delayed metadata resolves after two seconds without a bag event", function()
   local w = populated(); w.slots["0:1"].uncached = true; w:Ready()
-  w:Tick(0.5); w:Tick(0.5); local before = w.reads
-  w:Tick(100); equal(w.reads, before); equal(next(w.app.scheduler.jobs), nil)
+  for _=1,5 do w:Tick(0.5) end
+  assert(w.app.cache:GetSnapshot().unknown>0)
+  w.slots["0:1"].uncached = false; w:Tick(0.5)
+  equal(w.app.cache:GetSnapshot().items["0:1"].metadata, "known")
+  equal(next(w.app.scheduler.jobs), nil)
+end)
+test("permanently uncached items stop retrying at the deadline", function()
+  local w = populated(); w.slots["0:1"].uncached = true; w:Ready()
+  for _=1,10 do w:Tick(0.5) end
+  local before = w.reads; w:Tick(100)
+  equal(w.reads, before); equal(next(w.app.scheduler.jobs), nil)
+  assert(w.app.cache:GetSnapshot().unknown>0)
 end)
 test("logout cancels pending work and invalidates cache", function()
   local w = populated():Ready(); w:Fire("BAG_UPDATE", 0)
@@ -394,6 +436,16 @@ local function ruleItem(overrides)
   for key, value in pairs(overrides or {}) do item[key]=value end
   return item
 end
+test("missing refund state remains unknown in canonical and fallback evaluators", function()
+  local canonical=populated():Ready().addon.Rules
+  local fallback=H.New({skipFiles={["src/rules/evaluator.lua"]=true}}):Load():Ready().addon.Rules
+  local item=ruleItem(); item.refundable=nil
+  local settings={profile={options={quality={[0]=true}}}}
+  for _,rules in ipairs({canonical,fallback}) do
+    local result=rules.Evaluate(item,"SELL",settings)
+    equal(result.result,"UNKNOWN"); equal(result.reasonCode,"REFUND_UNKNOWN")
+  end
+end)
 test("rule filters follow upstream optional protection and action scope", function()
   local w=populated():Ready(); local rules=w.addon.Rules
   equal(rules.Evaluate(ruleItem({classId=nil,quest=true}),"SELL",{profile={options={excludeQuestItems=true}}}).reasonCode,"QUEST_ITEM")
@@ -412,7 +464,7 @@ test("rule filters follow upstream optional protection and action scope", functi
   equal(rules.Evaluate(ruleItem({equipLoc="INVTYPE_HEAD",bound=false}),"DESTROY",{profile={options={excludeUnboundEquipment=unbound}}}).reasonCode,"UNBOUND_EQUIPMENT")
   equal(rules.Evaluate(ruleItem({equipLoc="INVTYPE_HEAD",bound=false}),"SELL",{profile={options={excludeUnboundEquipment=unbound}}}).reasonCode,"NO_RULE_MATCH")
   equal(rules.Evaluate(ruleItem({classId=12,quest=true,equipLoc="INVTYPE_HEAD",bound=false}),"SELL",
-    {profile={options={excludeUnboundEquipment=true,excludeQuestItems=true}}}).reasonCode,"UNBOUND_EQUIPMENT")
+    {profile={options={excludeUnboundEquipment=true,excludeQuestItems=true}}}).reasonCode,"QUEST_ITEM")
 end)
 test("rule precedence matches upstream profile and global list order", function()
   local rules=populated():Ready().addon.Rules
@@ -428,8 +480,10 @@ end)
 test("rule thresholds use whole-stack copper with strict comparison", function()
   local rules=populated():Ready().addon.Rules; local item=ruleItem({equipLoc="INVTYPE_HEAD",classId=4,subclassId=1})
   equal(rules.Evaluate(item,"SELL",{maxStackVendorPrice=10}).result,"KEEP")
-  equal(rules.Evaluate(item,"SELL",{maxStackVendorPrice=9}).reasonCode,"ABOVE_MAX_STACK_PRICE")
-  equal(rules.Evaluate(item,"SELL",{minItemLevel=11}).reasonCode,"BELOW_MIN_ITEM_LEVEL")
+  local abovePrice=rules.Evaluate(item,"SELL",{maxStackVendorPrice=9})
+  equal(abovePrice.reasonCode,"ABOVE_MAX_STACK_PRICE"); equal(abovePrice.reasonValue,9)
+  local belowLevel=rules.Evaluate(item,"SELL",{minItemLevel=11})
+  equal(belowLevel.reasonCode,"BELOW_MIN_ITEM_LEVEL"); equal(belowLevel.reasonValue,11)
   equal(rules.Evaluate(ruleItem({unitVendorPrice=0}),"SELL",{profile={inclusions={[123]=true}}}).reasonCode,"NO_VENDOR_VALUE")
 end)
 test("upstream scoped level and price filters honor selected qualities", function()
@@ -437,9 +491,11 @@ test("upstream scoped level and price filters honor selected qualities", functio
   local item=ruleItem({equipLoc="INVTYPE_HEAD",itemLevel=20,unitVendorPrice=10,count=2})
   local profile={options={excludeAboveItemLevel={enabled=true,scope="SELL",value=10,qualities={poor=true}},
     excludeAbovePrice={enabled=true,scope="SELL",value=15,qualities={poor=true}}}}
-  equal(rules.Evaluate(item,"SELL",{profile=profile}).reasonCode,"ABOVE_MAX_ITEM_LEVEL")
+  local aboveLevel=rules.Evaluate(item,"SELL",{profile=profile})
+  equal(aboveLevel.reasonCode,"ABOVE_MAX_ITEM_LEVEL"); equal(aboveLevel.reasonValue,10)
   profile.options.excludeAboveItemLevel.qualities.poor=false
-  equal(rules.Evaluate(item,"SELL",{profile=profile}).reasonCode,"ABOVE_MAX_STACK_PRICE")
+  local abovePrice=rules.Evaluate(item,"SELL",{profile=profile})
+  equal(abovePrice.reasonCode,"ABOVE_MAX_STACK_PRICE"); equal(abovePrice.reasonValue,15)
   equal(rules.Evaluate(item,"DESTROY",{profile=profile}).reasonCode,"NO_RULE_MATCH")
   profile.options.excludeAbovePrice.scope="DESTROY"
   equal(rules.Evaluate(item,"DESTROY",{profile=profile}).reasonCode,"ABOVE_MAX_STACK_PRICE")
@@ -447,17 +503,20 @@ test("upstream scoped level and price filters honor selected qualities", functio
   equal(rules.Evaluate(item,"DESTROY",{profile=profile}).reasonCode,"NO_RULE_MATCH")
   profile.options.includeBelowPrice={enabled=true,scope="DESTROY",value=25,qualities={poor=true}}
   item.quality=0
-  equal(rules.Evaluate(item,"DESTROY",{profile=profile}).reasonCode,"BELOW_MIN_STACK_PRICE")
+  local belowPrice=rules.Evaluate(item,"DESTROY",{profile=profile})
+  equal(belowPrice.reasonCode,"BELOW_MIN_STACK_PRICE"); equal(belowPrice.reasonValue,25)
 end)
 test("upstream equipment type filters use numeric legacy class IDs", function()
   local rules=populated():Ready().addon.Rules
-  local item=ruleItem({equipLoc="INVTYPE_HEAD",classId=4,subclassId=1,quality=2})
+  local item=ruleItem({equipLoc="INVTYPE_HEAD",classId=4,subclassId=1,itemSubType="Localized Subclass",quality=2})
   local profile={options={excludeByEquipmentType={enabled=true,scope="BOTH",qualities={uncommon=true},armor={[1]=true},weapons={}}}}
-  equal(rules.Evaluate(item,"DESTROY",{profile=profile}).reasonCode,"EXCLUDED_EQUIPMENT_TYPE")
+  local excluded=rules.Evaluate(item,"DESTROY",{profile=profile})
+  equal(excluded.reasonCode,"EXCLUDED_EQUIPMENT_TYPE"); equal(excluded.reasonValue,"Localized Subclass")
   profile.options.excludeByEquipmentType.qualities.uncommon=false
   equal(rules.Evaluate(item,"DESTROY",{profile=profile}).reasonCode,"NO_RULE_MATCH")
   profile.options={includeByEquipmentType={enabled=true,scope="SELL",qualities={uncommon=true},armor={[1]=true},weapons={}}}
-  equal(rules.Evaluate(item,"SELL",{profile=profile}).reasonCode,"INCLUDED_EQUIPMENT_TYPE")
+  local included=rules.Evaluate(item,"SELL",{profile=profile})
+  equal(included.reasonCode,"INCLUDED_EQUIPMENT_TYPE"); equal(included.reasonValue,"Localized Subclass")
   local noLegacyIds=ruleItem({equipLoc="INVTYPE_HEAD",classId=nil,subclassId=nil,quality=2})
   equal(rules.Evaluate(noLegacyIds,"SELL",{profile=profile}).reasonCode,"EQUIPMENT_TYPE_UNKNOWN")
 end)
@@ -592,7 +651,18 @@ test("auto junk preference only shows the read-only frame during merchant sessio
   w:Fire("MERCHANT_CLOSED"); assert(not visible); equal(hidden,1)
   equal(w.mutations,0)
 end)
+test("public IsJunk classifies refundable selling-only items without allowing a sale", function()
+  local w=H.New();w:AddItem(0,1,{refundSeconds=120});w:Load():Ready()
+  assert(w.app.store:SetOption("includeByQuality",{enabled=true,scope="SELL",
+    qualities={poor=true,common=false,uncommon=false,rare=false,epic=false}}))
+  local isJunk=w.api.DejunkApi:IsJunk(0,1)
+  equal(isJunk,true)
+  local sellable,reason=w.app:ClassifySlot(0,1,"SELL")
+  equal(sellable,false);equal(reason,"REFUNDABLE");equal(w.mutations,0)
+end)
 test("public Dejunk API classifies read-only slots and publishes removable update listeners", function()
+  local public=H.New():Load().api.DejunkApi
+  equal(public.Events.BagsUpdated,"BagsUpdated"); equal(public.Events.StateUpdated,"StateUpdated")
   local w=H.New(); w:AddItem(0,1)
   w.api.GetItemInfo=function(link) return "Example",link,0,10,1,"Misc","Junk",20,"","texture",5 end
   w:Load():Ready()
@@ -661,7 +731,7 @@ test("bootstrap evaluator fallback matches canonical filter decisions", function
   for _,scenario in ipairs(scenarios) do
     local expected=canonical.Evaluate(scenario[1],scenario[2],scenario[3])
     local actual=fallback.Evaluate(scenario[1],scenario[2],scenario[3])
-    equal(actual.result,expected.result); equal(actual.reasonCode,expected.reasonCode)
+    equal(actual.result,expected.result); equal(actual.reasonCode,expected.reasonCode); equal(actual.reasonValue,expected.reasonValue)
   end
 end)
 

@@ -37,10 +37,10 @@ function Harness.New(options)
       end
     end
   end
-  env.GetAuctionItemClasses = function() return "Consumable","Container","Weapon","Gem","Armor" end
+  env.GetAuctionItemClasses = function() return "Weapon","Armor","Container","Consumable","Glyph","Trade Goods","Recipe","Gem","Miscellaneous","Quest" end
   env.GetAuctionItemSubClasses = function(classIndex)
-    if classIndex==3 then return "One-Handed Axes","Two-Handed Axes","Bows","Guns","One-Handed Maces","Two-Handed Maces","Polearms","One-Handed Swords","Two-Handed Swords","Staves","Fishing Poles" end
-    if classIndex==5 then return "Miscellaneous","Cloth","Leather","Mail","Plate","Shields" end
+    if classIndex==1 then return "One-Handed Axes","Two-Handed Axes","Bows","Guns","One-Handed Maces","Two-Handed Maces","Polearms","One-Handed Swords","Two-Handed Swords","Staves","Fishing Poles" end
+    if classIndex==2 then return "Miscellaneous","Cloth","Leather","Mail","Plate","Shields" end
   end
   env.GetContainerItemQuestInfo = function(bag, slot)
     local item = world.slots[bag .. ":" .. slot]

@@ -1,0 +1,351 @@
+{
+  "port": {
+    "src/core/scheduler.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "03d4ac67a9d80d9d146d7830fb8bc0497c4d1680b6d82f9f00420ffcb42d6621"
+    },
+    "src/services/destroyer.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "22315ff04c4ac8af2aa6b21c4eadf350de9e473bfd3e7dcfcaa4438acd4b5bff"
+    },
+    "src/services/junk-items.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "b2f4de6685e22082dfff90dd76df53c629e46898b5081408e2ab35b601d746af"
+    },
+    "src/services/lootable-items.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "8b1cdbece1f1d14e051469c5594a944f752c40ef6b462830f7a8a3b7e784ee07"
+    }
+  },
+  "upstream": {
+    "src/addon.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "6a909d234218620eac5265f631c7a95a9332927d3e2ecbb54f9dbc6899675dce"
+    },
+    "src/blizzard/blizzard.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "b6b57b098267cd3e06c406f088f4f14e8f132cb21b0b7bc0a87914dabd360cd6"
+    },
+    "src/events/event-manager.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "13ad7d86c8dba05c194b9723e2a253de1ec03d3eb038589117022d01eace6217"
+    },
+    "src/events/events.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "8cd3165a2c82ead9b7c352e0ffee081f298c1a8d640d001a48c05d2115da5738"
+    },
+    "src/input/commands.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "c10479aa4fb65810d18712b0f4ebf1764346906fe0c950213fb91d0e9a3c7f66"
+    },
+    "src/input/keybindings.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "0b1972b00d5dd7580232258fdd06f175533a575e1ae59450ad9c400e71251dc3"
+    },
+    "src/items/bag-items-cache.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "72868a171b166538b5d22d43994e419ebee58d538fbe72160faa65d62648dde2"
+    },
+    "src/items/equipment-sets-cache.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "7089a43f376576c9653599624ec619af3a65c4c7b3de3956534354f4ad5311da"
+    },
+    "src/items/equipment-types.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "3344936bcef1b4546a02e0dac009a2fad2001239dea6da649cee5eed4cdb7e21"
+    },
+    "src/items/items.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "6b8e92c96c52c89df22aca580166f7ad7b6731e1b2dd361559a60b4717674e04"
+    },
+    "src/junk-filter/item-filters.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "c26513283ee4cdee8ba2c1620e0ae16e261a25cc32ccd982445db978f8356831"
+    },
+    "src/junk-filter/junk-filter.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "ca75ba05791bfdaf80e1d2fb7b6bd7070c0fdb0e5eeac53ee186ca1cc1ab9d1c"
+    },
+    "src/junk-filter/junk-items-cache.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "fb03ed5a7736ba3ad67e09f31d4178c4f1f74ebef0eab3a91178f59d7913a83d"
+    },
+    "src/lists/list-item-parser.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "ee193ec14ba8c66d29e48204242a6eb624e480935ae673cb9cb2ebc2e35bbe77"
+    },
+    "src/lists/lists.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "d416c6af64a1d5e160a299db32a0faf7ac90e26fb0b46d705dfc64805b82c5ee"
+    },
+    "src/locales/_enUS.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "f66f421a8c079b1cedefabe22bd2017e51b4f63308f9f53c4c1e26e6102de988"
+    },
+    "src/services/confirmer.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "6187dfdd55a0b3d12d5fb0dd934d6281bd8f5ec4a5d67611b123752ab872758c"
+    },
+    "src/services/destroyer.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "8a0e2989a2db82ea74ed372c3794f3219d6efe321f68abc5f78c6969deef5b93"
+    },
+    "src/services/seller.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "29bcc3f34b635d695f6e0149a2d24586e1cc0b4a4b44c406d70bda725ea39ed5"
+    },
+    "src/store/action-creators.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "1e61605ceb38bdcdc69b74f6ef9b2626baa00ca204f0ff3bbf5c83cab3f7d86b"
+    },
+    "src/store/action-types.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "93f85bc2ed0a9b380b96eaa5f44b5c65b79b45b41ff53bfddc1f011f55474d89"
+    },
+    "src/store/default-states.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "a3d93f7783a0121e20f51711c624269fb52d8142d311effcdbed89979e770add"
+    },
+    "src/store/middlewares.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "2c91020255646aac78b306e69290096a2bc0f7d2f105132c2dbdf8c0a1296b6a"
+    },
+    "src/store/migrations.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "de7627685680c1df1f3e12c3699b2a9e9acccb1811d5e68429ee9359197531fc"
+    },
+    "src/store/profile-summaries.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "8f75fd82d23037e2046a6f690e092a6efc0f0080764ae2d096cd28ad1aac76d3"
+    },
+    "src/store/root-reducer.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "3020a90119f9cbc09828e9c197937a7f5e77f2229b911ce37c006a890d609840"
+    },
+    "src/store/state-manager.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "381d055923d23740decf44286d040b5af1b36c981f134c47e1df8b6136f79259"
+    },
+    "src/store/state-reconciler.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "223874a2065865c57afa04f7c30c67cd33cfb79410b8a4e26597569b4d0f726f"
+    },
+    "src/ui/blizzard/addon-category.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "0d3f9f84e733088b394e2180451682c1831d2e43d0a2ba8fb995ee623bad3d75"
+    },
+    "src/ui/blizzard/addon-compartment.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "6cbafe42fdf6c3277d7e778cdec40ed0400bfe3702cfc9f694c3008b98a8ddad"
+    },
+    "src/ui/components/card-list.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "fa6ed6b009912842d6da2127956c17690456010a6ce752e55befd4687df55a92"
+    },
+    "src/ui/components/check-chip-group.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "fec3a728e42b9b909ea80cb7d63628ee27f0268fe7a8c64d63c6c8e30858ee90"
+    },
+    "src/ui/components/check-chip.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "45b53908818eedf96a12e9d209fefa2e92afb6a904437d932022fe04c1d6138c"
+    },
+    "src/ui/components/component-factory.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "555e83096ef73f689dc421a061d90798f7c69d8c0dd55f2952271ede026e3d05"
+    },
+    "src/ui/components/divider.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "0c8d35daf5611be740ff767a1c9245a174a9ad0272ab8175b14be86ac70d20d5"
+    },
+    "src/ui/components/icon-button.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "2c9f0cd26aa7bf8346e240778248d7386b624da1c3a4bd6e4d5e380e1564b613"
+    },
+    "src/ui/components/item-card.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "adbceb8a29922e41495c7cd891072a278ded0b8abd82914ee4a6c0f519b62e8a"
+    },
+    "src/ui/components/item-list.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "34f4431e2212bd297d0b5012c97f081f09ebc47a5dd5d1fb142b49e462f39f7b"
+    },
+    "src/ui/components/keybinding-card.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "f961102019faa4fe1852d5e67b74939035c24e6d15b0ea3b0451af16be53523e"
+    },
+    "src/ui/components/list-panel.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "6ad3f564ae3a953ca141d6304887e0ea09fdb9ab28171d4cdfe0cbc8b1a96151"
+    },
+    "src/ui/components/number-input.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "d952ed660e3ab15503a1e0734dee06018b8fae44625c4304b34af8bf10f9b572"
+    },
+    "src/ui/components/option-card.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "c72bca46b5aa6d4ffbf1fdee679e9f4bed8a4bc872c39e17413fe4a0a076247f"
+    },
+    "src/ui/components/profile-card.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "1ad07d095b58333e0020ed7e0d7174fee82ad25103a72edb45ae0e99debfa713"
+    },
+    "src/ui/components/quality-toggles.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "40dcef38ca76f991c04b12f3af1ac3249c88c20f2a510c67c63a7cf190a2a26d"
+    },
+    "src/ui/components/scroll-panel.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "afcab219965240fffc1b162289c88bf9613163a6d2434b0cda346f90d078b59f"
+    },
+    "src/ui/components/selectable-row.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "e67a90a1de046c8f74e228cb63e8877d6be0c0e33aa5d9a60ffa8dc82a850931"
+    },
+    "src/ui/components/settings-box.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "7f966f08daf9123d4212b0f803fd5625d6e904c88fef20c7f030f3fb2a1527ab"
+    },
+    "src/ui/components/text-input.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "283d44a09f6ef808ea036052ed0876966162e257195fac62bd396b3b8859aa2b"
+    },
+    "src/ui/components/text.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "f042a558d96dca3af0467b21a34c35f29635620b8076fd91ba4dce744fe80f9b"
+    },
+    "src/ui/components/titled-panel.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "1ed527d6ecd7ba8d7f64fcd10a993484b92e5fc1029c3e763712003b2d276407"
+    },
+    "src/ui/components/window.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "c1aea16fe400843b9860ef20b559d595ac52932e1b21df53319ae71d6e21cf47"
+    },
+    "src/ui/item-icons.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "3187f81322d55264aac1dff626520f8a4a9cce980ede12171cdff0d19db1a626"
+    },
+    "src/ui/item-tooltip.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "59b1538df20c580a20c315f40d22a1e8f6139873eef3482912ab491656da1dc1"
+    },
+    "src/ui/minimap-icon.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "e85a27be10968800b519138ff452e091947fb134cc75c32adec359764fc59cda"
+    },
+    "src/ui/popup.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "bfadfbb20bc2cbf80e25e372e65079b03871b6e1d32f002d8d1d5850258093ea"
+    },
+    "src/ui/screens/junk-frame.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "1bf11c2648f841096125fdca48b66ed0ae426dd502f4e9a43c9debc7769835fc"
+    },
+    "src/ui/screens/lootable-frame.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "e0e05956a6024c52881ee2c4f617c29808e14c202d75495d1724750b487d9742"
+    },
+    "src/ui/screens/main-window/main-window.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "0acbfe7c88c7daf4cd8b7ed0ce9d671fa9069243305c3c1b3ca4c5907da0881f"
+    },
+    "src/ui/screens/main-window/options/global-options.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "9023cb2b370684528b9ad7b73ace04090f791f63b760c0eb7640e11b7c179af1"
+    },
+    "src/ui/screens/main-window/options/keybindings.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "11e1353fe910f56ebcb09a8a0dfa2dc2e228d827f5d3f34bcaccddc2d41d6a91"
+    },
+    "src/ui/screens/main-window/options/options-builder.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "1f532a489f2545c6868d1c8a78f0a5031527c1dcfff70c73c2147b9de8ace59e"
+    },
+    "src/ui/screens/main-window/options/profile-options.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "c40391fa1595575ef1ef04134c6b13ee0ff4be93c29a63c6a226a89c0b18b51f"
+    },
+    "src/ui/screens/main-window/options/profiles.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "b0b380e73efe79e24fc581f5fdb5e5f07c711d18a389003f745b2f448d065018"
+    },
+    "src/ui/screens/merchant-button.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "90e2a2ee03f2b8d3fce0dbb015ba7d4d10d2ff253013fe084504b6e6f1a881b9"
+    },
+    "src/ui/screens/transport-frame.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "6f2855aca960bc144fdb9bb585c036f02513d94c7d1d58a24f0ae7d17a98e8ed"
+    },
+    "src/ui/tooltip.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "74150b34887d42a7445ee2a1fe6a34892d4c4f09bd162197dd1166ab97a8e668"
+    },
+    "src/ui/widgets/composites/scrollable-title-frame.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "a1f93d5e82bd9dd9035bd2c08e9cc83160e97b4a62255e8acf99daf94335e2a2"
+    },
+    "src/ui/widgets/composites/text-frame.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "8407f192983d919afa84170548315be6d9a154b6e1e36cc36fc958dacf044a31"
+    },
+    "src/ui/widgets/composites/title-frame.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "1616b69fff35a246b426b1ca12f076372d581d81e833a0a1a57b9dd5347c87b2"
+    },
+    "src/ui/widgets/primitives/button.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "e8efb00735cde77350d595f6ea6d8ad4f60aec513f934d9174b5a49c0d89bd65"
+    },
+    "src/ui/widgets/primitives/checkbox.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "b8f63debf1378f572832ce51ca8a4b405c75b565993407c74fd1fd9a23242fb5"
+    },
+    "src/ui/widgets/primitives/frame/events/enabled.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "606345b44342c6c474b1c7f0a9f9287791582c9b0dc5e229c9bef04d152dbd4f"
+    },
+    "src/ui/widgets/primitives/frame/events/focused.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "fb50a9e7043e02737bef3dff289507de5037a3dfa286a68c8f270475a94e9658"
+    },
+    "src/ui/widgets/primitives/frame/events/hovered.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "6ff0a7f25233259cdc62f4e1ab02058e0e246f72ce63ba9c649f1ca260f72752"
+    },
+    "src/ui/widgets/primitives/frame/frame-event-state.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "66574b7bcfb034235d4306d243628579d370ba4b6349e7c2ddb8a05215992f87"
+    },
+    "src/ui/widgets/primitives/frame/frame-events.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "569f883d78c4bb799a1319e9cceb375dcf5e1737f969ba55e2010d0fcb807e85"
+    },
+    "src/ui/widgets/primitives/frame/frame.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "2ca1d350d17a88d90faf7c57708cd970581f0c5f219e22729907fb35aae2481c"
+    },
+    "src/ui/widgets/primitives/slider.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "4caec2504a554e7365d15ef76ac3a3fa2a6e4d214cd8856df42ba1621b56eae7"
+    },
+    "src/ui/widgets/widgets.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "a23c5001306a4afb220e4ef90fa8ecaf6a606508eeec09d091efd1310267263f"
+    },
+    "src/utils/coins.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "cb420756450cd102d286caca654f61b2f2d34dd5f84a543a4ad2f5550ec7677f"
+    },
+    "src/utils/colors.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "af1bb882f3590ffb861a0cb326f96f69fd595a20b9b5705c8941ba411d26454d"
+    },
+    "src/utils/ticker-manager.lua": {
+      "evidence": "docs/REVIEW-1.0.2-EN.md",
+      "sha256": "6e80d79ef68ed51fd4ad3234bb795d05d86153a4220dc907316619cb1dbc3a4d"
+    }
+  },
+  "upstream_revision": "04bafd5e411441ef5b51bb8ed10d208f2d7758f5"
+}
