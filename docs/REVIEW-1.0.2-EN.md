@@ -149,3 +149,24 @@ now cancels the old timer and queues the normal 0.1-second refresh. A Lua 5.1
 fixture starts an unresolved metadata retry, changes the slot, fires BAG_UPDATE,
 and verifies a fresh known snapshot after 0.1 seconds. The cached metadata and
 original-client behavior remain separate from validation of newly imported IDs.
+
+## Continuation: asynchronous transport import (unreleased)
+
+The UI transport and `/djw lists import` paths now queue new item IDs and
+request legacy `GetItemInfo` in batches of at most 25 per tick. A positive result
+requires an item hyperlink carrying the expected ID. Each ID has five seconds
+from its first request; if any remains unavailable, the whole new-ID import is
+left uncommitted and the user may retry. Existing saved IDs are untouched. This
+is deliberately not labeled “invalid”: the original 3.3.5 API cannot distinguish
+an uncached or unreachable item from a nonexistent ID using this response alone.
+The captured store revision cancels the import if the lists/settings/profile
+change during validation; there is no partial commit. One import can run at a
+time. A background completion refreshes only an already-visible Lists page and
+does not reopen a closed window. Direct item-drop/list commands are separate and
+still use the existing synchronous path; this is not complete parser parity.
+
+Production callback tests exercise delayed availability, atomic commit, timeout,
+stale changes, duplicate requests and a 25-ID batch. UI checks cover a closed
+window. No WoW client was available for this validation. Reference behavior is
+`src/lists/list-item-parser.lua` at pinned upstream revision, which additionally
+uses the modern `GetItemInfoInstant` unavailable in the original target API.

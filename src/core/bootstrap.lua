@@ -456,6 +456,58 @@ function Addon.NewApplication(runtime)
     return Addon.LootableItems.Build(self.cache:GetSnapshot())
   end
 
+  -- Validate new IDs asynchronously before changing either list. An unavailable
+  -- item-info response is not proof of an invalid ID. The preview revision
+  -- prevents a delayed result from being applied to a changed profile/list.
+  function app:QueueListImport(preview)
+    if self.state~="READY" or not self.store then return false,"APP_NOT_READY" end
+    if self.pendingImport then return false,"IMPORT_PENDING" end
+    if type(preview)~="table" or type(preview.add)~="table" or preview.revision~=self.store:GetRevision() then
+      return false,"STALE_PREVIEW"
+    end
+    if #preview.add==0 then return self.store:CommitImport(preview) end
+    local job={preview=Addon.Copy(preview),ids={},nextIndex=1,deadlines={}}
+    for _,id in ipairs(job.preview.add) do job.ids[#job.ids+1]=id end
+    self.pendingImport=job
+    local function finish(message)
+      if self.pendingImport~=job then return end
+      self.pendingImport=nil
+      if message then runtime:Print(message) end
+    end
+    local function tick()
+      if self.pendingImport~=job or self.state~="READY" then return end
+      if not self.store or self.store:GetRevision()~=job.preview.revision then
+        return finish("Import cancelled: lists or profile changed during validation.")
+      end
+      local checked=0
+      local limit=math.min(25,#job.ids)
+      while #job.ids>0 and checked<limit do
+        if job.nextIndex>#job.ids then job.nextIndex=1 end
+        local id=job.ids[job.nextIndex]
+        checked=checked+1
+        if runtime:HasItemInfo(id) then
+          table.remove(job.ids,job.nextIndex)
+          job.deadlines[id]=nil
+        else
+          job.deadlines[id]=job.deadlines[id] or (self.scheduler.now+5)
+          if self.scheduler.now>=job.deadlines[id] then
+            return finish("Import not completed: item information unavailable for ID "..tostring(id)..". Try again when cached.")
+          end
+          job.nextIndex=job.nextIndex+1
+        end
+      end
+      if #job.ids==0 then
+        local ok,reason=self.store:CommitImport(job.preview)
+        if ok then
+          finish("Imported "..#job.preview.add.." item IDs.")
+          if runtime.RefreshListsIfVisible then runtime:RefreshListsIfVisible() end
+        else finish("Import failed: "..tostring(reason)) end
+      else job.timer=self.scheduler:After(0.1,tick) end
+    end
+    job.timer=self.scheduler:After(0.1,tick)
+    return true,"PENDING"
+  end
+
   function app:BuildConfigCallbacks()
     local function profile()
       return self.store and self.store:GetActiveProfile() or nil
@@ -487,7 +539,7 @@ function Addon.NewApplication(runtime)
       listItems=function(scope,kind) return Addon.Config.ListItems(self.store,scope,kind) end,
       editItem=function(scope,kind,id,present) return Addon.Config.EditItem(self.store,scope,kind,id,present) end,
       previewListImport=function(scope,kind,text) return Addon.Config.PreviewListImport(self.store,scope,kind,text) end,
-      commitListImport=function(preview) return Addon.Config.CommitListImport(self.store,preview) end,
+      commitListImport=function(preview) return self:QueueListImport(preview) end,
       listRules=function() return Addon.Config.ListRules(self.store) end,
       addRule=function(group) return Addon.Config.AddRule(self.store,group) end,
       removeRule=function(id) return Addon.Config.RemoveRule(self.store,id) end,
@@ -555,8 +607,8 @@ function Addon.NewApplication(runtime)
         local preview,err=self.store:ImportPreview(scope,kind,args)
         if not preview then runtime:Print("Import rejected: "..tostring(err))
         else
-          local ok,reason=self.store:CommitImport(preview)
-          runtime:Print(ok and ("Imported "..#preview.add.." new IDs; "..#preview.existing.." already present.") or ("Import failed: "..tostring(reason)))
+          local ok,reason=self:QueueListImport(preview)
+          runtime:Print(ok and (reason=="PENDING" and "Checking item IDs; import is pending." or "No new item IDs to import.") or ("Import failed: "..tostring(reason)))
         end
       else runtime:Print("Use /djw lists show|add|remove|import <global|profile> <inclusions|exclusions> [IDs]") end
     elseif command == "rules" then

@@ -714,3 +714,10 @@ original-client acceptance remains required.
 Actual Lua 5.1 tests pass for direct probes and cached bag reads when metadata
 changes during the binding tooltip scan. Both paths reject mixed observations.
 No real-client operations were used; target-client acceptance remains outstanding.
+
+## Unreleased asynchronous import validation
+
+Lua 5.1 production callback fixtures cover delayed item-info response, bounded
+batching, atomic result, timeout and stale-revision cancellation. Unavailable data
+is reported as unavailable rather than conclusively invalid. No original-client
+acceptance has been run, and direct list-add paths do not use this queue.

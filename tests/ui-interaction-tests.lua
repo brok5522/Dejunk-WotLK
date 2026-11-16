@@ -1401,6 +1401,12 @@ end
 assert(fallbackFound,"unresolved item omitted its identifying ID")
 
 
+-- Async import completion must not reopen a user-closed main window.
+runtime.configCallbacks={listItems=function() return "" end}
+listsWindow:Hide()
+runtime:RefreshListsIfVisible()
+assert(not listsWindow.shown,"background import reopened the hidden Lists page")
+
 print("UI INTERACTION RESULT: options, keybindings, item windows, list transport, metadata polling and report navigation passed")
 
 -- Original 3.3.5 CheckButton:GetChecked may return 1/nil instead of booleans.

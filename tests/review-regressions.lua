@@ -81,3 +81,35 @@ local redraws=0
 w.app.runtime.UpdateBagIcons=function() redraws=redraws+1 end
 assert(w.app.store:EditList("global","exclusions",987,true))
 assert(redraws>0,"list changes did not refresh bag overlay settings")
+
+-- Exercise the real import callback with delayed, unavailable and stale item data.
+local iw=H.New():Load():Ready()
+local available={}
+local queried={}
+iw.api.GetItemInfo=function(id)
+  queried[id]=(queried[id] or 0)+1
+  if available[id] then return "Item "..id,"|Hitem:"..id..":0|h[Item]|h" end
+end
+local cb=iw.app:BuildConfigCallbacks()
+local p=assert(cb.previewListImport("global","inclusions","101,102"))
+local ok,why=cb.commitListImport(p);assert(ok and why=="PENDING")
+assert(not cb.commitListImport(p),"simultaneous imports should be blocked")
+available[101]=true;iw:Tick(0.1)
+assert(not iw.app.store:GetState().global.inclusions[101],"import committed partially")
+available[102]=true;iw:Tick(0.1)
+assert(iw.app.store:GetState().global.inclusions[101] and iw.app.store:GetState().global.inclusions[102])
+local bad=assert(cb.previewListImport("global","inclusions","103"))
+assert(cb.commitListImport(bad));iw:Tick(0.1);iw:Tick(5.1)
+assert(not iw.app.store:GetState().global.inclusions[103] and not iw.app.pendingImport)
+local stale=assert(cb.previewListImport("profile","inclusions","104"))
+assert(cb.commitListImport(stale));assert(iw.app.store:SetOption("autoSell",true))
+available[104]=true;iw:Tick(0.1)
+assert(not iw.app.store:GetActiveProfile().inclusions[104] and not iw.app.pendingImport)
+local large={};for n=201,230 do large[#large+1]=tostring(n) end
+local many=assert(cb.previewListImport("global","inclusions",table.concat(large,",")))
+assert(cb.commitListImport(many));iw:Tick(0.1)
+local calls=0;for n=201,230 do calls=calls+(queried[n] or 0) end
+assert(calls==25,"import exceeded bounded batch size")
+iw:Tick(0.1);assert(queried[230],"validation queue starved IDs after first batch")
+assert(iw.mutations==0)
+print("PASS: asynchronous imports validate, bound work, time out and cancel stale previews")

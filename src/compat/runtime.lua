@@ -511,6 +511,15 @@ function Runtime.New(environment)
   local listMetadataElapsed,listMetadataAge=0,0
 
   function runtime:Inspect() return Addon.Client.Inspect(api) end
+  -- Original 3.3.5 GetItemInfo may return nil while the client requests data.
+  -- Only a matching hyperlink is positive evidence; nil/error means unresolved.
+  function runtime:HasItemInfo(id)
+    if type(api.GetItemInfo)~="function" then return false end
+    local ok,name,link=pcall(api.GetItemInfo,id)
+    return ok and type(name)=="string" and type(link)=="string" and
+      tonumber(link:match("item:(%d+)"))==id
+  end
+
   function runtime:ForcePrint(message)
     local text = "[Dejunk-WotLK] " .. message
     if api.DEFAULT_CHAT_FRAME and type(api.DEFAULT_CHAT_FRAME.AddMessage) == "function" then
@@ -2169,6 +2178,14 @@ function Runtime.New(environment)
     if not ok then self:Print("Lists window unavailable; use /djw lists show|add|remove <global|profile> <inclusions|exclusions> <itemID>.") end
   end
 
+  function runtime:RefreshListsIfVisible()
+    if not listFrame or not runtime.configCallbacks then return end
+    local visible
+    if type(listFrame.IsVisible)=="function" then visible=listFrame:IsVisible()
+    elseif type(listFrame.IsShown)=="function" then visible=listFrame:IsShown() end
+    if visible and (not importFrame or not shown(importFrame)) then self:ShowLists(runtime.configCallbacks) end
+  end
+
   function runtime:EditList(callbacks,present)
     local scope=listSelectedScope or "global"
     local kind=listSelectedKind or "inclusions"
@@ -2224,7 +2241,7 @@ function Runtime.New(environment)
         importEdit:SetScript("OnMouseDown",function() importEdit:SetFocus() end)
         importEdit:SetScript("OnEscapePressed",function()
           importEdit:ClearFocus(); importFrame:Hide()
-          if listFrame then listFrame:Show() end
+          if listFrame then listFrame:Show(); self:ShowLists(callbacks) end
         end)
         scroll:SetScrollChild(importEdit)
         importCommitButton=styleThemedButton(api.CreateFrame("Button",nil,importFrame))
@@ -2237,8 +2254,8 @@ function Runtime.New(environment)
           else
             local committed,commitReason=callbacks.commitListImport and callbacks.commitListImport(preview)
             if committed then
-              self:Print("Imported "..#preview.add.." item IDs.")
-              self:ShowLists(callbacks)
+              if commitReason=="PENDING" then self:Print("Checking item IDs; import is pending.")
+              else self:Print("Imported "..#preview.add.." item IDs."); self:ShowLists(callbacks) end
             else self:Print("Import failed: "..tostring(commitReason or "UNAVAILABLE")) end
           end
         end)
