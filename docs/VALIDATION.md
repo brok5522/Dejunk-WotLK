@@ -694,3 +694,23 @@ hooks, original callbacks/drag scripts, cached-character and bank exclusion,
 stale links, SMALL/LARGE/off styles and rule-driven clearing. A production-store
 fixture confirms that list changes trigger overlay refresh. Reproducible 41-entry
 ZIP validation also passed. Original-client Bagnon visuals are not tested here.
+
+## Unreleased audit continuation — delayed metadata and destroy observer
+
+Actual Lua 5.1 full `tools/check.py` passed with delayed metadata (2.5 seconds),
+five-second retry deadline and production destroy timeout/unlock fixtures. The
+latter mock dispatch and never delete inventory. Original-client acceptance and
+successful-destruction confirmation remain unverified.
+
+## Unreleased audit continuation — conflicting actions
+
+Actual Lua 5.1 suite and phase-0 checks passed with production callback tests
+for manual sell/destroy while a seller is running, a sale is awaiting outcome,
+or a destruction attempt is awaiting outcome. No live actions were performed;
+original-client acceptance remains required.
+
+## Unreleased audit continuation — coherent slot observations
+
+Actual Lua 5.1 tests pass for direct probes and cached bag reads when metadata
+changes during the binding tooltip scan. Both paths reject mixed observations.
+No real-client operations were used; target-client acceptance remains outstanding.

@@ -65,7 +65,14 @@ function Transactions.New(api,readAdapter,getSettingsRevision)
     if not self.readAdapter then return nil,"READ_ADAPTER_UNAVAILABLE" end
     local sets=self.readAdapter:ReadEquipmentSets()
     local item=self.readAdapter:ReadSlot(bag,slot,sets)
-    if item and item.state=="OCCUPIED" then item.bound=self.readAdapter:ReadBinding(bag,slot) end
+    if item and item.state=="OCCUPIED" then
+      local bound=self.readAdapter:ReadBinding(bag,slot)
+      local after=self.readAdapter:ReadSlot(bag,slot,sets)
+      if not sameItem(after,item) or not sameRuleInputs(after,item) then
+        return nil,"SLOT_CHANGED_DURING_BINDING_READ"
+      end
+      item.bound=bound
+    end
     return item
   end
 

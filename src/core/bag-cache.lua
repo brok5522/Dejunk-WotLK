@@ -1,7 +1,7 @@
 local _, Addon = ...
 
 function Addon.NewBagCache(adapter, scheduler, bus)
-  local cache = { generation = 0, active = false, pending = nil, retries = 0 }
+  local cache = { generation = 0, active = false, pending = nil, retryDeadline = nil }
   local snapshot = { generation = 0, valid = false, bags = {}, items = {}, occupied = 0, unknown = 0 }
 
   function cache:GetSnapshot()
@@ -22,7 +22,10 @@ function Addon.NewBagCache(adapter, scheduler, bus)
   function cache:Invalidate(reason)
     if not self.active then return end
     self.generation = self.generation + 1
-    self.retries = 0
+    self.retryDeadline = nil
+    -- A pending metadata retry can be due much later than the normal bag
+    -- refresh. Replace it so a real bag change is scanned promptly.
+    if self.pending then self.pending:Cancel(); self.pending = nil end
     bus:Emit("BagsInvalidated", self.generation, reason)
     self:Queue(0.1)
   end
@@ -49,7 +52,7 @@ function Addon.NewBagCache(adapter, scheduler, bus)
           if item.state=="OCCUPIED" and item.equipLoc and item.equipLoc~="" and type(adapter.ReadBinding)=="function" then
             local bound=adapter:ReadBinding(bag,slot)
             local after=adapter:ReadSlot(bag,slot,sets)
-            if item.link==after.link and item.count==after.count and item.locked==after.locked and after.state=="OCCUPIED" then
+            if Addon.SameSlotObservation(item,after) and after.state=="OCCUPIED" then
               item.bound=bound
             else
               item.state,item.reason="UNKNOWN","PROBE_CHANGED"
@@ -70,11 +73,14 @@ function Addon.NewBagCache(adapter, scheduler, bus)
     nextSnapshot.valid = self.active and generation == self.generation
     snapshot = nextSnapshot
     bus:Emit("BagsUpdated", self:GetSnapshot())
-    -- Two bounded retries for unresolved occupancy/metadata. Safety fields stay
-    -- explicitly unknown; retries do not transform unknown values into false.
-    if incomplete and self.retries < 2 and generation == self.generation then
-      self.retries = self.retries + 1
-      self:Queue(0.5)
+    -- Keep retrying unresolved slots for up to five seconds from the first
+    -- incomplete scan, matching the reference deadline without infinite polling.
+    if incomplete and generation == self.generation then
+      self.retryDeadline = self.retryDeadline or (scheduler.now + 5)
+      local remaining = self.retryDeadline - scheduler.now
+      if remaining > 0 then self:Queue(math.min(0.5, remaining)) end
+    else
+      self.retryDeadline = nil
     end
   end
 

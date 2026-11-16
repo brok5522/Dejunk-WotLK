@@ -36,3 +36,116 @@ therefore invalidate the earlier decision without preventing dispatch. The
 adapter now rejects changed rule inputs before sale or pickup. Lua 5.1 fake-API
 regressions verify changed metadata does not dispatch either action. This fix is
 local and not yet published.
+
+## Continuation: event bus, scheduler, bag cache and live binding probe
+
+Reviewed all lines of `src/core/events.lua`, `src/core/scheduler.lua` and
+`src/core/bag-cache.lua`, plus the live transaction adapter's binding read
+(`src/compat/runtime.lua:ReadItem`) and upstream `src/items/bag-items-cache.lua`
+at the pinned revision. The event bus snapshots listeners for dispatch; the
+scheduler defers newly scheduled callbacks to the next advance and cancels jobs
+by token. The bag cache invalidates by generation and rejects snapshots that
+change while scanning. Its two 0.5-second retries are shorter than the upstream
+five-second pending-data deadline: this remains a behavioral difference and
+needs a realistic delayed-metadata fixture before any policy change.
+
+**Fixed locally:** unlike the cache's binding probe, the live transaction
+adapter previously did not reread the slot after the tooltip binding probe. If
+that slot changed during the probe, the resulting identity and binding could
+refer to different observations. It now reads the slot again and rejects any
+identity, lock or rule-input change before returning an item. Fake-API tests
+change the source item during the binding read and assert both sale and destroy
+pickup are blocked. No live inventory action was performed. This fix has not
+been released. The earlier rule-input revalidation fix is included in 1.0.3;
+the previous paragraph calling it unpublished describes the older review state.
+
+Validation: `python3 tools/check_phase0.py`, `python3 tools/check.py --lua
+/workspace/work/lua51/usr/bin/lua5.1 --luac /workspace/work/lua51/usr/bin/luac5.1`
+and `git diff --check` passed on this working tree. Original-client testing was
+not performed. Pending-destroy outcome observation remains open.
+
+## Continuation: delayed metadata and destroy outcome
+
+The bag cache now retries incomplete reads for five seconds from its first
+incomplete scan, with 0.5-second intervals and cancellation on logout. This
+replaces the previous two retries. A fake item whose metadata becomes available
+after 2.5 seconds resolves without a bag event; a permanently unavailable item
+remains unknown and polling ends at the deadline. This is closer to upstream's
+five-second pending deadline, but the port rescans all carried slots rather than
+upstream's pending slots. Runtime performance and actual client timing remain
+unverified.
+
+For destruction, a production observer now tracks the dispatched attempt for five
+seconds, prevents a second attempt during that window and reports a matching
+`ITEM_UNLOCKED` as failure. On timeout it explicitly reports that the outcome
+could not be confirmed. The original slot is emptied by pickup before deletion,
+so slot disappearance alone is insufficient evidence to claim success; unlike
+upstream, no successful-destruction confirmation is asserted. Fake production
+callback tests cover timeout, unlock, duplicate attempts and no inventory
+mutation. Full successful-outcome parity remains open pending reliable 3.3.5
+client evidence. These changes are local and unpublished.
+
+Validation after changes: actual Lua 5.1 full suite and deterministic ZIP
+checks passed. No real-client item was destroyed.
+
+## Continuation: seller busy state and item ordering
+
+Compared the production `startSelling`, manual sell and destroy callbacks in
+`src/core/bootstrap.lua` with the pinned `src/services/seller.lua` and
+`src/services/destroyer.lua`. The reference uses `Addon:IsBusy()` to prevent
+manual item actions during a seller run or an unconfirmed action. Previously,
+the port prevented duplicate runs and duplicate same-slot sales but still let a
+manual sale or destruction start while another run/confirmation was active.
+The port now blocks conflicting manual actions and new sale runs while sales or
+an attempted destruction await their outcome; a run's own sales remain allowed.
+Production-path fake-API tests cover a running seller, a pending sale and pending
+destruction. This change is local and has not been released.
+
+Reviewed `src/services/junk-items.lua` against the pinned reference's
+`src/junk-filter/junk-items-cache.lua` sort comparator. Both order by stack price,
+quality, name and count; the port adds bag/slot tie-breakers for stable ordering.
+The port's unknown-item and stale-snapshot exclusions are deliberate safety
+behavior, rather than exact reference cache internals. A full in-client check is
+still necessary. The seller's existing 0.4-second cache-settle timeout matches
+`Seller.MAX_SETTLE_SECONDS` in the pinned reference; it is separate from the
+five-second item metadata retry window.
+
+Full Lua 5.1 checks, phase-0 checks and `git diff --check` passed; no live
+inventory was mutated. Successful destruction still cannot be established from
+slot disappearance alone, so its positive outcome remains an explicit parity
+and client-evidence gap.
+
+## Continuation: list transport, lootable frame and observation consistency
+
+Compared the pinned reference's list parser and lootable-frame source with
+`src/store/store.lua` import, `src/ui/config.lua` list filtering, and
+`src/compat/runtime.lua` lootable presentation. Existing imported IDs are kept
+when item metadata is unavailable, and digit-run parsing remains data-only.
+The upstream parser validates new IDs asynchronously whereas this port stores
+syntactically valid IDs immediately; invalid/unavailable IDs can remain in the
+list. This remains an explicit parity gap, not a claim that the import is fully
+validated against the server. The ignored-lootable session filter and automatic
+show/hide path were reviewed; native behavior needs client acceptance.
+
+**Fixed locally:** the live transaction probe had been strengthened earlier,
+but bag-cache and public-slot probes only compared link/count/lock after reading
+binding. Metadata, such as price or quality, could change while these values
+remained the same. A shared pure observation comparator now checks identity,
+metadata, price, quality, quest/refund/set state and lootable flag on both sides
+of the binding read. Changed observations become `UNKNOWN`, allowing a retry
+instead of exposing a mixed snapshot. Fake Lua 5.1 tests mutate the price during
+the read and exercise both the direct probe and bag cache. No game inventory was
+modified. This fix and the preceding audit changes are not published.
+
+Validation: `tools/check.py` with actual Lua 5.1 passed all suites and the
+reproducible ZIP check; phase-0 and whitespace checks passed. Native game
+acceptance and the new-item asynchronous validation difference remain open.
+
+## Continuation: bag changes during metadata retries
+
+A BAG_UPDATE previously left a queued 0.5-second metadata retry in place, so a
+newly changed bag could remain stale until that old retry was due. Invalidation
+now cancels the old timer and queues the normal 0.1-second refresh. A Lua 5.1
+fixture starts an unresolved metadata retry, changes the slot, fires BAG_UPDATE,
+and verifies a fresh known snapshot after 0.1 seconds. The cached metadata and
+original-client behavior remain separate from validation of newly imported IDs.

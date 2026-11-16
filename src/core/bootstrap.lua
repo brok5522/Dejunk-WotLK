@@ -397,8 +397,7 @@ function Addon.NewApplication(runtime)
     local item = self.adapter:ReadSlot(bag, slot, sets)
     if item.state == "OCCUPIED" then item.bound = self.adapter:ReadBinding(bag, slot) end
     local after = self.adapter:ReadSlot(bag, slot, sets)
-    if generation ~= self.cache.generation or item.state ~= after.state or item.link ~= after.link or
-        item.count ~= after.count or item.locked ~= after.locked then
+    if generation ~= self.cache.generation or not Addon.SameSlotObservation(item,after) then
       item.state, item.reason, item.bound = "UNKNOWN", "PROBE_CHANGED", Addon.UNKNOWN
     end
     item.bagGeneration = generation
@@ -678,6 +677,7 @@ function Addon.NewApplication(runtime)
     self.actionsAttached=true
     self.transactions=transactionAdapter
     self.pendingSales={}
+    self.pendingDestroy=nil
     local function summarize(run)
       if run and run.closed and run.pending==0 and not run.reported then
         run.reported=true
@@ -720,14 +720,32 @@ function Addon.NewApplication(runtime)
     self.bus:On("ITEM_UNLOCKED",function(bag,slot)
       local entry=self.pendingSales[tostring(bag)..":"..tostring(slot)]
       if entry then resolveSale(entry,"failed") end
+      local destroyed=self.pendingDestroy
+      if destroyed and destroyed.item.bag==bag and destroyed.item.slot==slot then
+        self.pendingDestroy=nil
+        if destroyed.timer then destroyed.timer:Cancel() end
+        runtime:Print("Destroy failed: "..destroyed.label)
+      end
     end)
+    local function trackDestroy(item)
+      local entry={item=Addon.Copy(item),label=item.link or item.name or tostring(item.itemId)}
+      self.pendingDestroy=entry
+      -- Pickup has already emptied the source slot. That observation alone does
+      -- not prove the server accepted deletion, so never label it confirmed.
+      entry.timer=self.scheduler:After(5,function()
+        if self.pendingDestroy~=entry then return end
+        self.pendingDestroy=nil
+        runtime:Print("Destroy outcome could not be confirmed: "..entry.label)
+      end)
+    end
     runtime.configCallbacks=runtime.configCallbacks or self:BuildConfigCallbacks()
     local function readCurrent(item)
       local current=self.transactions:ReadItem(item.bag,item.slot)
       if current and current.state=="OCCUPIED" then current.bagGeneration=self.cache.generation end
       return current
     end
-    local function sell(item)
+    local function sell(item,fromRun)
+      if self.pendingDestroy or (not fromRun and (self.saleRun or next(self.pendingSales))) then return false,"BUSY" end
       if not atMerchant then return false,"MERCHANT_UNAVAILABLE" end
       if self.pendingSales[item.bag..":"..item.slot] then return false,"SALE_PENDING" end
       local current=readCurrent(item)
@@ -743,6 +761,7 @@ function Addon.NewApplication(runtime)
       return ok,reason,attempted
     end
     local function destroy(item)
+      if self.pendingDestroy or self.saleRun or next(self.pendingSales) then return false,"BUSY" end
       item=Addon.Copy(item)
       local intentRevision=self.store:GetRevision()
       local consumed=false
@@ -759,7 +778,9 @@ function Addon.NewApplication(runtime)
         if decision.result~="JUNK" then runtime:Print("Destroy cancelled: item is no longer eligible."); return false end
         local context=self.transactions:ReadContext(nil,current.settingsRevision)
         if not context.safeContext or context.inCombat or not context.cursorEmpty then runtime:Print("Destroy cancelled: unsafe context."); return false end
+        if self.pendingDestroy or self.saleRun or next(self.pendingSales) then return false,"BUSY" end
         local ok,reason=self.transactions:AttemptDestroy(current)
+        if ok then trackDestroy(current) end
         runtime:Print(ok and "Destroy attempted." or (reason=="CURSOR_MISMATCH_ITEM_LEFT_UNTOUCHED" and
           "Unexpected cursor item left untouched; move it manually." or "Destroy failed; cursor item left untouched."))
         return ok,reason
@@ -786,7 +807,7 @@ function Addon.NewApplication(runtime)
     runtime:SetItemActionHandlers({sellItem=sell,destroyItem=destroy,
       startSelling=function()
         if not atMerchant then return false,"MERCHANT_UNAVAILABLE" end
-        if self.saleRun then return false,"BUSY" end
+        if self.saleRun or self.pendingDestroy or next(self.pendingSales) then return false,"BUSY" end
         local attempts,seen=0,{}
         local run={session=merchantSession,revision=self.store:GetRevision(),waitSince=self.scheduler.now,pending=0,sold=0,value=0}
         self.saleRun=run
@@ -814,7 +835,7 @@ function Addon.NewApplication(runtime)
             if it.sell and it.sell.result=="JUNK" and it.locked~=true and not seen[k] then target=it; seen[k]=true; break end
           end
           if not target then return finish() end
-          local succeeded,_,dispatched=sell(target)
+          local succeeded,_,dispatched=sell(target,true)
           if succeeded or dispatched then attempts=attempts+1 end
           run.waitSince=self.scheduler.now
           self.saleTimer=self.scheduler:After(self.transactions:Latency(),nextSale)

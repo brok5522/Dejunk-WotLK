@@ -3,7 +3,7 @@
 ## SavedVariables: DejunkWotLKDB
 ## Notes: Inventory cleanup for original WoW 3.3.5a (build 12340).
 ## Author: Dejunk-WotLK contributors
-## Version: 1.0.3
+## Version: 1.0.4
 
 src\namespace.lua
 libs\Waffle.lua
